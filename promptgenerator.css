@@ -476,7 +476,14 @@
 ══════════════════════════════════════════ */
 .pg-search-wrap {
   position      : relative;
-  margin-bottom : 20px;
+  margin-top    : 16px;
+  margin-bottom : 24px;
+}
+.pg-search-label {
+  font-size     : 14px;
+  color         : rgba(245,246,250,0.55);
+  margin-bottom : 10px;
+  margin-top    : 0;
 }
 .pg-search-inner {
   position      : relative;
