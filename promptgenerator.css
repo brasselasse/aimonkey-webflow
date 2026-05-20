@@ -581,15 +581,31 @@
 }
 .pg-search-item:hover,
 .pg-search-item.is-active { background: rgba(0,201,167,0.10); }
+.pg-search-item-left {
+  display   : flex;
+  flex-direction: column;
+  gap       : 2px;
+  flex      : 1;
+  min-width : 0;
+  text-align: left !important;
+}
 .pg-search-item-name {
   color        : rgb(245,246,250);
   font-size    : 14px;
-  flex         : 1;
+  font-weight  : 500;
   white-space  : nowrap;
   overflow     : hidden;
   text-overflow: ellipsis;
-  min-width    : 0;
   text-align   : left !important;
+}
+.pg-search-item-desc {
+  color        : rgba(245,246,250,0.45);
+  font-size    : 12px;
+  white-space  : nowrap;
+  overflow     : hidden;
+  text-overflow: ellipsis;
+  text-align   : left !important;
+  line-height  : 1.4;
 }
 .pg-search-item-cat {
   font-size    : 11px;
