@@ -1,6 +1,3 @@
-/* Confetti loader */
-(function(){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";document.head.appendChild(s);})();
-
 /* ============================================================
    D-PRE. LÄS URL-PARAMETRAR DIREKT (innan DOMContentLoaded)
    Så att värdena finns redo när DOM är klar.
@@ -993,11 +990,13 @@ document.addEventListener("DOMContentLoaded", function () {
             var cat  = (el.querySelector('.pg-d-cat')    || {}).textContent || '';
             var slug = (el.querySelector('.pg-d-slug')   || {}).textContent || '';
             var pt   = (el.querySelector('.pg-d-prompt') || {}).textContent || '';
+            var desc = (el.querySelector('.pg-d-desc')   || {}).textContent || '';
             return {
               name:     name.trim(),
               category: cat.trim(),
               slug:     slug.trim(),
               prompt:   pt.trim(),
+              desc:     desc.trim(),
               tasktype: CAT_MAP[cat.trim()] || 'skriva-text',
             };
           }).filter(function (p) { return p.name; });
@@ -1036,8 +1035,12 @@ document.addEventListener("DOMContentLoaded", function () {
         var li = document.createElement('li');
         li.className = 'pg-search-item';
         li.setAttribute('role', 'option');
+        var descText = p.desc || '';
         li.innerHTML =
-          '<span class="pg-search-item-name">' + esc(p.name) + '</span>' +
+          '<div class="pg-search-item-left">' +
+            '<span class="pg-search-item-name">' + esc(p.name) + '</span>' +
+            (descText ? '<span class="pg-search-item-desc">' + esc(descText) + '</span>' : '') +
+          '</div>' +
           '<span class="pg-search-item-cat">'  + esc(p.category) + '</span>';
         li.addEventListener('mousedown', function (e) {
           e.preventDefault();
