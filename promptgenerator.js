@@ -919,8 +919,8 @@ document.addEventListener("DOMContentLoaded", function () {
       'Kodning & Webb':                   'kod',
       'Vardag':                           'brainstorma',
       'Kreativitet':                      'brainstorma',
-      'Bildgenerering':                   'bildprompta',
-      'Bild':                             'bildprompta',
+      'Bildgenerering':                   'bild',
+      'Bild':                             'bild',
       'Allmänt':                          'skriva-text',
     };
 
