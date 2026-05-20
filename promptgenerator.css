@@ -577,6 +577,7 @@
   cursor          : pointer;
   gap             : 10px;
   transition      : background 0.12s;
+  text-align      : left !important;
 }
 .pg-search-item:hover,
 .pg-search-item.is-active { background: rgba(0,201,167,0.10); }
@@ -588,6 +589,7 @@
   overflow     : hidden;
   text-overflow: ellipsis;
   min-width    : 0;
+  text-align   : left !important;
 }
 .pg-search-item-cat {
   font-size    : 11px;
