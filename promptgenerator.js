@@ -1056,8 +1056,11 @@ document.addEventListener("DOMContentLoaded", function () {
         radio.checked = true;
         radio.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      /* 2. Fyll brief-input */
-      var ta = document.getElementById('brief-input');
+      /* 2. Fyll rätt fält baserat på uppgiftstyp */
+      var fieldId = (p.tasktype === 'bild' || p.tasktype === 'bildprompta') ? 'image-subject' :
+                    p.tasktype === 'video' ? 'video-scene' :
+                    p.tasktype === 'kod'   ? 'code-task'   : 'brief-input';
+      var ta = document.getElementById(fieldId);
       if (ta) {
         ta.value = p.prompt;
         ta.dispatchEvent(new Event('input',  { bubbles: true }));
