@@ -1,0 +1,472 @@
+/* ══════════════════════════════════════════
+   AI-TOOL-LINKS — dold tills prompt kopieras
+══════════════════════════════════════════ */
+.ai-tool-links {
+  display   : none;
+  visibility: hidden;
+  opacity   : 0;
+  transition: opacity 0.3s ease;
+}
+.ai-tool-links.is-revealed {
+  display   : block;
+  visibility: visible;
+  opacity   : 1;
+}
+
+/* ══════════════════════════════════════════
+   A. CHECKMARKS
+══════════════════════════════════════════ */
+.pg-step-check {
+  margin-left    : auto;
+  display        : inline-flex;
+  align-items    : center;
+  justify-content: center;
+  width          : 24px;
+  height         : 24px;
+  border-radius  : 50%;
+  background     : transparent;
+  border         : 2px solid rgba(255, 255, 255, 0.15);
+  color          : transparent;
+  flex-shrink    : 0;
+  transition     : background 0.25s ease, border-color 0.25s ease,
+                   color 0.25s ease;
+}
+.pg-step-check svg {
+  width : 12px;
+  height: 10px;
+}
+.form-step-header.step-is-complete .pg-step-check {
+  background  : #00c9a7;
+  border-color: #00c9a7;
+  color       : #ffffff;
+  animation   : pg-check-pop 0.3s ease;
+}
+@keyframes pg-check-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.form-step-header.step-is-complete .text-style-badge {
+  background: rgba(0, 201, 167, 0.15);
+  color     : #00c9a7;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ══════════════════════════════════════════
+   B. KLICKBARA HEADERS
+══════════════════════════════════════════ */
+.pg-header-clickable {
+  cursor     : pointer;
+  user-select: none;
+  transition : opacity 0.15s ease;
+}
+.pg-header-clickable:hover  { opacity: 0.82; }
+.pg-header-clickable:active { opacity: 0.65; }
+.pg-header-clickable:focus-visible {
+  outline       : 2px solid #00c9a7;
+  outline-offset: 3px;
+  border-radius : 4px;
+}
+
+/* ══════════════════════════════════════════
+   10. "VISA PROMPT"-HIGHLIGHT
+   Pulsande glow på preview-wrappern när
+   användaren klickar "Visa min prompt".
+══════════════════════════════════════════ */
+#prompt-preview-wrapper.is-highlighted {
+  animation: pg-highlight-pulse 2s ease forwards;
+}
+@keyframes pg-highlight-pulse {
+  0%   {
+    box-shadow      : 0 0 0 0px  rgba(0, 201, 167, 0);
+    outline         : 3px solid  rgba(0, 201, 167, 0);
+    background-color: transparent;
+  }
+  12%  {
+    box-shadow      : 0 0 0 10px rgba(0, 201, 167, 0.25), 0 0 40px 4px rgba(0, 201, 167, 0.15);
+    outline         : 3px solid  rgba(0, 201, 167, 1);
+    background-color: rgba(0, 201, 167, 0.07);
+  }
+  50%  {
+    box-shadow      : 0 0 0 6px  rgba(0, 201, 167, 0.12), 0 0 20px 2px rgba(0, 201, 167, 0.08);
+    outline         : 3px solid  rgba(0, 201, 167, 0.5);
+    background-color: rgba(0, 201, 167, 0.04);
+  }
+  100% {
+    box-shadow      : 0 0 0 0px  rgba(0, 201, 167, 0);
+    outline         : 3px solid  rgba(0, 201, 167, 0);
+    background-color: transparent;
+  }
+}
+
+/* ══════════════════════════════════════════
+   E. LIVE PREVIEW — bevara radbrytningar
+   Gör att \n i prompttexten visas som
+   radbrytningar, precis som i brief-input.
+══════════════════════════════════════════ */
+.pg-prompt-value {
+  white-space: pre-wrap;
+}
+
+/* ══════════════════════════════════════════
+   E2. PREVIEW-TASK — max-höjd + fade-mask
+   Klicka texten för att expandera till full höjd.
+   Under typing: auto-scroll nerifrån (JS).
+   När klart: scroll tillbaka till toppen.
+══════════════════════════════════════════ */
+#preview-task {
+  max-height             : 9em;
+  overflow-y             : scroll;
+  scrollbar-width        : none;
+  -webkit-mask-image     : linear-gradient(to bottom, black 55%, transparent 100%);
+  mask-image             : linear-gradient(to bottom, black 55%, transparent 100%);
+  cursor                 : pointer;
+  transition             : max-height 0.35s ease, mask-image 0.2s ease,
+                           -webkit-mask-image 0.2s ease;
+}
+#preview-task::-webkit-scrollbar {
+  display: none;
+}
+#preview-task.is-expanded {
+  max-height             : none;
+  overflow-y             : visible;
+  -webkit-mask-image     : none;
+  mask-image             : none;
+  cursor                 : default;
+}
+/* Liten "expandera"-hint längst ner */
+#preview-task:not(.is-expanded):not([data-typing])::after {
+  content : "Klicka för att se hela uppgiften ↓";
+  display : block;
+  font-size: 10px;
+  color   : rgba(0, 201, 167, 0.6);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════
+   E3. PREVIEW BLOCKS — dölj tomma etiketter
+   data-has-content sätts av setBlockVisibility()
+   i JS ovan. "false" = blocket är tomt och
+   ska inte synas förrän användaren fyllt i data.
+   Övergången döljs mjukt med opacity + height.
+══════════════════════════════════════════ */
+[data-has-content="false"] {
+  display : none !important;
+}
+
+/* ══════════════════════════════════════════
+   I. TEXTAREA & TEXT-INPUT — synlighet + scroll
+   Alla input-fält i formuläret får tydlig
+   border, scroll och fokus-indikator.
+══════════════════════════════════════════ */
+.form-step textarea,
+.form-step input[type="text"] {
+  border        : 1.5px solid rgba(255,255,255,0.14) !important;
+  background    : rgba(255,255,255,0.04) !important;
+  border-radius : 8px !important;
+  overflow-y    : auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,201,167,0.35) transparent;
+  transition    : border-color 0.2s ease, background 0.2s ease,
+                  box-shadow 0.2s ease !important;
+}
+.form-step textarea:hover,
+.form-step input[type="text"]:hover {
+  border-color: rgba(255,255,255,0.25) !important;
+  background  : rgba(255,255,255,0.06) !important;
+}
+.form-step textarea:focus,
+.form-step input[type="text"]:focus {
+  border-color: rgba(0,201,167,0.65) !important;
+  background  : rgba(0,201,167,0.04) !important;
+  outline     : none !important;
+  box-shadow  : 0 0 0 3px rgba(0,201,167,0.12) !important;
+}
+.form-step textarea::placeholder,
+.form-step input[type="text"]::placeholder {
+  color  : rgba(245,246,250,0.28) !important;
+  opacity: 1 !important;
+}
+.form-step textarea::-webkit-scrollbar { width: 4px; }
+.form-step textarea::-webkit-scrollbar-track { background: transparent; }
+.form-step textarea::-webkit-scrollbar-thumb {
+  background   : rgba(0,201,167,0.35);
+  border-radius: 2px;
+}
+
+/* ══════════════════════════════════════════
+   F. BRIEF-INPUT — Fullscreen-modal (mörkt tema)
+══════════════════════════════════════════ */
+
+/* Wrapper runt textarea — behövs för knapp-positionering */
+.pg-brief-wrap {
+  position : relative;
+  display  : block;
+  width    : 100%;
+}
+
+/* Expand-knapp — synlig med label */
+.pg-brief-expand-btn {
+  position        : absolute;
+  bottom          : 10px;
+  right           : 10px;
+  height          : 28px;
+  padding         : 0 10px 0 8px;
+  gap             : 5px;
+  background      : rgba(0,201,167,0.12);
+  border          : 1px solid rgba(0,201,167,0.30);
+  border-radius   : 6px;
+  cursor          : pointer;
+  display         : flex;
+  align-items     : center;
+  justify-content : center;
+  color           : rgba(0,201,167,0.85);
+  transition      : background 0.15s, color 0.15s, border-color 0.15s;
+  z-index         : 10;
+  font-size       : 11px;
+  font-weight     : 600;
+}
+.pg-brief-expand-btn:hover {
+  background   : rgba(0,201,167,0.22);
+  border-color : rgba(0,201,167,0.55);
+  color        : rgb(0,201,167);
+}
+.pg-brief-expand-label {
+  line-height: 1;
+}
+
+/* Modal overlay */
+.pg-brief-modal {
+  position        : fixed;
+  inset           : 0;
+  background      : rgba(0,0,0,0.72);
+  z-index         : 99999;
+  display         : flex;
+  align-items     : center;
+  justify-content : center;
+  padding         : 20px;
+  opacity         : 0;
+  pointer-events  : none;
+  transition      : opacity 0.2s ease;
+}
+.pg-brief-modal.is-open {
+  opacity        : 1;
+  pointer-events : all;
+}
+.pg-brief-modal-inner {
+  background    : rgb(8, 24, 47);
+  border        : 1px solid rgba(255,255,255,0.10);
+  border-radius : 16px;
+  width         : 100%;
+  max-width     : 960px;
+  max-height    : 92vh;
+  display       : flex;
+  flex-direction: column;
+  box-shadow    : 0 32px 100px rgba(0,0,0,0.60);
+  transform     : scale(0.96) translateY(12px);
+  transition    : transform 0.22s ease;
+}
+.pg-brief-modal.is-open .pg-brief-modal-inner {
+  transform: scale(1) translateY(0);
+}
+.pg-brief-modal-header {
+  display         : flex;
+  align-items     : center;
+  justify-content : space-between;
+  padding         : 18px 24px;
+  border-bottom   : 1px solid rgba(255,255,255,0.08);
+  flex-shrink     : 0;
+}
+.pg-brief-modal-title {
+  font-size   : 15px;
+  font-weight : 600;
+  color       : rgb(245,246,250);
+  margin      : 0;
+}
+.pg-brief-modal-close {
+  width           : 32px;
+  height          : 32px;
+  background      : none;
+  border          : none;
+  cursor          : pointer;
+  color           : rgba(245,246,250,0.45);
+  border-radius   : 6px;
+  display         : flex;
+  align-items     : center;
+  justify-content : center;
+  transition      : background 0.15s, color 0.15s;
+  padding         : 0;
+}
+.pg-brief-modal-close:hover {
+  background : rgba(255,255,255,0.08);
+  color      : rgb(245,246,250);
+}
+.pg-brief-modal-ta {
+  flex          : 1;
+  width         : 100%;
+  min-height    : 480px;
+  padding       : 20px 24px;
+  border        : none;
+  border-top    : 2px solid rgba(0,201,167,0.2);
+  outline       : none;
+  resize        : none;
+  font-family   : inherit;
+  font-size     : 1rem;
+  line-height   : 1.7;
+  color         : rgb(245,246,250);
+  background    : rgba(0,201,167,0.02);
+  caret-color   : rgb(0,201,167);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,201,167,0.3) transparent;
+  transition    : border-color 0.2s ease, background 0.2s ease;
+}
+.pg-brief-modal-ta:focus {
+  border-top-color: rgba(0,201,167,0.65);
+  background      : rgba(0,201,167,0.04);
+  outline         : none;
+}
+.pg-brief-modal-ta::placeholder {
+  color: rgba(245,246,250,0.25);
+}
+.pg-brief-modal-ta::-webkit-scrollbar { width: 4px; }
+.pg-brief-modal-ta::-webkit-scrollbar-track { background: transparent; }
+.pg-brief-modal-ta::-webkit-scrollbar-thumb {
+  background: rgba(0,201,167,0.3); border-radius: 2px;
+}
+.pg-brief-modal-footer {
+  padding        : 16px 24px;
+  border-top     : 1px solid rgba(255,255,255,0.08);
+  display        : flex;
+  align-items    : center;
+  justify-content: space-between;
+  flex-shrink    : 0;
+}
+.pg-brief-modal-hint {
+  font-size : 13px;
+  color     : rgba(245,246,250,0.35);
+}
+.pg-brief-modal-save {
+  background    : linear-gradient(135deg, #00c9a7 0%, #00a88c 100%);
+  color         : #fff;
+  border        : none;
+  border-radius : 8px;
+  padding       : 10px 24px;
+  font-size     : 14px;
+  font-weight   : 600;
+  cursor        : pointer;
+  box-shadow    : 0 2px 10px rgba(0,201,167,0.35);
+  transition    : opacity 0.15s, box-shadow 0.15s;
+}
+.pg-brief-modal-save:hover {
+  opacity    : 0.90;
+  box-shadow : 0 4px 16px rgba(0,201,167,0.45);
+}
+
+/* ══════════════════════════════════════════
+   H. SENASTE PROMPTER
+══════════════════════════════════════════ */
+#pg-recent-wrap {
+  margin-top : 28px;
+  padding-top: 20px;
+  border-top : 1px solid rgba(255,255,255,0.08);
+}
+.pg-recent-header {
+  display        : flex;
+  align-items    : center;
+  justify-content: space-between;
+  margin-bottom  : 12px;
+}
+.pg-recent-title {
+  font-size     : 11px;
+  font-weight   : 700;
+  color         : rgba(245,246,250,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pg-recent-clear {
+  background : none;
+  border     : none;
+  cursor     : pointer;
+  font-size  : 11px;
+  color      : rgba(245,246,250,0.25);
+  padding    : 0;
+  transition : color 0.15s;
+}
+.pg-recent-clear:hover { color: rgba(245,246,250,0.65); }
+
+.pg-recent-list {
+  list-style    : none;
+  margin        : 0;
+  padding       : 0;
+  display       : flex;
+  flex-direction: column;
+  gap           : 6px;
+}
+.pg-recent-item {
+  display       : flex;
+  align-items   : center;
+  gap           : 10px;
+  background    : rgba(255,255,255,0.03);
+  border        : 1px solid rgba(255,255,255,0.07);
+  border-radius : 10px;
+  padding       : 10px 12px;
+  transition    : background 0.15s, border-color 0.15s;
+}
+.pg-recent-item:hover {
+  background  : rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.11);
+}
+.pg-recent-preview {
+  flex         : 1;
+  font-size    : 12px;
+  color        : rgba(245,246,250,0.65);
+  line-height  : 1.4;
+  white-space  : nowrap;
+  overflow     : hidden;
+  text-overflow: ellipsis;
+  min-width    : 0;
+  text-align   : left;
+}
+.pg-recent-meta {
+  display    : flex;
+  align-items: center;
+  gap        : 6px;
+  flex-shrink: 0;
+}
+.pg-recent-badge {
+  font-size     : 10px;
+  font-weight   : 700;
+  padding       : 2px 7px;
+  border-radius : 20px;
+  background    : rgba(0,201,167,0.12);
+  color         : #00c9a7;
+  white-space   : nowrap;
+}
+.pg-recent-time {
+  font-size : 11px;
+  color     : rgba(245,246,250,0.28);
+  white-space: nowrap;
+}
+.pg-recent-copy {
+  flex-shrink   : 0;
+  background    : rgba(255,255,255,0.05);
+  border        : 1px solid rgba(255,255,255,0.09);
+  border-radius : 6px;
+  padding       : 4px 11px;
+  font-size     : 11px;
+  cursor        : pointer;
+  color         : rgba(245,246,250,0.55);
+  transition    : background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pg-recent-copy:hover {
+  background  : rgba(0,201,167,0.12);
+  border-color: rgba(0,201,167,0.3);
+  color       : #00c9a7;
+}
+.pg-recent-copy.is-copied {
+  background  : rgba(0,201,167,0.15);
+  border-color: rgba(0,201,167,0.4);
+  color       : #00c9a7;
+}
+
