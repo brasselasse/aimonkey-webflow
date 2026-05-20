@@ -470,3 +470,153 @@
   color       : #00c9a7;
 }
 
+/* ══════════════════════════════════════════
+   S. PROMPTBIBLIOTEK-SÖK
+   Sökruta ovanför formuläret
+══════════════════════════════════════════ */
+.pg-search-wrap {
+  position      : relative;
+  margin-bottom : 20px;
+}
+.pg-search-inner {
+  position      : relative;
+  display       : flex;
+  align-items   : center;
+}
+.pg-search-icon {
+  position      : absolute;
+  left          : 14px;
+  width         : 16px;
+  height        : 16px;
+  color         : rgba(255,255,255,0.4);
+  pointer-events: none;
+  flex-shrink   : 0;
+}
+.pg-search-input {
+  width         : 100%;
+  padding       : 13px 44px 13px 44px;
+  background    : rgba(255,255,255,0.05) !important;
+  border        : 1.5px solid rgba(255,255,255,0.14) !important;
+  border-radius : 10px !important;
+  color         : #fff !important;
+  font-size     : 15px;
+  font-family   : inherit;
+  transition    : border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  box-sizing    : border-box;
+  -webkit-appearance: none;
+}
+.pg-search-input:focus {
+  outline     : none !important;
+  border-color: rgba(0,201,167,0.65) !important;
+  background  : rgba(0,201,167,0.04) !important;
+  box-shadow  : 0 0 0 3px rgba(0,201,167,0.12) !important;
+}
+.pg-search-input::placeholder {
+  color: rgba(255,255,255,0.32);
+}
+.pg-search-input::-webkit-search-cancel-button,
+.pg-search-input::-webkit-search-decoration { display: none; }
+.pg-search-clear {
+  position      : absolute;
+  right         : 12px;
+  background    : none;
+  border        : none;
+  cursor        : pointer;
+  color         : rgba(255,255,255,0.35);
+  font-size     : 13px;
+  padding       : 4px 6px;
+  border-radius : 4px;
+  transition    : color 0.15s, background 0.15s;
+  line-height   : 1;
+}
+.pg-search-clear:hover {
+  color      : rgba(255,255,255,0.8);
+  background : rgba(255,255,255,0.08);
+}
+
+/* Dropdown */
+.pg-search-dropdown {
+  display       : none;
+  position      : absolute;
+  top           : calc(100% + 6px);
+  left          : 0;
+  right         : 0;
+  background    : #111827;
+  border        : 1px solid rgba(255,255,255,0.12);
+  border-radius : 12px;
+  list-style    : none;
+  margin        : 0;
+  padding       : 6px;
+  z-index       : 1000;
+  box-shadow    : 0 12px 40px rgba(0,0,0,0.5);
+  max-height    : 340px;
+  overflow-y    : auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,201,167,0.3) transparent;
+}
+.pg-search-dropdown.is-open { display: block; }
+.pg-search-dropdown::-webkit-scrollbar { width: 4px; }
+.pg-search-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0,201,167,0.3); border-radius: 2px;
+}
+
+/* Dropdown-items */
+.pg-search-item {
+  display         : flex;
+  align-items     : center;
+  justify-content : space-between;
+  padding         : 10px 12px;
+  border-radius   : 8px;
+  cursor          : pointer;
+  gap             : 10px;
+  transition      : background 0.12s;
+}
+.pg-search-item:hover,
+.pg-search-item.is-active { background: rgba(0,201,167,0.10); }
+.pg-search-item-name {
+  color        : rgb(245,246,250);
+  font-size    : 14px;
+  flex         : 1;
+  white-space  : nowrap;
+  overflow     : hidden;
+  text-overflow: ellipsis;
+  min-width    : 0;
+}
+.pg-search-item-cat {
+  font-size    : 11px;
+  font-weight  : 500;
+  color        : rgba(0,201,167,0.85);
+  background   : rgba(0,201,167,0.10);
+  border       : 1px solid rgba(0,201,167,0.20);
+  padding      : 2px 8px;
+  border-radius: 20px;
+  white-space  : nowrap;
+  flex-shrink  : 0;
+}
+
+/* Banner (visas efter val) */
+.pg-search-banner {
+  display       : none;
+  margin-top    : 10px;
+  background    : rgba(0,201,167,0.07);
+  border-left   : 3px solid #00C9A7;
+  border-radius : 0 8px 8px 0;
+  padding       : 10px 14px;
+  font-size     : 13px;
+  color         : rgba(245,246,250,0.85);
+  line-height   : 1.5;
+}
+.pg-search-banner.is-visible { display: block; animation: pg-banner-in 0.25s ease; }
+@keyframes pg-banner-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.pg-search-banner strong { color: rgb(245,246,250); }
+.pg-search-banner-link {
+  color          : #00C9A7;
+  text-decoration: none;
+  margin-left    : 6px;
+  font-size      : 12px;
+  opacity        : 0.8;
+}
+.pg-search-banner-link:hover { opacity: 1; text-decoration: underline; }
