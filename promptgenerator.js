@@ -920,6 +920,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'Vardag':                           'brainstorma',
       'Kreativitet':                      'brainstorma',
       'Bildgenerering':                   'bildprompta',
+      'Bild':                             'bildprompta',
       'Allmänt':                          'skriva-text',
     };
 
