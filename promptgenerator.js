@@ -930,6 +930,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var wrap = document.createElement('div');
     wrap.className = 'pg-search-wrap';
     wrap.innerHTML =
+      '<p class="pg-search-label">Fyll i formuläret nedan eller sök efter en mall i sökfältet</p>' +
       '<div class="pg-search-inner">' +
         '<svg class="pg-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
           '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' +
@@ -943,9 +944,32 @@ document.addEventListener("DOMContentLoaded", function () {
         'aria-label="Sökresultat från promptbiblioteket"></ul>' +
       '<div class="pg-search-banner" id="pg-search-banner"></div>';
 
-    var firstStep = document.querySelector('.form-step');
-    if (firstStep && firstStep.parentElement) {
-      firstStep.parentElement.insertBefore(wrap, firstStep);
+    /* Infoga efter rubriken "Skapa bättre AI-prompter..." och före progress-baren */
+    var inserted = false;
+    var headingEl = Array.from(document.querySelectorAll('p')).find(function (el) {
+      return el.textContent && el.textContent.includes('Skapa bättre AI-prompter');
+    });
+    if (headingEl) {
+      var headingWrap = headingEl.parentElement; /* div.margin-bottom.margin-small */
+      if (headingWrap && headingWrap.parentElement) {
+        headingWrap.parentElement.insertBefore(wrap, headingWrap.nextSibling);
+        inserted = true;
+      }
+    }
+    /* Fallback: före progress-baren */
+    if (!inserted) {
+      var progressWrap = document.querySelector('.progress-wrapper');
+      if (progressWrap && progressWrap.parentElement) {
+        progressWrap.parentElement.insertBefore(wrap, progressWrap);
+        inserted = true;
+      }
+    }
+    /* Sista fallback: före första form-steget */
+    if (!inserted) {
+      var firstStep = document.querySelector('.form-step');
+      if (firstStep && firstStep.parentElement) {
+        firstStep.parentElement.insertBefore(wrap, firstStep);
+      }
     }
 
     var searchInput    = document.getElementById('pg-search-input');
