@@ -1,27 +1,6 @@
-/* Laddar confetti-biblioteket om det inte redan finns */
-if (!window._confettiLoaded) {
-  var _cs = document.createElement('script');
-  _cs.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-  document.head.appendChild(_cs);
-  window._confettiLoaded = true;
-}
+/* Confetti loader */
+(function(){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";document.head.appendChild(s);})();
 
-
-  AIMONKEY — Promptgeneratorn: Komplett Custom Code
-  Placering: Webflow → Page Settings → Promptgeneratorn
-             → Custom Code → Before </body>
-
-  Innehåller:
-  1–13. Befintlig logik (navigation, preview, copy, etc.)
-  A.    Step-checkmarks (✓ i header när steget är klart)
-  B.    Klickbara headers (navigerar till steget)
-  C.    Dölj .pg-text-step headers vid bild/video/kod-läge
-  D.    URL-parametrar — importera prompt från biblioteket
-        (?prompt=, ?namn=, ?kategori=, sessionStorage-fallback)
-
-  Krav i Webflow Designer:
-  → Ge steg-headers 2–6 + avancerat klassen: pg-text-step
-    (Steg 1-headern ska INTE ha klassen)
 /* ============================================================
    D-PRE. LÄS URL-PARAMETRAR DIREKT (innan DOMContentLoaded)
    Så att värdena finns redo när DOM är klar.
@@ -140,6 +119,9 @@ document.addEventListener("DOMContentLoaded", function () {
     progressFill.style.width =
       (flow.length <= 1 || i === -1) ? "0%" : `${(i / (flow.length - 1)) * 100}%`;
   }
+  /* Exponera showStep globalt så Section S kan navigera */
+  window.pgShowStep = showStep;
+
   function goNext() {
     if (currentStepId === "step-1") {
       const t = checkedValue("task-type", "").toLowerCase();
@@ -919,5 +901,214 @@ document.addEventListener("DOMContentLoaded", function () {
         openModal(ta, field.title);
       });
     });
+  })();
+
+  /* ============================================================
+     S. PROMPTBIBLIOTEK-SÖK
+     Sökruta ovanför formuläret.
+     Hämtar live-data från /prompt-data (Webflow Collection List).
+     Uppdateras automatiskt varje gång du publicerar CMS-ändringar.
+     ============================================================ */
+  (function () {
+    var DATA_URL = '/prompt-data';
+    var cachedPrompts = null;
+
+    /* Kategori → task-type-mappning */
+    var CAT_MAP = {
+      'Skrivande & Kommunikation':        'skriva-text',
+      'Företag & Produktivitet':          'skriva-text',
+      'E-post':                           'skriva-text',
+      'Marknadsföring & Sociala Medier':  'skriva-text',
+      'Kodning & Webb':                   'kod',
+      'Vardag':                           'brainstorma',
+      'Kreativitet':                      'brainstorma',
+      'Bildgenerering':                   'bildprompta',
+      'Allmänt':                          'skriva-text',
+    };
+
+    /* ── Bygg sök-UI ── */
+    var wrap = document.createElement('div');
+    wrap.className = 'pg-search-wrap';
+    wrap.innerHTML =
+      '<div class="pg-search-inner">' +
+        '<svg class="pg-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' +
+        '</svg>' +
+        '<input type="search" class="pg-search-input" id="pg-search-input" ' +
+          'placeholder="Sök bland 160+ färdiga prompter…" autocomplete="off" />' +
+        '<button class="pg-search-clear" id="pg-search-clear" type="button" ' +
+          'aria-label="Rensa sökning" style="display:none">✕</button>' +
+      '</div>' +
+      '<ul class="pg-search-dropdown" id="pg-search-dropdown" role="listbox" ' +
+        'aria-label="Sökresultat från promptbiblioteket"></ul>' +
+      '<div class="pg-search-banner" id="pg-search-banner"></div>';
+
+    var firstStep = document.querySelector('.form-step');
+    if (firstStep && firstStep.parentElement) {
+      firstStep.parentElement.insertBefore(wrap, firstStep);
+    }
+
+    var searchInput    = document.getElementById('pg-search-input');
+    var dropdown       = document.getElementById('pg-search-dropdown');
+    var clearBtn       = document.getElementById('pg-search-clear');
+    var banner         = document.getElementById('pg-search-banner');
+    if (!searchInput) return;
+
+    var activeIdx      = -1;
+    var currentResults = [];
+
+    /* ── Hämta + tolka prompt-data från Webflow-sidan ── */
+    function loadPrompts(cb) {
+      if (cachedPrompts) { cb(cachedPrompts); return; }
+      fetch(DATA_URL)
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var parser = new DOMParser();
+          var doc    = parser.parseFromString(html, 'text/html');
+          cachedPrompts = Array.from(doc.querySelectorAll('.pg-data-item')).map(function (el) {
+            var name = (el.querySelector('.pg-d-name')   || {}).textContent || '';
+            var cat  = (el.querySelector('.pg-d-cat')    || {}).textContent || '';
+            var slug = (el.querySelector('.pg-d-slug')   || {}).textContent || '';
+            var pt   = (el.querySelector('.pg-d-prompt') || {}).textContent || '';
+            return {
+              name:     name.trim(),
+              category: cat.trim(),
+              slug:     slug.trim(),
+              prompt:   pt.trim(),
+              tasktype: CAT_MAP[cat.trim()] || 'skriva-text',
+            };
+          }).filter(function (p) { return p.name; });
+          cb(cachedPrompts);
+        })
+        .catch(function () { cachedPrompts = []; cb([]); });
+    }
+
+    /* ── Sökning: matchar titel och kategori ── */
+    function doSearch(q, data) {
+      var ql = q.toLowerCase().trim();
+      if (ql.length < 2) return [];
+      return data.filter(function (p) {
+        return p.name.toLowerCase().includes(ql) ||
+               p.category.toLowerCase().includes(ql);
+      }).sort(function (a, b) {
+        var ai = a.name.toLowerCase().indexOf(ql);
+        var bi = b.name.toLowerCase().indexOf(ql);
+        if (ai >= 0 && bi < 0) return -1;
+        if (bi >= 0 && ai < 0) return 1;
+        return 0;
+      }).slice(0, 8);
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /* ── Rendera dropdown ── */
+    function renderDropdown(results) {
+      dropdown.innerHTML = '';
+      activeIdx      = -1;
+      currentResults = results;
+      if (!results.length) { dropdown.classList.remove('is-open'); return; }
+      results.forEach(function (p, i) {
+        var li = document.createElement('li');
+        li.className = 'pg-search-item';
+        li.setAttribute('role', 'option');
+        li.innerHTML =
+          '<span class="pg-search-item-name">' + esc(p.name) + '</span>' +
+          '<span class="pg-search-item-cat">'  + esc(p.category) + '</span>';
+        li.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          selectPrompt(p);
+        });
+        dropdown.appendChild(li);
+      });
+      dropdown.classList.add('is-open');
+    }
+
+    /* ── Välj prompt: fyll formuläret + navigera ── */
+    function selectPrompt(p) {
+      /* 1. Sätt task-type radio */
+      var radio = document.querySelector('input[name="task-type"][value="' + p.tasktype + '"]');
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      /* 2. Fyll brief-input */
+      var ta = document.getElementById('brief-input');
+      if (ta) {
+        ta.value = p.prompt;
+        ta.dispatchEvent(new Event('input',  { bubbles: true }));
+        ta.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      /* 3. Navigera till rätt steg */
+      var target = (p.tasktype === 'bild' || p.tasktype === 'bildprompta') ? 'step-image' :
+                   p.tasktype === 'video' ? 'step-video' :
+                   p.tasktype === 'kod'   ? 'step-code'  : 'step-2';
+      if (window.pgShowStep) window.pgShowStep(target);
+      /* 4. Visa banner */
+      banner.innerHTML =
+        '🐒 <strong>Startad från biblioteket:</strong> ' + esc(p.name) +
+        ' &mdash; anpassa fälten och tryck Nästa.' +
+        ' <a href="/ai-prompter/' + esc(p.slug) + '" target="_blank" ' +
+        'class="pg-search-banner-link">Se original ↗</a>';
+      banner.classList.add('is-visible');
+      /* 5. Rensa + stäng */
+      dropdown.classList.remove('is-open');
+      searchInput.value  = '';
+      clearBtn.style.display = 'none';
+      currentResults     = [];
+    }
+
+    /* ── Event-lyssnare ── */
+    var debTimer;
+    searchInput.addEventListener('input', function () {
+      var q = searchInput.value;
+      clearBtn.style.display = q ? '' : 'none';
+      clearTimeout(debTimer);
+      if (q.length < 2) { dropdown.classList.remove('is-open'); return; }
+      debTimer = setTimeout(function () {
+        loadPrompts(function (data) { renderDropdown(doSearch(q, data)); });
+      }, 160);
+    });
+
+    searchInput.addEventListener('focus', function () {
+      if (searchInput.value.length >= 2 && currentResults.length) {
+        dropdown.classList.add('is-open');
+      }
+    });
+
+    searchInput.addEventListener('keydown', function (e) {
+      var items = dropdown.querySelectorAll('.pg-search-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIdx = Math.max(activeIdx - 1, 0);
+      } else if (e.key === 'Enter' && activeIdx >= 0) {
+        e.preventDefault();
+        if (currentResults[activeIdx]) selectPrompt(currentResults[activeIdx]);
+        return;
+      } else if (e.key === 'Escape') {
+        dropdown.classList.remove('is-open');
+        return;
+      }
+      items.forEach(function (li, i) { li.classList.toggle('is-active', i === activeIdx); });
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) dropdown.classList.remove('is-open');
+    });
+
+    clearBtn.addEventListener('click', function () {
+      searchInput.value = '';
+      clearBtn.style.display = 'none';
+      dropdown.classList.remove('is-open');
+      currentResults = [];
+      searchInput.focus();
+    });
+
+    /* Förhämta data tyst i bakgrunden 800ms efter laddning */
+    setTimeout(function () { loadPrompts(function () {}); }, 800);
   })();
 });
