@@ -209,9 +209,9 @@ document.addEventListener("DOMContentLoaded", function () {
     brainstorma:   (c) => `Brainstorma idéer utifrån följande: ${c}`,
     förklara:      (c) => `Förklara följande på ett tydligt sätt: ${c}`,
     forklara:      (c) => `Förklara följande på ett tydligt sätt: ${c}`,
-    bild:          (c) => `Skapa en bildprompt baserat på följande: ${c}`,
-    bildprompta:   (c) => `Skapa en bildprompt baserat på följande: ${c}`,
-    video:         (c) => `Skapa en videoprompt baserat på följande: ${c}`,
+    bild:          (c) => `Skapa en bild baserat på följande: ${c}`,
+    bildprompta:   (c) => `Skapa en bild baserat på följande: ${c}`,
+    video:         (c) => `Skapa en video baserat på följande: ${c}`,
     kod:           (c) => `Lös följande programmeringsuppgift: ${c}`,
   };
   function buildBlocks(d) {
