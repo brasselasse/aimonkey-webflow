@@ -695,21 +695,27 @@ document.addEventListener("DOMContentLoaded", function () {
      E. STARTVAL "Hur vill du börja?" + GATED-LÄGE (valfritt)
      Byggs helt i Webflow; JS hakar bara in beteendet.
        - Sektion  #pg-start         valblocket. data-gated="true" = gated.
-       - Wrapper  .pg-steps         läggs runt stegen; döljs tills val görs.
+       - Wrapper  .pg-steps         formuläret; döljs tills val görs.
+       - Preview  #prompt-preview-wrapper  döljs också tills val görs.
+       - Extra    .pg-gated         valfri klass på annat som ska döljas.
        - Kort A   #pg-start-scratch  knappen "Bygg från scratch".
      Sökrutan (Kort B) monteras i #pg-template-search av avsnitt S.
      Degraderar tyst: saknas elementen beter sig sidan som förut.
      ============================================================ */
   (function initStartGate() {
     var startBlock = document.getElementById('pg-start');
-    var stepsWrap  = document.querySelector('.pg-steps');
     var gated      = !!startBlock && startBlock.getAttribute('data-gated') === 'true';
+    /* Allt som ska döljas tills ett val görs: formuläret (.pg-steps),
+       preview-kortet (#prompt-preview-wrapper) samt ev. egna .pg-gated. */
+    var gatedEls   = document.querySelectorAll('.pg-steps, #prompt-preview-wrapper, .pg-gated');
 
-    /* Unhide-hjälpare (gör inget i icke-gated-läge) */
-    function showSteps() {
-      if (gated && stepsWrap) stepsWrap.removeAttribute('hidden');
+    /* Inline display slår Webflows flex-klasser säkert; '' återställer originalet */
+    function setHidden(hide) {
+      gatedEls.forEach(function (el) { el.style.display = hide ? 'none' : ''; });
     }
-    /* Väljer en väg: visa stegen, scrolla till formuläret, logga i GA4 */
+    function showSteps() { if (gated) setHidden(false); }
+
+    /* Väljer en väg: visa innehållet, scrolla till formuläret, logga i GA4 */
     function chooseMode(mode) {
       showSteps();
       var fc = document.getElementById('form-container');
@@ -719,12 +725,12 @@ document.addEventListener("DOMContentLoaded", function () {
     /* Exponera så sök-modulen (selectPrompt) kan anropa den vid mall-val */
     window.pgRevealSteps = chooseMode;
 
-    /* Gated: dölj stegen tills ett val görs */
-    if (gated && stepsWrap) stepsWrap.setAttribute('hidden', '');
+    /* Gated: dölj formulär + preview tills ett val görs */
+    if (gated) setHidden(true);
 
     /* Landade med URL-param/import → mall-vägen redan vald: visa direkt.
        Bara unhide här; handleImportedPrompt() sköter scroll till fältet. */
-    if (gated && pgImport) showSteps();
+    if (gated && pgImport) setHidden(false);
 
     /* Kort A "Bygg från scratch" */
     var scratchBtn = document.getElementById('pg-start-scratch');
