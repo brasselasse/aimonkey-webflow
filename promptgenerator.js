@@ -692,6 +692,51 @@ document.addEventListener("DOMContentLoaded", function () {
   handleImportedPrompt();
 
   /* ============================================================
+     E. STARTVAL "Hur vill du börja?" + GATED-LÄGE (valfritt)
+     Byggs helt i Webflow; JS hakar bara in beteendet.
+       - Sektion  #pg-start         valblocket. data-gated="true" = gated.
+       - Wrapper  .pg-steps         läggs runt stegen; döljs tills val görs.
+       - Kort A   #pg-start-scratch  knappen "Bygg från scratch".
+     Sökrutan (Kort B) monteras i #pg-template-search av avsnitt S.
+     Degraderar tyst: saknas elementen beter sig sidan som förut.
+     ============================================================ */
+  (function initStartGate() {
+    var startBlock = document.getElementById('pg-start');
+    var stepsWrap  = document.querySelector('.pg-steps');
+    var gated      = !!startBlock && startBlock.getAttribute('data-gated') === 'true';
+
+    /* Unhide-hjälpare (gör inget i icke-gated-läge) */
+    function showSteps() {
+      if (gated && stepsWrap) stepsWrap.removeAttribute('hidden');
+    }
+    /* Väljer en väg: visa stegen, scrolla till formuläret, logga i GA4 */
+    function chooseMode(mode) {
+      showSteps();
+      var fc = document.getElementById('form-container');
+      if (fc) fc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (window.gtag) gtag('event', 'pg_start_mode', { start_mode: mode });
+    }
+    /* Exponera så sök-modulen (selectPrompt) kan anropa den vid mall-val */
+    window.pgRevealSteps = chooseMode;
+
+    /* Gated: dölj stegen tills ett val görs */
+    if (gated && stepsWrap) stepsWrap.setAttribute('hidden', '');
+
+    /* Landade med URL-param/import → mall-vägen redan vald: visa direkt.
+       Bara unhide här; handleImportedPrompt() sköter scroll till fältet. */
+    if (gated && pgImport) showSteps();
+
+    /* Kort A "Bygg från scratch" */
+    var scratchBtn = document.getElementById('pg-start-scratch');
+    if (scratchBtn) {
+      scratchBtn.addEventListener('click', function (e) {
+        if (gated) e.preventDefault(); /* icke-gated: låt href="#form-container" scrolla */
+        chooseMode('scratch');
+      });
+    }
+  })();
+
+  /* ============================================================
      H. SENASTE PROMPTER — localStorage
      Sparar varje kopierad prompt. Renderar en lista
      med de senaste 10 under prompt-preview-wrappern.
@@ -941,8 +986,14 @@ document.addEventListener("DOMContentLoaded", function () {
         'aria-label="Sökresultat från promptbiblioteket"></ul>' +
       '<div class="pg-search-banner" id="pg-search-banner"></div>';
 
-    /* Infoga efter rubriken "Skapa bättre AI-prompter..." och före progress-baren */
+    /* Föredra explicit mount-punkt i Kort B (#pg-template-search) om den finns.
+       Annars faller vi tillbaka på den befintliga kedjan nedan (oförändrad),
+       så nuvarande sida fungerar exakt som förut om diven saknas. */
     var inserted = false;
+    var mount = document.getElementById('pg-template-search');
+    if (mount) { mount.appendChild(wrap); inserted = true; }
+
+    /* Infoga efter rubriken "Skapa bättre AI-prompter..." och före progress-baren */
     var headingEl = Array.from(document.querySelectorAll('p')).find(function (el) {
       return el.textContent && el.textContent.includes('Skapa bättre AI-prompter');
     });
@@ -1075,6 +1126,8 @@ document.addEventListener("DOMContentLoaded", function () {
                    p.tasktype === 'video' ? 'step-video' :
                    p.tasktype === 'kod'   ? 'step-code'  : 'step-2';
       if (window.pgShowStep) window.pgShowStep(target);
+      /* 3b. Gated-läge: visa stegen om de är dolda + logga att mall-vägen valdes */
+      if (window.pgRevealSteps) window.pgRevealSteps('template');
       /* 4. Visa banner */
       banner.innerHTML =
         '🐒 <strong>Startad från biblioteket:</strong> ' + esc(p.name) +
