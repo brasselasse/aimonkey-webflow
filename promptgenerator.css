@@ -134,15 +134,7 @@
   mask-image             : none;
   cursor                 : default;
 }
-/* Liten "expandera"-hint längst ner */
-#preview-task:not(.is-expanded):not([data-typing])::after {
-  content : "Klicka för att se hela uppgiften ↓";
-  display : block;
-  font-size: 10px;
-  color   : rgba(0, 201, 167, 0.6);
-  margin-top: 4px;
-  text-align: center;
-}
+
 
 /* ══════════════════════════════════════════
    E3. PREVIEW BLOCKS — dölj tomma etiketter
