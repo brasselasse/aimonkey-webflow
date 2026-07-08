@@ -520,14 +520,15 @@ document.addEventListener("DOMContentLoaded", function () {
           genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-checkpoint"),
   ];
 
-  // Hämta formuläret robust: Webflow återgenererar id:t wf-form-... om
-  // formuläret döps om, så fall tillbaka på .pg-steps / närmaste form.
-  const form           = document.getElementById("wf-form-Contact-1-Form")
+  // Hämta container robust. OBS: id:t "wf-form-Contact-1-Form" sitter numera
+  // på wrapper-diven (.contact1_form-block), inte på <form>, så det går inte
+  // att lita på. Rätt container är den som steg-headers ligger direkt i —
+  // utgå därför från första headerns förälder. Fallbacks för säkerhets skull.
+  const firstStepHeader = document.querySelector(".form-step-header");
+  const form           = (firstStepHeader && firstStepHeader.parentElement)
                       || document.querySelector("form.pg-steps")
-                      || (document.querySelector(".form-step-header") &&
-                          document.querySelector(".form-step-header").closest("form"))
                       || document.querySelector("form");
-  // Top-level headers (direkta barn av formuläret)
+  // Top-level headers (direkta barn av containern)
   const stepHeaders    = form
     ? Array.from(form.querySelectorAll(":scope > .form-step-header"))
     : [];
