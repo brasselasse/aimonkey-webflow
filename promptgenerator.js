@@ -520,8 +520,14 @@ document.addEventListener("DOMContentLoaded", function () {
           genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-checkpoint"),
   ];
 
-  // Hämta de top-level headers (direkta barn av formuläret)
-  const form           = document.getElementById("wf-form-Contact-1-Form");
+  // Hämta formuläret robust: Webflow återgenererar id:t wf-form-... om
+  // formuläret döps om, så fall tillbaka på .pg-steps / närmaste form.
+  const form           = document.getElementById("wf-form-Contact-1-Form")
+                      || document.querySelector("form.pg-steps")
+                      || (document.querySelector(".form-step-header") &&
+                          document.querySelector(".form-step-header").closest("form"))
+                      || document.querySelector("form");
+  // Top-level headers (direkta barn av formuläret)
   const stepHeaders    = form
     ? Array.from(form.querySelectorAll(":scope > .form-step-header"))
     : [];
