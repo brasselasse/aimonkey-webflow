@@ -933,7 +933,7 @@ document.addEventListener("DOMContentLoaded", function () {
           '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' +
         '</svg>' +
         '<input type="search" class="pg-search-input" id="pg-search-input" ' +
-          'placeholder="Sök bland hundratals färdiga prompter…" autocomplete="off" />' +
+          'placeholder="Sök en färdig mall — fyller i alla steg åt dig" autocomplete="off" />' +
         '<button class="pg-search-clear" id="pg-search-clear" type="button" ' +
           'aria-label="Rensa sökning" style="display:none">✕</button>' +
       '</div>' +
