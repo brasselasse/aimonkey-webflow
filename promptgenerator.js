@@ -704,6 +704,7 @@ document.addEventListener("DOMContentLoaded", function () {
        - Sektion  #pg-start         valblocket. data-gated="true" = gated.
        - Wrapper  .pg-steps         formuläret; döljs tills val görs.
        - Preview  #prompt-preview-wrapper  döljs också tills val görs.
+       - Progress .progress-wrapper   döljs tills val görs; fästs överst (fixed).
        - Extra    .pg-gated         valfri klass på annat som ska döljas.
        - Kort A   #pg-start-scratch  knappen "Bygg från scratch".
      Sökrutan (Kort B) monteras i #pg-template-search av avsnitt S.
@@ -712,15 +713,41 @@ document.addEventListener("DOMContentLoaded", function () {
   (function initStartGate() {
     var startBlock = document.getElementById('pg-start');
     var gated      = !!startBlock && startBlock.getAttribute('data-gated') === 'true';
+
+    /* Injicera CSS:
+       (1) fäst progressbaren högst upp i full bredd (fixed);
+       (2) låt "Senaste prompter" spänna över hela grid-bredden i stället
+           för att hamna i en kolumn (annars ser den högerställd ut);
+       (3) dölj "Senaste prompter" så länge gaten är låst — den skapas
+           dynamiskt av avsnitt H, så vi styr den via klass på <html>. */
+    if (!document.getElementById('pg-progress-style')) {
+      var pst = document.createElement('style');
+      pst.id = 'pg-progress-style';
+      pst.textContent =
+        '.progress-wrapper{position:fixed!important;top:0;left:0;right:0;' +
+        'width:100%!important;margin:0!important;z-index:9999;border-radius:0!important;}' +
+        '#pg-recent-wrap{grid-column:1 / -1;}' +
+        'html.pg-gated-locked #pg-recent-wrap{display:none!important;}';
+      document.head.appendChild(pst);
+    }
+
+    /* Lås gaten: markera <html> så CSS kan dölja även dynamiskt skapade element */
+    if (gated) document.documentElement.classList.add('pg-gated-locked');
+
     /* Allt som ska döljas tills ett val görs: formuläret (.pg-steps),
-       preview-kortet (#prompt-preview-wrapper) samt ev. egna .pg-gated. */
-    var gatedEls   = document.querySelectorAll('.pg-steps, #prompt-preview-wrapper, .pg-gated');
+       preview-kortet (#prompt-preview-wrapper), progressbaren samt egna .pg-gated. */
+    var gatedEls   = document.querySelectorAll('.pg-steps, #prompt-preview-wrapper, .progress-wrapper, .pg-gated');
 
     /* Inline display slår Webflows flex-klasser säkert; '' återställer originalet */
     function setHidden(hide) {
       gatedEls.forEach(function (el) { el.style.display = hide ? 'none' : ''; });
     }
-    function showSteps() { if (gated) setHidden(false); }
+    /* Visa allt + lås upp gaten (så Senaste prompter kan visas) */
+    function showSteps() {
+      if (!gated) return;
+      setHidden(false);
+      document.documentElement.classList.remove('pg-gated-locked');
+    }
 
     /* Väljer en väg: visa innehållet, scrolla till formuläret, logga i GA4 */
     function chooseMode(mode) {
@@ -736,8 +763,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (gated) setHidden(true);
 
     /* Landade med URL-param/import → mall-vägen redan vald: visa direkt.
-       Bara unhide här; handleImportedPrompt() sköter scroll till fältet. */
-    if (gated && pgImport) setHidden(false);
+       Låser även upp gaten; handleImportedPrompt() sköter scroll till fältet. */
+    if (gated && pgImport) showSteps();
 
     /* Kort A "Bygg från scratch" */
     var scratchBtn = document.getElementById('pg-start-scratch');
