@@ -714,22 +714,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var startBlock = document.getElementById('pg-start');
     var gated      = !!startBlock && startBlock.getAttribute('data-gated') === 'true';
 
-    /* Injicera CSS:
-       (1) fäst progressbaren högst upp i full bredd (fixed);
-       (2) låt "Senaste prompter" spänna över hela grid-bredden i stället
-           för att hamna i en kolumn (annars ser den högerställd ut);
-       (3) dölj "Senaste prompter" så länge gaten är låst — den skapas
-           dynamiskt av avsnitt H, så vi styr den via klass på <html>. */
-    if (!document.getElementById('pg-progress-style')) {
-      var pst = document.createElement('style');
-      pst.id = 'pg-progress-style';
-      pst.textContent =
-        '.progress-wrapper{position:fixed!important;top:0;left:0;right:0;' +
-        'width:100%!important;margin:0!important;z-index:9999;border-radius:0!important;}' +
-        '#pg-recent-wrap{grid-column:1 / -1;}' +
-        'html.pg-gated-locked #pg-recent-wrap{display:none!important;}';
-      document.head.appendChild(pst);
-    }
+    /* Styling för progressbar (fixed), "Senaste prompter" (fullbredd) och
+       gated-låset ligger i promptgenerator.css. Här sköts bara beteendet. */
 
     /* Lås gaten: markera <html> så CSS kan dölja även dynamiskt skapade element */
     if (gated) document.documentElement.classList.add('pg-gated-locked');
