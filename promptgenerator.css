@@ -662,3 +662,18 @@ html.pg-gated-locked #pg-recent-wrap { display: none !important; }
   opacity        : 0.8;
 }
 .pg-search-banner-link:hover { opacity: 1; text-decoration: underline; }
+
+/* ── Mobil: förhindra iOS-inzoomning av fält vid fokus ──
+   iOS Safari zoomar in alla input/textarea/select med font-size < 16px när de
+   fokuseras, vilket förskjuter vyn och ger horisontell scroll. Minst 16px
+   stänger av zoomen. (Gäller bara mobilvyn; desktop oförändrad.) */
+@media (max-width: 767px) {
+  .form-step input,
+  .form-step textarea,
+  .form-step select,
+  #pg-search-input,
+  .pg-search-input,
+  .pg-brief-modal-ta {
+    font-size: 16px !important;
+  }
+}
