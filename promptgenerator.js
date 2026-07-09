@@ -391,19 +391,42 @@ document.addEventListener("DOMContentLoaded", function () {
     setTimeout(() => confetti({ particleCount: 50, angle: 60,  spread: 55, origin: { x: 0, y: 0.7 }, colors }), 150);
     setTimeout(() => confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1, y: 0.7 }, colors }), 250);
   }
+  /* Kopiera till urklipp med fallback (execCommand) om Clipboard-API:t
+     avvisas — t.ex. utan fokus eller på vissa mobilwebbläsare. */
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).catch(function () { legacyCopy(text); });
+    }
+    legacyCopy(text);
+  }
+  function legacyCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "absolute";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) { /* ignoreras */ }
+  }
   if (copyBtn) {
     copyBtn.addEventListener("click", function (e) {
       e.preventDefault();
       const text = previewRaw?.value?.trim() || "";
       if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        const original = copyBtn.textContent;
-        copyBtn.textContent = "Kopierad! 🎉";
-        fireConfetti();
-        if (toolLinks) toolLinks.classList.add("is-revealed");
-        saveRecentPrompt(text, checkedValue("task-type", "").toLowerCase());
-        setTimeout(() => (copyBtn.textContent = original), 1800);
-      });
+      /* Spara + feedback sker ALLTID — oberoende av om urklippet lyckas.
+         (Tidigare låg detta inuti clipboard.then(), så om writeText
+          avvisades sparades prompten aldrig i Senaste prompter.) */
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "Kopierad! 🎉";
+      fireConfetti();
+      if (toolLinks) toolLinks.classList.add("is-revealed");
+      saveRecentPrompt(text, checkedValue("task-type", "").toLowerCase());
+      setTimeout(() => (copyBtn.textContent = original), 1800);
+      copyToClipboard(text);
     });
   }
 
