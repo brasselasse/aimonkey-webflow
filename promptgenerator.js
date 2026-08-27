@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const genericFlow  = ["step-1", "step-2", "step-3", "step-4", "step-5", "step-checkpoint"];
+  const genericFlow  = ["step-1", "step-4", "step-5", "step-riktlinjer", "step-checkpoint"];
   const specialSteps = ["step-image", "step-video", "step-code"];
   const MEDIA_TYPES  = ["bild", "bildprompta", "video", "kod"]; // används av avsnitt C
 
@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (t === "bild" || t === "bildprompta") return showStep("step-image");
       if (t === "video")                        return showStep("step-video");
       if (t === "kod")                          return showStep("step-code");
-      return showStep("step-2");
+      return showStep("step-4");
     }
     const i = genericFlow.indexOf(currentStepId);
     if (i !== -1 && i < genericFlow.length - 1) showStep(genericFlow[i + 1]);
@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
       roll:          checkedLabel("Roll"),
       customRole:    $val("#custom-role-input"),
       malgrupp:      $val("#malgrupp-input"),
+      pasteMaterial: $val("#paste-material-input"),
       ton:           checkedValue("Ton"),
       outputFormat:  checkedValue("output-format"),
       language:      checkedValue("language-select"),
@@ -163,6 +164,8 @@ document.addEventListener("DOMContentLoaded", function () {
       useExamples:   $check("#use-examples"),
       stepByStep:    $check("#step-by-step"),
       threeOptions:  $check("#three-options"),
+      fallbackInfo:  $check("#fallback-info"),
+      plainTextOnly: $check("#plain-text-only"),
       imageSubject:  $val("#image-subject"),
       imageStyle:    checkedValue("image-style"),
       aspectRatio:   checkedValue("aspect-ratio"),
@@ -233,6 +236,7 @@ document.addEventListener("DOMContentLoaded", function () {
       task.push(fn ? fn(content) : `Hjälp mig med följande: ${content}`);
     }
     if (d.malgrupp)      task.push(`Målgruppen är: ${d.malgrupp}.`);
+    if (d.pasteMaterial) task.push(`\nKontext:\n${d.pasteMaterial}`);
     if (d.language)      out.push(`Svara på ${d.language}.`);
     if (d.outputFormat)  out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
     if (d.length)        out.push(`Längd: ${d.length}.`);
@@ -243,6 +247,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (isVideo) out.push("Skriv en färdig videoprompt som kan användas direkt.");
     if (isCode)  out.push("Skriv fungerande kod som kan användas direkt.");
     if (d.askQuestions) rules.push("Ställ frågor om något är oklart.");
+    if (d.fallbackInfo) rules.push('Om du saknar tillräcklig information för att slutföra uppgiften, skriv "Otillräcklig information för att slutföra uppgiften" istället för att gissa.');
+    if (d.plainTextOnly) rules.push("Svara i ren text, utan rubriker, länkar eller annan formatering förutom radbrytningar vid behov.");
     if (d.constraints)  rules.push(d.constraints);
     if (isImage) {
       if (d.imageStyle)  cat.push(`Stil: ${d.imageStyle}`);
@@ -527,18 +533,19 @@ document.addEventListener("DOMContentLoaded", function () {
      Kallas från updateLivePreview() — ingen separat observer.
      ============================================================ */
   const stepConditions = [
-    /* 0 – Steg 1: Typ av uppgift */
-    () => !!document.querySelector('input[name="task-type"]:checked'),
-    /* 1 – Steg 2: Brief */
-    () => ($val("#brief-input").length >= 3),
-    /* 2 – Steg 3: Ton */
-    () => !!document.querySelector('input[name="Ton"]:checked'),
-    /* 3 – Steg 4: Roll */
-    () => !!document.querySelector('input[name="Roll"]:checked') ||
-          $val("#custom-role-input").length > 0,
-    /* 4 – Steg 5: Målgrupp */
+    /* 0 – Steg 1: Uppgift (task-type + brief) */
+    () => !!document.querySelector('input[name="task-type"]:checked') &&
+          ($val("#brief-input").length >= 3),
+    /* 1 – Steg 2: Roll & ton */
+    () => (!!document.querySelector('input[name="Roll"]:checked') ||
+           $val("#custom-role-input").length > 0) &&
+          !!document.querySelector('input[name="Ton"]:checked'),
+    /* 2 – Steg 3: Data (målgrupp) */
     () => $val("#malgrupp-input").length > 0,
-    /* 5 – Steg 6: Klar när step-checkpoint är aktivt steg */
+    /* 3 – Steg 4: Riktlinjer — inget hårt krav, alla fält är valfria */
+    () => currentStepId === "step-riktlinjer" ||
+          genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-riktlinjer"),
+    /* 4 – Steg 5: Klar när step-checkpoint är aktivt steg */
     () => currentStepId === "step-checkpoint" ||
           genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-checkpoint"),
   ];
@@ -642,7 +649,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    /* ── Steg 2: Brief → rätt fält baserat på task-type ──
+    /* ── Steg 1: Brief → rätt fält baserat på task-type ──
        Bild/video/kod får INTE #brief-input — briefen
        ska till det specifika fältet för det steget.   */
     var mediaInputMap = {
@@ -659,7 +666,7 @@ document.addEventListener("DOMContentLoaded", function () {
       ta.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    /* ── Steg 3: Ton (radio) ── */
+    /* ── Steg 2: Ton (radio, del av Roll & ton) ── */
     if (ton) {
       const radio = document.querySelector(`input[name="Ton"][value="${ton}"]`);
       if (radio) {
@@ -668,7 +675,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    /* ── Steg 4: Roll — testa radio först, annars custom-fält ── */
+    /* ── Steg 2: Roll — testa radio först, annars custom-fält ── */
     if (roll) {
       const radio = document.querySelector(`input[name="Roll"][value="${roll}"]`);
       if (radio) {
@@ -683,7 +690,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    /* ── Steg 5: Målgrupp ── */
+    /* ── Steg 3: Målgrupp (del av Data) ── */
     const malgruppEl = document.getElementById("malgrupp-input");
     if (malgruppEl && malgrupp) {
       malgruppEl.value = malgrupp;
@@ -692,7 +699,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /* ── Navigera till rätt steg beroende på task-type ── */
     var mediaStepMap = { bild: "step-image", bildprompta: "step-image", video: "step-video", kod: "step-code" };
-    var targetStep = mediaStepMap[tasktype] || "step-2";
+    var targetStep = mediaStepMap[tasktype] || "step-1";
     showStep(targetStep);
 
     /* ── Mjuk scroll → det ifyllda input-fältet ── */
@@ -1173,7 +1180,7 @@ document.addEventListener("DOMContentLoaded", function () {
       /* 3. Navigera till rätt steg */
       var target = (p.tasktype === 'bild' || p.tasktype === 'bildprompta') ? 'step-image' :
                    p.tasktype === 'video' ? 'step-video' :
-                   p.tasktype === 'kod'   ? 'step-code'  : 'step-2';
+                   p.tasktype === 'kod'   ? 'step-code'  : 'step-1';
       if (window.pgShowStep) window.pgShowStep(target);
       /* 3b. Gated-läge: visa stegen om de är dolda + logga att mall-vägen valdes */
       if (window.pgRevealSteps) window.pgRevealSteps('template');
