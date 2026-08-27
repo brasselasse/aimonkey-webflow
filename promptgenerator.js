@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const advancedSec    = document.getElementById("advanced-section");
   const lengthSlider   = document.getElementById("length-slider");
   const toolLinks      = document.querySelector(".ai-tool-links");
+  const dataRowsContainer = document.getElementById("data-rows");
+  const chipContainer     = document.getElementById("data-chip-suggestions");
+  const addRowBtn         = document.getElementById("add-data-row");
   const previews = {
     system:   document.getElementById("preview-system"),
     task:     document.getElementById("preview-task"),
@@ -155,6 +158,7 @@ document.addEventListener("DOMContentLoaded", function () {
       customRole:    $val("#custom-role-input"),
       malgrupp:      $val("#malgrupp-input"),
       pasteMaterial: $val("#paste-material-input"),
+      dataRows:      getDataRows(),
       ton:           checkedValue("Ton"),
       outputFormat:  checkedValue("output-format"),
       language:      checkedValue("language-select"),
@@ -235,8 +239,17 @@ document.addEventListener("DOMContentLoaded", function () {
       const fn = TASK[d.taskType];
       task.push(fn ? fn(content) : `Hjälp mig med följande: ${content}`);
     }
-    if (d.malgrupp)      task.push(`Målgruppen är: ${d.malgrupp}.`);
-    if (d.pasteMaterial) task.push(`\nKontext:\n${d.pasteMaterial}`);
+    /* Kontext-block: dynamiska namn/värde-fält + målgrupp, samlat
+       som strukturerade fakta istället för en löpande mening. */
+    const contextLines = [];
+    if (Array.isArray(d.dataRows)) {
+      d.dataRows.forEach((r) => {
+        if (r.value) contextLines.push(`${r.label || "Info"}: ${r.value}`);
+      });
+    }
+    if (d.malgrupp) contextLines.push(`Mottagare: ${d.malgrupp}`);
+    if (contextLines.length) task.push(`\nKontext:\n${contextLines.join("\n")}`);
+    if (d.pasteMaterial) task.push(`\nMaterial att utgå från:\n${d.pasteMaterial}`);
     if (d.language)      out.push(`Svara på ${d.language}.`);
     if (d.outputFormat)  out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
     if (d.length)        out.push(`Längd: ${d.length}.`);
@@ -290,6 +303,107 @@ document.addEventListener("DOMContentLoaded", function () {
     if (b.rules)    parts.push("REGLER",   b.rules,    "");
     if (b.category) parts.push("KATEGORI", b.category);
     return parts.join("\n").trim();
+  }
+
+  /* ============================================================
+     4B. DATA-STEG: DYNAMISKA SNABBFÄLT (Namn/Värde)
+     Låter användaren lägga till egna namn/värde-par (t.ex.
+     "Företag: Acme AB") som renderas som ett Kontext-block i
+     UPPGIFT-sektionen. Föreslagna etiketter varierar med task-type.
+     ============================================================ */
+  const DATA_SUGGESTIONS = {
+    "skriva text": ["Företag", "Produkt/tjänst", "Mottagare", "Nyckelord"],
+    "skriva-text": ["Företag", "Produkt/tjänst", "Mottagare", "Nyckelord"],
+    analysera:     ["Källa/dokument", "Fokusområde"],
+    sammanfatta:   ["Källa/dokument", "Fokusområde"],
+    brainstorma:   ["Ämne", "Målgrupp"],
+    förklara:      ["Ämne", "Målgrupp"],
+    forklara:      ["Ämne", "Målgrupp"],
+    kod:           ["Språk/ramverk", "Befintlig kod", "Felmeddelande"],
+  };
+  const DEFAULT_DATA_SUGGESTIONS = ["Företag", "Produkt/tjänst", "Mottagare", "Nyckelord"];
+
+  function createDataRow(prefLabel) {
+    const row = document.createElement("div");
+    row.className = "pg-data-row";
+
+    const labelInput = document.createElement("input");
+    labelInput.type = "text";
+    labelInput.className = "pg-row-label";
+    labelInput.placeholder = "Etikett, t.ex. Företag";
+    if (prefLabel) labelInput.value = prefLabel;
+
+    const valueInput = document.createElement("input");
+    valueInput.type = "text";
+    valueInput.className = "pg-row-value";
+    valueInput.placeholder = "Värde";
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "pg-row-remove";
+    removeBtn.setAttribute("aria-label", "Ta bort fält");
+    removeBtn.textContent = "×";
+
+    [labelInput, valueInput].forEach((inp) => {
+      inp.addEventListener("input",  updateLivePreview);
+      inp.addEventListener("change", updateLivePreview);
+    });
+    removeBtn.addEventListener("click", () => {
+      row.remove();
+      updateLivePreview();
+    });
+
+    row.appendChild(labelInput);
+    row.appendChild(valueInput);
+    row.appendChild(removeBtn);
+    return row;
+  }
+
+  function addDataRow(prefLabel, focusValue) {
+    if (!dataRowsContainer) return;
+    const row = createDataRow(prefLabel);
+    dataRowsContainer.appendChild(row);
+    if (focusValue) {
+      const v = row.querySelector(".pg-row-value");
+      if (v) v.focus();
+    }
+    updateLivePreview();
+  }
+
+  function getDataRows() {
+    if (!dataRowsContainer) return [];
+    return Array.from(dataRowsContainer.querySelectorAll(".pg-data-row"))
+      .map((row) => ({
+        label: row.querySelector(".pg-row-label")?.value.trim() || "",
+        value: row.querySelector(".pg-row-value")?.value.trim() || "",
+      }))
+      .filter((r) => r.value);
+  }
+
+  /* Chip-förslagen ritas om bara när task-type faktiskt ändras,
+     så de inte flimrar om vid varje tangenttryckning i andra fält. */
+  let lastChipTaskType = null;
+  function renderDataChips() {
+    if (!chipContainer) return;
+    const t = checkedValue("task-type", "").toLowerCase();
+    if (t === lastChipTaskType) return;
+    lastChipTaskType = t;
+    const suggestions = DATA_SUGGESTIONS[t] || DEFAULT_DATA_SUGGESTIONS;
+    chipContainer.innerHTML = "";
+    suggestions.forEach((label) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "pg-chip";
+      chip.textContent = "+ " + label;
+      chip.addEventListener("click", () => addDataRow(label, true));
+      chipContainer.appendChild(chip);
+    });
+  }
+  if (addRowBtn) {
+    addRowBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      addDataRow();
+    });
   }
 
   /* ============================================================
@@ -371,6 +485,8 @@ document.addEventListener("DOMContentLoaded", function () {
     updateChecks();
     // ── C: Uppdatera header-synlighet (bild/video/kod) ──
     updateHeaderVisibility();
+    // ── 4B: Uppdatera chip-förslag om task-type ändrats ──
+    renderDataChips();
   }
 
   /* ============================================================
@@ -461,6 +577,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (advancedBtn) advancedBtn.textContent = "Visa avancerade inställningar";
       if (toolLinks)   toolLinks.classList.remove("is-revealed");
       if (lengthSlider) delete lengthSlider.dataset.touched;
+      if (dataRowsContainer) dataRowsContainer.innerHTML = "";
+      lastChipTaskType = null;
       hasFirstContent = false;
       showStep("step-1");
       updateLivePreview();
@@ -540,8 +658,10 @@ document.addEventListener("DOMContentLoaded", function () {
     () => (!!document.querySelector('input[name="Roll"]:checked') ||
            $val("#custom-role-input").length > 0) &&
           !!document.querySelector('input[name="Ton"]:checked'),
-    /* 2 – Steg 3: Data (målgrupp) */
-    () => $val("#malgrupp-input").length > 0,
+    /* 2 – Steg 3: Data (målgrupp, snabbfält eller inklistrat material) */
+    () => $val("#malgrupp-input").length > 0 ||
+          $val("#paste-material-input").length > 0 ||
+          getDataRows().length > 0,
     /* 3 – Steg 4: Riktlinjer — inget hårt krav, alla fält är valfria */
     () => currentStepId === "step-riktlinjer" ||
           genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-riktlinjer"),
