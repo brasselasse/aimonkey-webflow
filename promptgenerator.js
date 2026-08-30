@@ -69,6 +69,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* Output-format: "Text" (löpande text) är förvalt så raden aldrig ser
+     obesvarad ut. Motsvarar tidigare beteende (inget val = ingen
+     formatinstruktion i prompten), se buildBlocks() ovan. */
+  (function () {
+    if (document.querySelector('input[name="output-format"]:checked')) return;
+    const textRadio = document.getElementById("text");
+    if (!textRadio || textRadio.name !== "output-format") return;
+    textRadio.checked = true;
+    textRadio.dispatchEvent(new Event("change", { bubbles: true }));
+  })();
+
   const genericFlow  = ["step-1", "step-4", "step-5", "step-riktlinjer"];
   const specialSteps = ["step-image", "step-video", "step-code"];
   const MEDIA_TYPES  = ["bild", "bildprompta", "video", "kod"]; // används av avsnitt C
@@ -238,7 +249,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (contextLines.length) task.push(`\nKontext:\n${contextLines.join("\n")}`);
     if (d.pasteMaterial) task.push(`\nMaterial att utgå från:\n${d.pasteMaterial}`);
     if (d.language)      out.push(`Svara på ${d.language}.`);
-    if (d.outputFormat)  out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
+    if (d.outputFormat && d.outputFormat !== "text")
+      out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
     if (d.length)        out.push(`Längd: ${d.length}.`);
     if (d.useExamples)   out.push("Inkludera exempel.");
     if (d.stepByStep)    out.push("Arbeta steg för steg.");
