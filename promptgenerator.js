@@ -69,15 +69,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  /* Output-format: "Text" (löpande text) är förvalt så raden aldrig ser
-     obesvarad ut. Motsvarar tidigare beteende (inget val = ingen
-     formatinstruktion i prompten), se buildBlocks() ovan. */
+  /* Output-format: lägg till "Text" (löpande text) som ett sjätte,
+     förvalt alternativ längst till vänster i Output-raden.
+     Byggs i JS (samma mönster som Snabbfälten i Data-steget) i stället
+     för i Designer, eftersom Webflows egen konvertering av ett inklistrat
+     radio-element bröt den dolda input/synlig-pill-strukturen som de
+     andra fem alternativen bygger på.
+     Motsvarar tidigare beteende när inget var valt: ingen formatinstruktion
+     läggs till i prompten, se buildBlocks() ovan. */
   (function () {
-    if (document.querySelector('input[name="output-format"]:checked')) return;
-    const textRadio = document.getElementById("text");
-    if (!textRadio || textRadio.name !== "output-format") return;
-    textRadio.checked = true;
-    textRadio.dispatchEvent(new Event("change", { bubbles: true }));
+    const anyRadio = document.querySelector('input[name="output-format"]');
+    if (!anyRadio) return;
+    const group = anyRadio.closest(".radio2_component");
+    if (!group || document.getElementById("text")) return;
+
+    const wrap = document.createElement("div");
+    wrap.className = "button-gradient";
+    wrap.innerHTML =
+      '<label class="checkbox2_field w-radio">' +
+        '<div class="w-form-formradioinput w-form-formradioinput--inputType-custom checkbox2_button w-radio-input"></div>' +
+        '<input type="radio" name="output-format" id="text" data-name="output-format" value="text" ' +
+               'style="opacity:0;position:absolute;z-index:-1">' +
+        '<span class="radio2_label w-form-label">Text</span>' +
+      '</label>';
+    group.insertBefore(wrap, group.firstChild);
+
+    if (!document.querySelector('input[name="output-format"]:checked')) {
+      const textRadio = document.getElementById("text");
+      textRadio.checked = true;
+      textRadio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   })();
 
   const genericFlow  = ["step-1", "step-4", "step-5", "step-riktlinjer"];
