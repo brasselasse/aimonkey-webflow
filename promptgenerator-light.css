@@ -59,23 +59,39 @@
    combo-klass satt i Designer — annars hade du behövt tagga
    varenda pill-instans (80+ stycken) för hand.
 
-   Default (ovald): vit yta, gradient-kant (dubbel bakgrund:
-   vit padding-box + gradient border-box).
-   Vald (.w--redirected-checked): hel gradient-bakgrund.
+   Default (ovald): vit yta med en gradient-"ram" bakom (en egen
+   ::before-pseudoelement, 1.5px större än pillen, samma radie).
+   Vald (.w--redirected-checked): hel gradient-bakgrund, ramen dold.
+
+   OBS: bytt från den tidigare dubbel-bakgrunds-tekniken
+   (padding-box + border-box på samma background-deklaration) —
+   den gav en synlig sömn/kant-artefakt vid de rundade ändarna på
+   piller (helt rund radie, 100px). Pseudoelement-ramen är samma
+   visuella resultat men utan den bugen, eftersom det är två
+   separata, var för sig rena rundade ytor istället för två
+   bakgrundslager i samma box.
 
    !important behövs eftersom Webflows egna komponentstilar för
    .checkbox2_button/.w--redirected-checked annars vinner —
    samma knep som redan används på .pg-search-input nedan.
    ══════════════════════════════════════════════════════════════ */
 html.pg-light-page .checkbox2_button {
-  background:
-    linear-gradient(#ffffff, #ffffff) padding-box,
-    linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) border-box !important;
-  border: 1.5px solid transparent !important;
+  background: #ffffff !important;
+  border    : none !important;
+}
+html.pg-light-page .checkbox2_button::before {
+  content      : "";
+  position     : absolute;
+  inset        : -1.5px;
+  border-radius: inherit;
+  background   : linear-gradient(135deg, #00c9a7 0%, #c9e265 100%);
+  z-index      : -1;
 }
 html.pg-light-page .checkbox2_button.w--redirected-checked {
-  background  : linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) !important;
-  border-color: transparent !important;
+  background: linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) !important;
+}
+html.pg-light-page .checkbox2_button.w--redirected-checked::before {
+  display: none;
 }
 html.pg-light-page .radio2_label {
   color: #1a1f29 !important;
@@ -103,6 +119,48 @@ html.pg-light-page .form_input.is-text-area:focus {
 }
 html.pg-light-page .form_input.is-text-area::placeholder {
   color: rgba(26, 31, 41, 0.35);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EXPANDERA-LIGHTBOXEN (.pg-brief-modal) — samma JS-byggda modal
+   som används för brief/bild/video/kod-fälten. Mörk bakgrundsfärg
+   (rgb(8,24,47)) hårdkodad i promptgenerator.css, går bara att
+   träffa via klassnamn. Själva scrimmet (halvtransparent svart
+   bakom modalen) lämnas orört — fungerar fint i båda teman.
+   ══════════════════════════════════════════════════════════════ */
+html.pg-light-page .pg-brief-modal-inner {
+  background: #ffffff;
+  border    : 1px solid rgba(17, 24, 39, 0.10);
+  box-shadow: 0 32px 100px rgba(17, 24, 39, 0.25);
+}
+html.pg-light-page .pg-brief-modal-header {
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+}
+html.pg-light-page .pg-brief-modal-title {
+  color: #1a1f29;
+}
+html.pg-light-page .pg-brief-modal-close {
+  color: rgba(26, 31, 41, 0.45);
+}
+html.pg-light-page .pg-brief-modal-close:hover {
+  background: rgba(17, 24, 39, 0.06);
+  color     : #1a1f29;
+}
+html.pg-light-page .pg-brief-modal-ta {
+  color     : #1a1f29;
+  background: rgba(0, 201, 167, 0.03);
+}
+html.pg-light-page .pg-brief-modal-ta:focus {
+  background: rgba(0, 201, 167, 0.05);
+}
+html.pg-light-page .pg-brief-modal-ta::placeholder {
+  color: rgba(26, 31, 41, 0.3);
+}
+html.pg-light-page .pg-brief-modal-footer {
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+}
+html.pg-light-page .pg-brief-modal-hint {
+  color: rgba(26, 31, 41, 0.4);
 }
 
 /* ══════════════════════════════════════════════════════════════
