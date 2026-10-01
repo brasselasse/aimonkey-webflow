@@ -69,7 +69,39 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const genericFlow  = ["step-1", "step-4", "step-5", "step-riktlinjer", "step-checkpoint"];
+  /* Output-format: lägg till "Text" (löpande text) som ett sjätte,
+     förvalt alternativ längst till vänster i Output-raden.
+     Byggs i JS (samma mönster som Snabbfälten i Data-steget) i stället
+     för i Designer, eftersom Webflows egen konvertering av ett inklistrat
+     radio-element bröt den dolda input/synlig-pill-strukturen som de
+     andra fem alternativen bygger på.
+     Motsvarar tidigare beteende när inget var valt: ingen formatinstruktion
+     läggs till i prompten, se buildBlocks() ovan. */
+  (function () {
+    const anyRadio = document.querySelector('input[name="output-format"]');
+    if (!anyRadio) return;
+    const group = anyRadio.closest(".radio2_component");
+    if (!group || document.getElementById("text")) return;
+
+    const wrap = document.createElement("div");
+    wrap.className = "button-gradient";
+    wrap.innerHTML =
+      '<label class="checkbox2_field w-radio">' +
+        '<div class="w-form-formradioinput w-form-formradioinput--inputType-custom checkbox2_button w-radio-input"></div>' +
+        '<input type="radio" name="output-format" id="text" data-name="output-format" value="text" ' +
+               'style="opacity:0;position:absolute;z-index:-1">' +
+        '<span class="radio2_label w-form-label">Text</span>' +
+      '</label>';
+    group.insertBefore(wrap, group.firstChild);
+
+    if (!document.querySelector('input[name="output-format"]:checked')) {
+      const textRadio = document.getElementById("text");
+      textRadio.checked = true;
+      textRadio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  })();
+
+  const genericFlow  = ["step-1", "step-4", "step-5", "step-riktlinjer"];
   const specialSteps = ["step-image", "step-video", "step-code"];
   const MEDIA_TYPES  = ["bild", "bildprompta", "video", "kod"]; // används av avsnitt C
 
@@ -104,11 +136,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function showStep(stepId) {
     currentStepId = stepId;
     allSteps.forEach((s) => (s.style.display = s.id === stepId ? "block" : "none"));
-    /* Öppna avancerade inställningar automatiskt vid steg 6 */
-    if (stepId === "step-checkpoint" && advancedSec && advancedSec.style.display !== "block") {
-      advancedSec.style.display = "block";
-      if (advancedBtn) advancedBtn.textContent = "Dölj avancerade inställningar";
-    }
     updateProgress();
     updateLivePreview();
   }
@@ -133,14 +160,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const i = genericFlow.indexOf(currentStepId);
     if (i !== -1 && i < genericFlow.length - 1) showStep(genericFlow[i + 1]);
   }
-  document.getElementById("goto-prompt")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    buildAndShowFinalPrompt();
-  });
-  document.getElementById("goto-advanced")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    goNext();
-  });
   function goPrev() {
     if (specialSteps.includes(currentStepId)) return showStep("step-1");
     const i = genericFlow.indexOf(currentStepId);
@@ -251,7 +270,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (contextLines.length) task.push(`\nKontext:\n${contextLines.join("\n")}`);
     if (d.pasteMaterial) task.push(`\nMaterial att utgå från:\n${d.pasteMaterial}`);
     if (d.language)      out.push(`Svara på ${d.language}.`);
-    if (d.outputFormat)  out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
+    if (d.outputFormat && d.outputFormat !== "text")
+      out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
     if (d.length)        out.push(`Längd: ${d.length}.`);
     if (d.useExamples)   out.push("Inkludera exempel.");
     if (d.stepByStep)    out.push("Arbeta steg för steg.");
@@ -678,9 +698,6 @@ document.addEventListener("DOMContentLoaded", function () {
     /* 3 – Steg 4: Riktlinjer — inget hårt krav, alla fält är valfria */
     () => currentStepId === "step-riktlinjer" ||
           genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-riktlinjer"),
-    /* 4 – Steg 5: Klar när step-checkpoint är aktivt steg */
-    () => currentStepId === "step-checkpoint" ||
-          genericFlow.indexOf(currentStepId) > genericFlow.indexOf("step-checkpoint"),
   ];
 
   // Hämta container robust. OBS: id:t "wf-form-Contact-1-Form" sitter numera
