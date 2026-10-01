@@ -122,6 +122,41 @@ html.pg-light-page .form_input.is-text-area::placeholder {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   GENERISK TEXT-INPUT/TEXTAREA-BAS (.form-step textarea /
+   .form-step input[type="text"]) — detta är samma bas-regel som
+   promptgenerator.css redan har för mörka temat (vit text på
+   nästan-transparent mörk bakgrund). Den träffar ALLT textinnehåll
+   i formuläret som inte redan har en egen, snävare klass — bl.a.
+   Snabbfält-raderna (.pg-row-label/.pg-row-value), "Mottagare/
+   målgrupp" och "Klistra in material". Utan den här overriden
+   ärver de mörkbakgrundens färger (nästan osynlig ljusgrå border,
+   nästan osynlig placeholder) rakt av på vit botten — därför var
+   Snabbfält-fälten "helt vita". Samma vit/border/fokus-behandling
+   som sökrutan och de större textareas ovan, för enhetlighet.
+   ══════════════════════════════════════════════════════════════ */
+html.pg-light-page .form-step textarea,
+html.pg-light-page .form-step input[type="text"] {
+  background: #ffffff !important;
+  border: 1.5px solid rgba(17, 24, 39, 0.14) !important;
+  color: #1a1f29 !important;
+}
+html.pg-light-page .form-step textarea:hover,
+html.pg-light-page .form-step input[type="text"]:hover {
+  border-color: rgba(17, 24, 39, 0.22) !important;
+  background: #ffffff !important;
+}
+html.pg-light-page .form-step textarea:focus,
+html.pg-light-page .form-step input[type="text"]:focus {
+  border-color: rgba(0, 201, 167, 0.65) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(0, 201, 167, 0.12) !important;
+}
+html.pg-light-page .form-step textarea::placeholder,
+html.pg-light-page .form-step input[type="text"]::placeholder {
+  color: rgba(26, 31, 41, 0.35) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
    EXPANDERA-LIGHTBOXEN (.pg-brief-modal) — samma JS-byggda modal
    som används för brief/bild/video/kod-fälten. Mörk bakgrundsfärg
    (rgb(8,24,47)) hårdkodad i promptgenerator.css, går bara att
