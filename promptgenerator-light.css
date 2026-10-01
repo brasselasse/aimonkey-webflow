@@ -12,15 +12,15 @@
    hör hemma här.
 
    TVÅ sätt att träffa ljus-sidan säkert, använd båda:
-   1) Designer-element: combo-klasserna du redan satt i Designer
-      (.light-theme, .is-light, .light, .color-theme-light) —
-      dessa finns bara på element du själv taggat på ljus-sidan.
-   2) JS-genererade element (sök-dropdown, Senaste prompter) —
-      de är inte Designer-element och kan inte få combo-klasser,
-      så de scopas istället mot html.pg-light-page. Den klassen
-      sätts av en liten rad i LJUS-sidans EGEN head-kod (inte i
-      den delade JS-filen), så den kan aldrig dyka upp på
-      /promptgeneratorn.
+   1) Designer-element som bara ska styla EN specifik plats
+      (t.ex. steg-kortets yta): combo-klasserna du satt i Designer
+      (.light-theme, .is-light, .color-theme-light).
+   2) Allt som gäller HELA ljus-sidan likadant — pills, textareas,
+      JS-genererade widgets (sök-dropdown, Senaste prompter) —
+      scopas mot html.pg-light-page. Den klassen sätts av en liten
+      rad i LJUS-sidans EGEN head-kod (inte i den delade JS-filen),
+      så den kan aldrig dyka upp på /promptgeneratorn. Detta slipper
+      du behöva tagga varje enskild pill-instans manuellt i Designer.
    ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════
@@ -35,25 +35,9 @@
    STEG-KORT (.step-inner.is-light)
 ══════════════════════════════════════════ */
 .step-inner.is-light {
-  background   : #ffffff;
-  border       : 1px solid rgba(17, 24, 39, 0.08);
-  box-shadow   : 0 4px 20px rgba(17, 24, 39, 0.06);
-}
-
-/* ══════════════════════════════════════════
-   KNAPPAR (.button-gradient.is-light / prev-button.is-light)
-══════════════════════════════════════════ */
-.button-gradient.is-light {
-  /* o-vald pill: ljus bakgrund, mörk text — ersätter standardens
-     mörka .checkbox2_field/.checkbox2_button-utseende */
-}
-.button-gradient.is-light .checkbox2_field,
-.button-gradient.is-light .checkbox2_button {
-  background  : #f5f6fa;
-  border-color: rgba(17, 24, 39, 0.10);
-}
-.button-gradient.is-light .radio2_label {
-  color: #1a1f29;
+  background: #ffffff;
+  border    : 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 4px 20px rgba(17, 24, 39, 0.06);
 }
 .prev-button.is-light {
   background: transparent;
@@ -62,28 +46,63 @@
 }
 
 /* ══════════════════════════════════════════
-   RADIO-PILLS (.checkbox2_field.light)
-   Samma struktur som ovan men riktad direkt mot fältet, för
-   platser där combo-klassen ligger på labeln istället för
-   wrappern.
-══════════════════════════════════════════ */
-.checkbox2_field.light {
-  background  : #f5f6fa;
-  border-color: rgba(17, 24, 39, 0.10);
-}
-.checkbox2_field.light .radio2_label {
-  color: #1a1f29;
-}
-.checkbox2_field.light .w--redirected-checked {
-  background  : #00c9a7;
-  border-color: #00c9a7;
-}
-
-/* ══════════════════════════════════════════
    ÖVRIGT (.selection-content.color-theme-light)
 ══════════════════════════════════════════ */
 .selection-content.color-theme-light {
   color: #1a1f29;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PILLS — alla radio-knappar (Typ av uppgift, Roll, Ton,
+   Output-format, Stil, Format, Ljus, Komposition osv).
+   Gäller HELA ljus-sidan, oavsett om just den pillen har någon
+   combo-klass satt i Designer — annars hade du behövt tagga
+   varenda pill-instans (80+ stycken) för hand.
+
+   Default (ovald): vit yta, gradient-kant (dubbel bakgrund:
+   vit padding-box + gradient border-box).
+   Vald (.w--redirected-checked): hel gradient-bakgrund.
+
+   !important behövs eftersom Webflows egna komponentstilar för
+   .checkbox2_button/.w--redirected-checked annars vinner —
+   samma knep som redan används på .pg-search-input nedan.
+   ══════════════════════════════════════════════════════════════ */
+html.pg-light-page .checkbox2_button {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) border-box !important;
+  border: 1.5px solid transparent !important;
+}
+html.pg-light-page .checkbox2_button.w--redirected-checked {
+  background  : linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) !important;
+  border-color: transparent !important;
+}
+html.pg-light-page .radio2_label {
+  color: #1a1f29 !important;
+}
+html.pg-light-page .checkbox2_button.w--redirected-checked ~ .radio2_label {
+  color      : #0d2b24 !important;
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TEXTAREAS — brief/bild/video/kod-fälten (.form_input.is-text-area)
+   ska se ut som sökrutan (.pg-search-input): vit yta, tydlig
+   border, samma radie. Höjd/padding rörs INTE — bara utseendet.
+   ══════════════════════════════════════════════════════════════ */
+html.pg-light-page .form_input.is-text-area {
+  background   : #ffffff !important;
+  border       : 1.5px solid rgba(17, 24, 39, 0.14) !important;
+  border-radius: 10px !important;
+  color        : #1a1f29 !important;
+}
+html.pg-light-page .form_input.is-text-area:focus {
+  border-color: rgba(0, 201, 167, 0.65) !important;
+  background  : #ffffff !important;
+  box-shadow  : 0 0 0 3px rgba(0, 201, 167, 0.12) !important;
+}
+html.pg-light-page .form_input.is-text-area::placeholder {
+  color: rgba(26, 31, 41, 0.35);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -104,7 +123,7 @@ html.pg-light-page .pg-search-input {
   color     : #1a1f29 !important;
 }
 html.pg-light-page .pg-search-input:focus {
-  background: #ffffff !important;
+  background  : #ffffff !important;
   border-color: rgba(0, 201, 167, 0.65) !important;
 }
 html.pg-light-page .pg-search-input::placeholder {
