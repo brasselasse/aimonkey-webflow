@@ -11,48 +11,173 @@
    påverkas även /promptgeneratorn (mörk, live). Allt ljus-specifikt
    hör hemma här.
 
-   Scope: rikta alltid selektorerna mot temats egna combo-klasser
-   (t.ex. .light-theme, .is-light) som redan satts i Designer, så
-   reglerna aldrig kan träffa den mörka sidan av misstag.
+   TVÅ sätt att träffa ljus-sidan säkert, använd båda:
+   1) Designer-element: combo-klasserna du redan satt i Designer
+      (.light-theme, .is-light, .light, .color-theme-light) —
+      dessa finns bara på element du själv taggat på ljus-sidan.
+   2) JS-genererade element (sök-dropdown, Senaste prompter) —
+      de är inte Designer-element och kan inte få combo-klasser,
+      så de scopas istället mot html.pg-light-page. Den klassen
+      sätts av en liten rad i LJUS-sidans EGEN head-kod (inte i
+      den delade JS-filen), så den kan aldrig dyka upp på
+      /promptgeneratorn.
    ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════
    BAS — formulärets yta
 ══════════════════════════════════════════ */
 .light-theme {
-  /* t.ex. background, färg på brödtext */
+  background: #ffffff;
+  color     : #1a1f29;
 }
 
 /* ══════════════════════════════════════════
    STEG-KORT (.step-inner.is-light)
 ══════════════════════════════════════════ */
 .step-inner.is-light {
-  /* t.ex. background, border, box-shadow för steg-kortet */
+  background   : #ffffff;
+  border       : 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow   : 0 4px 20px rgba(17, 24, 39, 0.06);
 }
 
 /* ══════════════════════════════════════════
    KNAPPAR (.button-gradient.is-light / prev-button.is-light)
 ══════════════════════════════════════════ */
 .button-gradient.is-light {
-  /* t.ex. gradient/bakgrundsfärg, textfärg */
+  /* o-vald pill: ljus bakgrund, mörk text — ersätter standardens
+     mörka .checkbox2_field/.checkbox2_button-utseende */
+}
+.button-gradient.is-light .checkbox2_field,
+.button-gradient.is-light .checkbox2_button {
+  background  : #f5f6fa;
+  border-color: rgba(17, 24, 39, 0.10);
+}
+.button-gradient.is-light .radio2_label {
+  color: #1a1f29;
 }
 .prev-button.is-light {
-  /* t.ex. border, textfärg för "Tillbaka"-knappen */
+  background: transparent;
+  border    : 1px solid rgba(17, 24, 39, 0.14);
+  color     : #1a1f29;
 }
 
 /* ══════════════════════════════════════════
    RADIO-PILLS (.checkbox2_field.light)
+   Samma struktur som ovan men riktad direkt mot fältet, för
+   platser där combo-klassen ligger på labeln istället för
+   wrappern.
 ══════════════════════════════════════════ */
 .checkbox2_field.light {
-  /* t.ex. bakgrund/border för o-vald pill */
+  background  : #f5f6fa;
+  border-color: rgba(17, 24, 39, 0.10);
+}
+.checkbox2_field.light .radio2_label {
+  color: #1a1f29;
 }
 .checkbox2_field.light .w--redirected-checked {
-  /* t.ex. bakgrund/border för vald pill */
+  background  : #00c9a7;
+  border-color: #00c9a7;
 }
 
 /* ══════════════════════════════════════════
    ÖVRIGT (.selection-content.color-theme-light)
 ══════════════════════════════════════════ */
 .selection-content.color-theme-light {
-  /* t.ex. textfärg/bakgrund i valkort på startsidan */
+  color: #1a1f29;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   JS-GENERERADE WIDGETS — scopat mot html.pg-light-page
+   (sök-dropdown, Senaste prompter). Byggs av promptgenerator.js
+   med hårdkodade mörka färger (#111827-bakgrund, vit text) —
+   dessa går inte att träffa via Designer-combo-klasser, bara via
+   CSS riktad mot deras klassnamn.
+   ══════════════════════════════════════════════════════════════ */
+
+/* -- Sökfält (Kort B, "Utgå från en mall") -- */
+html.pg-light-page .pg-search-label {
+  color: rgba(26, 31, 41, 0.6);
+}
+html.pg-light-page .pg-search-input {
+  background: #ffffff !important;
+  border    : 1.5px solid rgba(17, 24, 39, 0.14) !important;
+  color     : #1a1f29 !important;
+}
+html.pg-light-page .pg-search-input:focus {
+  background: #ffffff !important;
+  border-color: rgba(0, 201, 167, 0.65) !important;
+}
+html.pg-light-page .pg-search-input::placeholder {
+  color: rgba(26, 31, 41, 0.35);
+}
+html.pg-light-page .pg-search-icon {
+  color: rgba(26, 31, 41, 0.4);
+}
+html.pg-light-page .pg-search-clear {
+  color: rgba(26, 31, 41, 0.4);
+}
+html.pg-light-page .pg-search-clear:hover {
+  color     : rgba(26, 31, 41, 0.8);
+  background: rgba(17, 24, 39, 0.06);
+}
+
+/* -- Sök-dropdown -- */
+html.pg-light-page .pg-search-dropdown {
+  background: #ffffff;
+  border    : 1px solid rgba(17, 24, 39, 0.10);
+  box-shadow: 0 12px 40px rgba(17, 24, 39, 0.12);
+}
+html.pg-light-page .pg-search-item-name {
+  color: #1a1f29;
+}
+html.pg-light-page .pg-search-item-desc {
+  color: rgba(26, 31, 41, 0.55);
+}
+/* .pg-search-item-cat och hover-färgen (teal) funkar redan fint mot vitt,
+   lämnade orörda avsiktligt. */
+
+/* -- Banner ("Mall vald") -- */
+html.pg-light-page .pg-search-banner {
+  color: #1a1f29;
+}
+html.pg-light-page .pg-search-banner strong {
+  color: #1a1f29;
+}
+
+/* -- Senaste prompter -- */
+html.pg-light-page #pg-recent-wrap {
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+}
+html.pg-light-page .pg-recent-title {
+  color: rgba(26, 31, 41, 0.5);
+}
+html.pg-light-page .pg-recent-clear {
+  color: rgba(26, 31, 41, 0.35);
+}
+html.pg-light-page .pg-recent-clear:hover {
+  color: rgba(26, 31, 41, 0.75);
+}
+html.pg-light-page .pg-recent-item {
+  background: #f5f6fa;
+  border    : 1px solid rgba(17, 24, 39, 0.08);
+}
+html.pg-light-page .pg-recent-item:hover {
+  background  : #eef0f5;
+  border-color: rgba(17, 24, 39, 0.12);
+}
+html.pg-light-page .pg-recent-preview {
+  color: rgba(26, 31, 41, 0.75);
+}
+html.pg-light-page .pg-recent-time {
+  color: rgba(26, 31, 41, 0.4);
+}
+html.pg-light-page .pg-recent-copy {
+  background: #ffffff;
+  border    : 1px solid rgba(17, 24, 39, 0.10);
+  color     : rgba(26, 31, 41, 0.65);
+}
+html.pg-light-page .pg-recent-copy:hover {
+  background  : rgba(0, 201, 167, 0.10);
+  border-color: rgba(0, 201, 167, 0.3);
+  color       : #00a98c;
 }
