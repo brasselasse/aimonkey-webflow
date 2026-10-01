@@ -1,0 +1,58 @@
+/* ══════════════════════════════════════════════════════════════
+   PROMPTGENERATORN — LJUS TEMA (overrides)
+   ------------------------------------------------------------
+   Denna fil laddas ENDAST på /promptgeneratorn-light, som en andra
+   <link> EFTER promptgenerator.css. Den ska bara innehålla visuella
+   overrides för det ljusa temat (färger, bakgrunder, borders,
+   skuggor) — aldrig layout/spacing/animation, det delas med
+   mörka versionen via promptgenerator.css.
+
+   Rör ALDRIG promptgenerator.css för ljus-tema-ändringar — då
+   påverkas även /promptgeneratorn (mörk, live). Allt ljus-specifikt
+   hör hemma här.
+
+   Scope: rikta alltid selektorerna mot temats egna combo-klasser
+   (t.ex. .light-theme, .is-light) som redan satts i Designer, så
+   reglerna aldrig kan träffa den mörka sidan av misstag.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════
+   BAS — formulärets yta
+══════════════════════════════════════════ */
+.light-theme {
+  /* t.ex. background, färg på brödtext */
+}
+
+/* ══════════════════════════════════════════
+   STEG-KORT (.step-inner.is-light)
+══════════════════════════════════════════ */
+.step-inner.is-light {
+  /* t.ex. background, border, box-shadow för steg-kortet */
+}
+
+/* ══════════════════════════════════════════
+   KNAPPAR (.button-gradient.is-light / prev-button.is-light)
+══════════════════════════════════════════ */
+.button-gradient.is-light {
+  /* t.ex. gradient/bakgrundsfärg, textfärg */
+}
+.prev-button.is-light {
+  /* t.ex. border, textfärg för "Tillbaka"-knappen */
+}
+
+/* ══════════════════════════════════════════
+   RADIO-PILLS (.checkbox2_field.light)
+══════════════════════════════════════════ */
+.checkbox2_field.light {
+  /* t.ex. bakgrund/border för o-vald pill */
+}
+.checkbox2_field.light .w--redirected-checked {
+  /* t.ex. bakgrund/border för vald pill */
+}
+
+/* ══════════════════════════════════════════
+   ÖVRIGT (.selection-content.color-theme-light)
+══════════════════════════════════════════ */
+.selection-content.color-theme-light {
+  /* t.ex. textfärg/bakgrund i valkort på startsidan */
+}
