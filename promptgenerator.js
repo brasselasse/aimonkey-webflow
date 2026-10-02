@@ -531,7 +531,14 @@ document.addEventListener("DOMContentLoaded", function () {
      ============================================================ */
   function updateLivePreview() {
     const data   = buildPromptData();
-    const blocks = buildBlocks(data);
+    let   blocks = buildBlocks(data);
+    /* Förval (Svenska, Text) räknas inte som innehåll: finns inget som
+       användaren själv fyllt i/valt visas en tom preview i stället för
+       ett ensamt "Så ska svaret se ut – Svara på svenska." */
+    const userOnly = buildRaw(buildBlocks(Object.assign({}, data, {
+      language: "", outputFormat: data.outputFormat === "text" ? "" : data.outputFormat,
+    })));
+    if (!userOnly) blocks = { system: "", task: "", output: "", rules: "", category: "", taskMain: "", context: "", material: "" };
     const raw    = buildRaw(blocks);
     Object.entries(previews).forEach(([key, el]) => {
       if (!el) return;
