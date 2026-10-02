@@ -213,6 +213,10 @@ document.addEventListener("DOMContentLoaded", function () {
       codeEdgeCases: $check("#code-edge-cases"),
     };
   }
+  /* Promptformat (uppdaterat 2026-10-02): naturlig svenska i stället för
+     SYSTEM/UPPGIFT/OUTPUT/REGLER/KATEGORI. Rollen först som en löpande
+     mening, sedan markdown-rubriker (## …) och punktlistor — fungerar lika
+     bra i ChatGPT, Claude och Gemini. */
   const TONE = {
     professionell: "Skriv på ett professionellt och tydligt sätt.",
     vänlig:        "Skriv på ett vänligt och lättillgängligt sätt.",
@@ -222,72 +226,94 @@ document.addEventListener("DOMContentLoaded", function () {
     övertygande:   "Skriv övertygande och säljande.",
   };
   const FORMAT = {
-    bullet:   "Presentera svaret som punktlista.",
-    numbered: "Presentera svaret som numrerad lista.",
-    table:    "Presentera svaret i tabellform.",
-    markdown: "Presentera svaret i tydlig markdown.",
-    json:     "Presentera svaret som JSON.",
+    bullet:   "Presentera svaret som en punktlista.",
+    numbered: "Presentera svaret som en numrerad lista.",
+    table:    "Presentera svaret i en tabell.",
+    markdown: "Formatera svaret med tydlig markdown.",
+    json:     "Svara med giltig JSON.",
+  };
+  const LENGTH = {
+    kort:       "Håll det kort.",
+    medel:      "Lagom långt – varken kortfattat eller uttömmande.",
+    detaljerad: "Var utförlig och detaljerad.",
   };
   const TASK = {
-    "skriva text": (c) => `Skriv text utifrån följande brief: ${c}`,
-    "skriva-text": (c) => `Skriv text utifrån följande brief: ${c}`,
+    "skriva text": (c) => `Skriv följande: ${c}`,
+    "skriva-text": (c) => `Skriv följande: ${c}`,
     analysera:     (c) => `Analysera följande: ${c}`,
     sammanfatta:   (c) => `Sammanfatta följande: ${c}`,
-    brainstorma:   (c) => `Brainstorma idéer utifrån följande: ${c}`,
-    förklara:      (c) => `Förklara följande på ett tydligt sätt: ${c}`,
-    forklara:      (c) => `Förklara följande på ett tydligt sätt: ${c}`,
-    bild:          (c) => `Skapa en bild baserat på följande: ${c}`,
-    bildprompta:   (c) => `Skapa en bild baserat på följande: ${c}`,
-    video:         (c) => `Skapa en video baserat på följande: ${c}`,
+    brainstorma:   (c) => `Brainstorma idéer kring: ${c}`,
+    förklara:      (c) => `Förklara tydligt: ${c}`,
+    forklara:      (c) => `Förklara tydligt: ${c}`,
+    bild:          (c) => `Bilden ska föreställa: ${c}`,
+    bildprompta:   (c) => `Bilden ska föreställa: ${c}`,
+    video:         (c) => `Videon ska visa: ${c}`,
     kod:           (c) => `Lös följande programmeringsuppgift: ${c}`,
   };
+  /* "Marknadsförare" → "marknadsförare" mitt i meningen, men förkortningar
+     (SEO-expert, UX-designer, "… / HR") behåller sina versaler. */
+  function roleText(r) {
+    r = (r || "").trim();
+    if (r.length > 1 && r[0] !== r[0].toLowerCase() && r[1] === r[1].toLowerCase())
+      r = r[0].toLowerCase() + r.slice(1);
+    return r;
+  }
+  /* En hel mall/prompt i brief-rutan (lång + radbrytningar) skickas som
+     den är — utan "Skriv följande:" framför. */
+  function isFullPrompt(c) {
+    return c.length > 150 && c.indexOf("\n") !== -1;
+  }
   function buildBlocks(d) {
     const isImage = d.taskType === "bild" || d.taskType === "bildprompta";
     const isVideo = d.taskType === "video";
     const isCode  = d.taskType === "kod";
-    const sys = [], task = [], out = [], rules = [], cat = [];
-    if (isImage)      sys.push("Agera som en expert på AI-bildprompter.", "Använd visuellt beskrivande språk.");
-    else if (isVideo) sys.push("Agera som en expert på AI-videoprompter.", "Beskriv scen, rörelse, tempo, ljus och kamera tydligt.");
-    else if (isCode)  sys.push("Agera som en senior utvecklare som skriver tydlig och robust kod.");
+    const isMedia = isImage || isVideo;
+    const sys = [], out = [], rules = [], cat = [];
+    if (isImage)      sys.push("Du är expert på att skriva prompter för AI-bildgeneratorer.", "Använd visuellt beskrivande språk.");
+    else if (isVideo) sys.push("Du är expert på att skriva prompter för AI-videogeneratorer.", "Beskriv scen, rörelse, tempo, ljus och kamera tydligt.");
+    else if (isCode)  sys.push("Du är en senior utvecklare som skriver tydlig och robust kod.");
     else {
-      const role = d.customRole || d.roll;
-      if (role) sys.push(`Agera som en erfaren ${role}.`);
+      const role = roleText(d.customRole || d.roll);
+      if (role) sys.push(/^(en|ett) /i.test(role) ? `Du är ${role}.` : `Du är en erfaren ${role}.`);
     }
     if (TONE[d.ton]) sys.push(TONE[d.ton]);
     /* Media-typer använder BARA sitt eget fält — aldrig den (dolda) briefen
        från steg 1, annars kunde gammal text smyga in i bild/video/kod-prompten.
        Briefen förs i stället över till mediafältet i avsnitt I. */
-    const content = isImage ? d.imageSubject
+    const content = (isImage ? d.imageSubject
                   : isVideo ? d.videoScene
                   : isCode  ? d.codeTask
-                  : d.brief;
+                  : d.brief) || "";
+    let taskMain = "";
     if (content) {
       const fn = TASK[d.taskType];
-      task.push(fn ? fn(content) : `Hjälp mig med följande: ${content}`);
+      taskMain = (!isMedia && !isCode && isFullPrompt(content)) ? content
+               : fn ? fn(content) : content;
     }
-    /* Kontext-block: dynamiska namn/värde-fält + målgrupp, samlat
-       som strukturerade fakta istället för en löpande mening. */
+    /* Kontext: dynamiska namn/värde-fält + målgrupp som punktlista. */
     const contextLines = [];
     if (Array.isArray(d.dataRows)) {
       d.dataRows.forEach((r) => {
-        if (r.value) contextLines.push(`${r.label || "Info"}: ${r.value}`);
+        if (r.value) contextLines.push(`- ${r.label || "Info"}: ${r.value}`);
       });
     }
-    if (d.malgrupp) contextLines.push(`Mottagare: ${d.malgrupp}`);
-    if (contextLines.length) task.push(`\nKontext:\n${contextLines.join("\n")}`);
-    if (d.pasteMaterial) task.push(`\nMaterial att utgå från:\n${d.pasteMaterial}`);
-    if (d.language)      out.push(`Svara på ${d.language}.`);
+    if (d.malgrupp) contextLines.push(`- Mottagare: ${d.malgrupp}`);
+    const context  = contextLines.join("\n");
+    const material = d.pasteMaterial ? `"""\n${d.pasteMaterial}\n"""` : "";
+
+    /* Svarsspråk gäller inte bild/video — där ska prompten skrivas på engelska. */
+    if (d.language && !isMedia) out.push(`Svara på ${d.language}.`);
     if (d.outputFormat && d.outputFormat !== "text")
       out.push(FORMAT[d.outputFormat] || `Format: ${d.outputFormat}.`);
-    if (d.length)        out.push(`Längd: ${d.length}.`);
+    if (d.length)        out.push(LENGTH[d.length] || `Längd: ${d.length}.`);
     if (d.useExamples)   out.push("Inkludera exempel.");
     if (d.stepByStep)    out.push("Arbeta steg för steg.");
     if (d.threeOptions)  out.push("Ge tre alternativ.");
-    if (isImage) out.push("Skriv en färdig bildprompt som kan användas direkt.");
-    if (isVideo) out.push("Skriv en färdig videoprompt som kan användas direkt.");
+    if (isImage) out.push("Skriv en färdig bildprompt på engelska som jag kan klistra in i en bildgenerator (t.ex. Midjourney eller DALL·E).");
+    if (isVideo) out.push("Skriv en färdig videoprompt på engelska som jag kan klistra in i en videogenerator (t.ex. Sora, Runway eller Veo).");
     if (isCode)  out.push("Skriv fungerande kod som kan användas direkt.");
     if (d.askQuestions) rules.push("Ställ frågor om något är oklart.");
-    if (d.fallbackInfo) rules.push('Om du saknar tillräcklig information för att slutföra uppgiften, skriv "Otillräcklig information för att slutföra uppgiften" istället för att gissa.');
+    if (d.fallbackInfo) rules.push('Om du saknar tillräcklig information för att slutföra uppgiften, skriv "Otillräcklig information för att slutföra uppgiften" i stället för att gissa.');
     if (d.plainTextOnly) rules.push("Svara i ren text, utan rubriker, länkar eller annan formatering förutom radbrytningar vid behov.");
     if (d.constraints)  rules.push(d.constraints);
     if (isImage) {
@@ -314,22 +340,35 @@ document.addEventListener("DOMContentLoaded", function () {
       if (d.codeOutput)    cat.push(`Output: ${d.codeOutput}`);
       if (d.codeEdgeCases) cat.push("Hantera edge cases");
     }
+    const bullets = (arr) => arr.map((s) => (s.indexOf("\n") === -1 ? `- ${s}` : s)).join("\n");
+
+    /* Preview-blocket "Uppgift" visar uppgift + kontext + material ihop. */
+    const taskPreview = [
+      taskMain,
+      context  ? `Kontext:\n${context}` : "",
+      material ? `Material att utgå från:\n${material}` : "",
+    ].filter(Boolean).join("\n\n");
+
     return {
-      system:   sys.join("\n"),
-      task:     task.join("\n"),
-      output:   out.join("\n"),
-      rules:    rules.join("\n"),
-      category: cat.join("\n"),
+      system:   sys.join(" "),
+      task:     taskPreview,
+      output:   bullets(out),
+      rules:    bullets(rules),
+      category: bullets(cat),
+      /* Delarna separat för buildRaw() */
+      taskMain, context, material,
     };
   }
   function buildRaw(b) {
     const parts = [];
-    if (b.system)   parts.push("SYSTEM",   b.system,   "");
-    if (b.task)     parts.push("UPPGIFT",  b.task,     "");
-    if (b.output)   parts.push("OUTPUT",   b.output,   "");
-    if (b.rules)    parts.push("REGLER",   b.rules,    "");
-    if (b.category) parts.push("KATEGORI", b.category);
-    return parts.join("\n").trim();
+    if (b.system)   parts.push(b.system);
+    if (b.taskMain) parts.push(`## Uppgift\n${b.taskMain}`);
+    if (b.context)  parts.push(`## Kontext\n${b.context}`);
+    if (b.material) parts.push(`## Material att utgå från\n${b.material}`);
+    if (b.output)   parts.push(`## Så ska svaret se ut\n${b.output}`);
+    if (b.rules)    parts.push(`## Regler\n${b.rules}`);
+    if (b.category) parts.push(`## Ta hänsyn till\n${b.category}`);
+    return parts.join("\n\n").trim();
   }
 
   /* ============================================================
@@ -696,7 +735,9 @@ document.addEventListener("DOMContentLoaded", function () {
     copyBtn.addEventListener("click", function (e) {
       e.preventDefault();
       const text = previewRaw?.value?.trim() || "";
-      if (!text) { nudgeEmptyPrompt(); return; } // avsnitt R: feedback i st f tyst klick
+      /* Avsnitt R: utan beskrivning finns ingen uppgift att kopiera (prompten
+         är aldrig helt tom längre — "Svara på svenska" är förvalt). */
+      if (!text || !(promptDescription(buildPromptData()) || "").trim()) { nudgeEmptyPrompt(); return; }
       /* Spara + feedback sker ALLTID — oberoende av om urklippet lyckas.
          (Tidigare låg detta inuti clipboard.then(), så om writeText
           avvisades sparades prompten aldrig i Senaste prompter.) */
@@ -746,6 +787,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (dataRowsContainer) dataRowsContainer.innerHTML = "";
       lastChipTaskType = null;
       hasFirstContent = false;
+      applyDefaults(); // Text + Svenska förvalda igen
       showStep("step-1");
       updateLivePreview();
     });
@@ -1047,6 +1089,42 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ============================================================
      13. INIT
      ============================================================ */
+  /* Förval: Output = Text, Språk = Svenska (synligt valda pills).
+     Körs vid init och efter "Skapa ny" — rör inget som redan är valt. */
+  function applyDefaults() {
+    ["text", "svenska"].forEach(function (id) {
+      var r = document.getElementById(id);
+      if (!r || r.type !== "radio") return;
+      if (document.querySelector('input[name="' + r.name + '"]:checked')) return;
+      r.checked = true;
+      // bubbles:false — samma skäl som i avsnitt 11 (Webflows document-lyssnare)
+      r.dispatchEvent(new Event("change", { bubbles: false }));
+    });
+    /* Synka pill-utseendet med faktiskt val. "Text"-pillen skapas och väljs
+       överst i filen, innan avsnitt 11:s lyssnare finns — den var vald men
+       såg aldrig vald ut. */
+    document.querySelectorAll('.checkbox2_field input[type="radio"]').forEach(function (i) {
+      var btn = i.closest(".checkbox2_field").querySelector(".checkbox2_button");
+      if (btn) btn.classList.toggle("w--redirected-checked", i.checked);
+    });
+  }
+  applyDefaults();
+
+  /* Preview: samma ordning och namn som den kopierade prompten
+     (Designer har Uppgift → System → Output → Extra regler → Kategori). */
+  (function () {
+    var blockOf = function (el) { return el && (el.closest("[data-preview-block]") || el.parentElement); };
+    var sysB = blockOf(previews.system), taskB = blockOf(previews.task);
+    if (sysB && taskB && sysB.parentElement === taskB.parentElement)
+      taskB.parentElement.insertBefore(sysB, taskB);
+    var LABELS = { system: "Roll & ton", task: "Uppgift", output: "Så ska svaret se ut",
+                   rules: "Regler", category: "Ta hänsyn till" };
+    Object.keys(LABELS).forEach(function (k) {
+      var lbl = blockOf(previews[k]) && blockOf(previews[k]).querySelector(".pg-prompt-label");
+      if (lbl) lbl.textContent = LABELS[k];
+    });
+  })();
+
   showStep("step-1");
   updateLivePreview(); // kör även updateChecks() + updateHeaderVisibility()
 
