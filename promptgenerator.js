@@ -514,6 +514,137 @@ document.addEventListener("DOMContentLoaded", function () {
     updateHeaderVisibility();
     // ── 4B: Uppdatera chip-förslag om task-type ändrats ──
     renderDataChips();
+    // ── R: "Prompten är redo"-feedback ──
+    updateReadyState(data);
+  }
+
+  /* ============================================================
+     R. "PROMPTEN ÄR REDO"-FEEDBACK + TOM-KOPIERING + SLIDER
+     Användare trodde att alla steg måste fyllas i. Så fort det finns
+     en beskrivning (≥ 10 tecken i brief- eller mediafältet) visas:
+       - en statusrad i preview-kortet ovanför Kopiera
+       - en kort rad under "Nästa steg" i steg 1–3 (viktigast på
+         mobil, där preview ligger långt ner) med "Visa prompt"-länk
+     Klick på Kopiera med tom prompt ger feedback i stället för
+     ingenting. Längd-slidern visas dämpad tills den rörts (den
+     påverkar inte prompten förrän dess).
+     OBS: allt här är var/function-deklarationer — updateLivePreview()
+     anropar updateReadyState() och kan köras innan avsnittet nåtts.
+     ============================================================ */
+  var READY_MIN_CHARS = 10;
+  var readyStatusEl   = null;
+  var readyHintEls    = [];
+
+  function promptDescription(d) {
+    var t = d.taskType;
+    if (t === "bild" || t === "bildprompta") return d.imageSubject;
+    if (t === "video") return d.videoScene;
+    if (t === "kod")   return d.codeTask;
+    return d.brief;
+  }
+  function isPromptReady(d) {
+    return (promptDescription(d) || "").trim().length >= READY_MIN_CHARS;
+  }
+
+  function injectReadyStyles() {
+    if (document.getElementById("pg-ready-style")) return;
+    var st = document.createElement("style");
+    st.id = "pg-ready-style";
+    st.textContent =
+      ".pg-ready-status{font-size:.85rem;line-height:1.35;margin:4px 0 10px;padding:8px 12px;border-radius:10px;" +
+        "background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);transition:background .25s,color .25s}" +
+      ".pg-ready-status.is-ready{background:rgba(0,201,167,.14);color:#39ff8a}" +
+      ".pg-ready-status.is-error{background:rgba(255,92,92,.14);color:#ff8a8a}" +
+      "html.pg-light-page .pg-ready-status{background:rgba(17,24,39,.04);color:rgba(26,31,41,.6)}" +
+      "html.pg-light-page .pg-ready-status.is-ready{background:rgba(0,201,167,.12);color:#00866f}" +
+      "html.pg-light-page .pg-ready-status.is-error{background:rgba(220,38,38,.08);color:#b91c1c}" +
+      ".pg-ready-hint{display:none;margin-top:10px;font-size:.85rem;text-align:right;color:#39ff8a}" +
+      "html.pg-light-page .pg-ready-hint{color:#00866f}" +
+      ".pg-ready-hint.is-visible{display:block}" +
+      ".pg-ready-hint a{color:inherit;text-decoration:underline;cursor:pointer;margin-left:4px;font-weight:600}" +
+      "@keyframes pgShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}" +
+      ".pg-shake{animation:pgShake .4s ease}" +
+      ".pg-slider-wrap.pg-untouched{opacity:.55;transition:opacity .2s}" +
+      ".pg-slider-wrap.pg-untouched:hover{opacity:.8}";
+    document.head.appendChild(st);
+  }
+
+  function scrollToPreview() {
+    if (!previewWrap) return;
+    var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    previewWrap.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+    previewWrap.classList.remove("is-highlighted");
+    void previewWrap.offsetWidth;
+    previewWrap.classList.add("is-highlighted");
+    setTimeout(function () { previewWrap.classList.remove("is-highlighted"); }, 1700);
+  }
+
+  function ensureReadyElements() {
+    if (readyStatusEl || !copyBtn) return;
+    injectReadyStyles();
+    var actions = copyBtn.parentElement;
+    readyStatusEl = document.createElement("div");
+    readyStatusEl.className = "pg-ready-status";
+    readyStatusEl.setAttribute("role", "status");
+    readyStatusEl.setAttribute("aria-live", "polite");
+    actions.parentElement.insertBefore(readyStatusEl, actions);
+
+    ["step-1", "step-4", "step-5"].forEach(function (id) {
+      var group = document.querySelector("#" + id + " .button-group");
+      if (!group) return;
+      var hint = document.createElement("div");
+      hint.className = "pg-ready-hint";
+      hint.innerHTML = "✓ Prompten är redo! Kopiera nu eller förfina i nästa steg.";
+      var link = document.createElement("a");
+      link.textContent = "Visa prompt";
+      link.href = "#prompt-preview-wrapper";
+      link.addEventListener("click", function (e) { e.preventDefault(); scrollToPreview(); });
+      hint.appendChild(link);
+      group.parentElement.insertBefore(hint, group.nextSibling);
+      readyHintEls.push(hint);
+    });
+  }
+
+  function updateReadyState(d) {
+    ensureReadyElements();
+    var ready = isPromptReady(d || buildPromptData());
+    /* Ett felmeddelande (tom kopiering) står kvar en stund — men bara
+       tills prompten faktiskt blivit redo. */
+    if (ready && readyStatusEl) readyStatusEl.classList.remove("is-error");
+    if (readyStatusEl && !readyStatusEl.classList.contains("is-error")) {
+      readyStatusEl.classList.toggle("is-ready", ready);
+      readyStatusEl.textContent = ready
+        ? "✓ Prompten är redo att kopiera – resten av stegen är valfria."
+        : "Skriv vad du vill ha hjälp med för att skapa din prompt.";
+    }
+    readyHintEls.forEach(function (h) { h.classList.toggle("is-visible", ready); });
+
+    /* Slider: dämpad tills rörd */
+    var sliderWrap = lengthSlider && lengthSlider.closest(".pg-slider-wrap");
+    if (sliderWrap) sliderWrap.classList.toggle("pg-untouched", lengthSlider.dataset.touched !== "true");
+  }
+
+  function nudgeEmptyPrompt() {
+    ensureReadyElements();
+    if (readyStatusEl) {
+      readyStatusEl.classList.remove("is-ready");
+      readyStatusEl.classList.add("is-error");
+      readyStatusEl.textContent = "Det finns ingen prompt att kopiera än – börja med att skriva vad du vill ha hjälp med.";
+      setTimeout(function () { readyStatusEl.classList.remove("is-error"); updateReadyState(); }, 3500);
+    }
+    if (copyBtn) {
+      copyBtn.classList.remove("pg-shake"); void copyBtn.offsetWidth; copyBtn.classList.add("pg-shake");
+    }
+    /* För användaren till rätt beskrivningsfält */
+    var t = checkedValue("task-type", "").toLowerCase();
+    var map = { bild: ["step-image", "image-subject"], bildprompta: ["step-image", "image-subject"],
+                video: ["step-video", "video-scene"], kod: ["step-code", "code-task"] };
+    var target = map[t] || ["step-1", "brief-input"];
+    setTimeout(function () {
+      showStep(target[0]);
+      var f = document.getElementById(target[1]);
+      if (f) { f.scrollIntoView({ behavior: "smooth", block: "center" }); f.focus({ preventScroll: true }); }
+    }, 600);
   }
 
   /* ============================================================
@@ -565,16 +696,19 @@ document.addEventListener("DOMContentLoaded", function () {
     copyBtn.addEventListener("click", function (e) {
       e.preventDefault();
       const text = previewRaw?.value?.trim() || "";
-      if (!text) return;
+      if (!text) { nudgeEmptyPrompt(); return; } // avsnitt R: feedback i st f tyst klick
       /* Spara + feedback sker ALLTID — oberoende av om urklippet lyckas.
          (Tidigare låg detta inuti clipboard.then(), så om writeText
           avvisades sparades prompten aldrig i Senaste prompter.) */
-      const original = copyBtn.textContent;
-      copyBtn.textContent = "Kopierad! 🎉";
+      /* Byt bara texten i .copy-text — att sätta copyBtn.textContent
+         raderade kopieringsikonen permanent efter första klicket. */
+      const label = copyBtn.querySelector("#copy-text, .copy-text") || copyBtn;
+      if (!label.dataset.pgOriginal) label.dataset.pgOriginal = label.textContent;
+      label.textContent = "Kopierad! 🎉";
       fireConfetti();
       if (toolLinks) toolLinks.classList.add("is-revealed");
       saveRecentPrompt(text, checkedValue("task-type", "").toLowerCase());
-      setTimeout(() => (copyBtn.textContent = original), 1800);
+      setTimeout(() => (label.textContent = label.dataset.pgOriginal), 1800);
       copyToClipboard(text);
     });
   }
