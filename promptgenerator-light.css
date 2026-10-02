@@ -83,9 +83,23 @@ html.pg-light-page .checkbox2_button {
   background: #ffffff !important;
   border    : 1.5px solid #00c9a7 !important;
 }
-html.pg-light-page .checkbox2_button.w--redirected-checked {
+html.pg-light-page .checkbox2_button.w--redirected-checked,
+html.pg-light-page .checkbox2_field:has(input[type="radio"]:checked) .checkbox2_button {
   background: #00c9a7 !important;
   border    : 1.5px solid #00c9a7 !important;
+}
+
+/* Wrappern runt varje pill (.button-gradient, Designer-klass) har en
+   egen linear-gradient(135deg, #ffd240, #01a085) + 2px padding — det
+   var den som syntes som gradient-ram runt pillsen. Neutraliseras här
+   (bara wrappers som innehåller en pill, inte andra .button-gradient-
+   knappar). Paddingen lämnas orörd så pill-storleken inte ändras.
+   Andra :has-selektorn ovan behövs för att slå sidans inbäddade
+   style-overrides-embed, som sätter vald pill till
+   background-color: transparent !important med högre specificitet. */
+html.pg-light-page .button-gradient:has(> .checkbox2_field) {
+  background-color: transparent !important;
+  background-image: none !important;
 }
 html.pg-light-page .radio2_label {
   color: #1a1f29 !important;
