@@ -313,3 +313,22 @@ html.pg-light-page .pg-recent-copy:hover {
   border-color: rgba(0, 201, 167, 0.3);
   color       : #00a98c;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   PREVIEW-KNAPPARNA (Kopiera prompt / Skapa ny)
+   "Kopiera prompt" radbröts på två rader när preview-kolumnen är smal
+   (≈ 992–1440 px). Ingen radbrytning i etiketten, och knapparna ligger
+   bredvid varandra när var och en får ≥ 150 px — annars under varandra
+   i full bredd.
+   ══════════════════════════════════════════════════════════════ */
+html.pg-light-page .pg-preview-actions {
+  flex-direction: row !important;
+  flex-wrap     : wrap !important;
+}
+html.pg-light-page .pg-preview-actions > * {
+  flex     : 1 1 150px !important;
+  min-width: 0;
+}
+html.pg-light-page #copy-prompt-preview #copy-text {
+  white-space: nowrap;
+}
