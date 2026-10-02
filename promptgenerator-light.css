@@ -101,6 +101,18 @@ html.pg-light-page .button-gradient:has(> .checkbox2_field) {
   background-color: transparent !important;
   background-image: none !important;
 }
+
+/* Webflows standard-fokusstil (.w--redirected-focus → blå box-shadow
+   #3898ec) sätts på pillen vid VARJE klick och syntes som en blå glöd
+   runt vald pill. Bort med den. Ersätts av en diskret grön ring som
+   bara visas vid tangentbordsnavigering (:focus-visible), så Tab-
+   navigering fortfarande syns. */
+html.pg-light-page .checkbox2_button.w--redirected-focus {
+  box-shadow: none !important;
+}
+html.pg-light-page .checkbox2_field:has(input[type="radio"]:focus-visible) .checkbox2_button {
+  box-shadow: 0 0 0 3px rgba(0, 201, 167, 0.30) !important;
+}
 html.pg-light-page .radio2_label {
   color: #1a1f29 !important;
 }
