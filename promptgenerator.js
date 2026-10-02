@@ -138,6 +138,7 @@ document.addEventListener("DOMContentLoaded", function () {
     allSteps.forEach((s) => (s.style.display = s.id === stepId ? "block" : "none"));
     updateProgress();
     updateLivePreview();
+    if (typeof autoGrowAll === "function") autoGrowAll(); // avsnitt F0 — mät fält som nu blivit synliga
   }
   function updateProgress() {
     if (!progressFill) return;
@@ -954,6 +955,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!gated) return;
       setHidden(false);
       document.documentElement.classList.remove('pg-gated-locked');
+      setTimeout(autoGrowAll, 0); // fält kan ha fyllts (URL-import) medan de var dolda
     }
 
     /* Väljer en väg: visa innehållet, scrolla till formuläret, logga i GA4 */
@@ -1087,6 +1089,36 @@ document.addEventListener("DOMContentLoaded", function () {
     /* Rendera på sidladdning (visar historik från föregående besök) */
     renderRecent();
   })();
+
+  /* ── F0. Självväxande textareas (brief + bild + video + kod) ──
+     Rutan börjar på sin Designer-höjd och växer med innehållet upp till
+     ett tak (min(420px, 55% av fönsterhöjden)); därefter scroll. Dolda
+     fält (inaktiva steg) går inte att mäta — de räknas om när steget
+     visas (showStep → autoGrowAll) och vid varje input/change. */
+  var AUTO_GROW_IDS = ['brief-input', 'image-subject', 'video-scene', 'code-task'];
+  function autoGrow(ta) {
+    if (!ta || !ta.offsetParent) return;           // dold → mät senare
+    if (!ta.dataset.pgMinH) ta.dataset.pgMinH = String(ta.offsetHeight);
+    var minH = +ta.dataset.pgMinH;
+    var maxH = Math.max(minH, Math.min(420, Math.round(window.innerHeight * 0.55)));
+    var border = ta.offsetHeight - ta.clientHeight;
+    ta.style.height = minH + 'px';                 // nollställ innan mätning
+    var needed = ta.scrollHeight + border;
+    ta.style.height = Math.min(Math.max(needed, minH), maxH) + 'px';
+    ta.style.overflowY = needed > maxH ? 'auto' : 'hidden';
+  }
+  function autoGrowAll() {
+    if (!AUTO_GROW_IDS) return; // showStep() vid init körs innan denna rad nåtts
+    AUTO_GROW_IDS.forEach(function (id) { autoGrow(document.getElementById(id)); });
+  }
+  AUTO_GROW_IDS.forEach(function (id) {
+    var ta = document.getElementById(id);
+    if (!ta) return;
+    ta.style.transition = 'height .12s ease';
+    ta.addEventListener('input',  function () { autoGrow(ta); });
+    ta.addEventListener('change', function () { autoGrow(ta); });
+  });
+  window.addEventListener('resize', autoGrowAll);
 
   /* ── F. Expanderbara textareas: brief + bild + video + kod ── */
   (function () {
