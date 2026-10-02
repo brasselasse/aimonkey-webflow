@@ -612,7 +612,21 @@ document.addEventListener("DOMContentLoaded", function () {
       ".pg-brief-expand-btn{background:rgba(9,32,52,.82)!important;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}" +
       "html.pg-light-page .pg-brief-expand-btn{background:rgba(234,250,246,.9)!important}" +
       /* Mall-bannern ligger nu överst i preview-kortet */
-      "#prompt-preview-wrapper .pg-search-banner{margin:4px 0 12px}";
+      "#prompt-preview-wrapper .pg-search-banner{margin:4px 0 12px}" +
+      /* Kompakt startrad (avsnitt E) */
+      "#pg-start.pg-start-compact>.margin-bottom,#pg-start.pg-start-compact>.selection-grid{display:none!important}" +
+      ".pg-start-bar{display:none}" +
+      "#pg-start.pg-start-compact .pg-start-bar{display:flex;align-items:center;gap:12px;width:100%;text-align:left;" +
+        "padding:8px 8px 8px 10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);animation:pgBarIn .25s ease}" +
+      ".pg-start-bar-search{flex:1;min-width:0}" +
+      ".pg-start-bar-search .pg-search-wrap{margin:0}" +
+      ".pg-start-bar-reset{flex:none;white-space:nowrap;background:none;border:0;padding:8px 12px;font:inherit;font-size:.9rem;" +
+        "font-weight:600;color:#39ff8a;cursor:pointer;border-radius:8px}" +
+      ".pg-start-bar-reset:hover{background:rgba(57,255,138,.1)}" +
+      "html.pg-light-page #pg-start.pg-start-compact .pg-start-bar{background:rgba(255,255,255,.75);border-color:rgba(17,24,39,.08);box-shadow:0 4px 20px rgba(17,24,39,.06)}" +
+      "html.pg-light-page .pg-start-bar-reset{color:#00866f}" +
+      "html.pg-light-page .pg-start-bar-reset:hover{background:rgba(0,201,167,.1)}" +
+      "@keyframes pgBarIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}";
     document.head.appendChild(st);
   }
 
@@ -799,6 +813,8 @@ document.addEventListener("DOMContentLoaded", function () {
       /* Mall-bannern hör till den gamla prompten — bort med den */
       var libBanner = document.getElementById("pg-search-banner");
       if (libBanner) { libBanner.classList.remove("is-visible"); libBanner.innerHTML = ""; }
+      /* Visa startkorten igen — man börjar om och väljer väg på nytt */
+      if (window.pgExpandStart) window.pgExpandStart();
       showStep("step-1");
       updateLivePreview();
     });
@@ -1181,9 +1197,90 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(autoGrowAll, 0); // fält kan ha fyllts (URL-import) medan de var dolda
     }
 
+    /* ── Kompakt startrad ──
+       När en väg valts (Starta, mall, URL-import) fälls "Hur vill du börja?"
+       + de två korten ihop till en smal rad: sökrutan ("Byt till en mall…")
+       + "Börja om". Sökrutan FLYTTAS in i raden (samma element, samma
+       sök-logik) och tillbaka till Kort B när korten visas igen.
+       "Börja om" och "Skapa ny" (restart) visar korten igen. */
+    var startBar = null, SEARCH_PH = null;
+    function ensureStartBar() {
+      if (startBar || !startBlock) return startBar;
+      startBar = document.createElement('div');
+      startBar.className = 'pg-start-bar';
+      var slot = document.createElement('div');
+      slot.className = 'pg-start-bar-search';
+      var again = document.createElement('button');
+      again.type = 'button';
+      again.className = 'pg-start-bar-reset';
+      again.innerHTML = '↺ Börja om';
+      again.addEventListener('click', function () {
+        var rb = document.getElementById('restart-form');
+        if (rb) rb.click(); else expandStart();   // restart anropar expandStart()
+        startBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      startBar.appendChild(slot);
+      startBar.appendChild(again);
+      startBlock.appendChild(startBar);
+      return startBar;
+    }
+    function moveSearch(toBar) {
+      var sw = document.querySelector('.pg-search-wrap');
+      if (!sw) return false;
+      var input = sw.querySelector('.pg-search-input');
+      if (input && SEARCH_PH === null) SEARCH_PH = input.placeholder;
+      if (toBar) {
+        ensureStartBar().querySelector('.pg-start-bar-search').appendChild(sw);
+        if (input) input.placeholder = 'Byt till en mall…';
+      } else {
+        var mount = document.getElementById('pg-template-search');
+        if (mount) mount.appendChild(sw);
+        if (input && SEARCH_PH !== null) input.placeholder = SEARCH_PH;
+      }
+      var dd = sw.querySelector('.pg-search-dropdown');
+      if (dd) dd.classList.remove('is-open');
+      return true;
+    }
+    function collapseStart() {
+      if (!startBlock || startBlock.classList.contains('pg-start-compact')) return;
+      ensureStartBar();
+      startBlock.classList.add('pg-start-compact');
+      if (!moveSearch(true)) setTimeout(function () { moveSearch(true); }, 0); // sökrutan byggs senare (avsnitt S)
+    }
+    function expandStart() {
+      if (!startBlock || !startBlock.classList.contains('pg-start-compact')) return;
+      startBlock.classList.remove('pg-start-compact');
+      moveSearch(false);
+    }
+    window.pgCollapseStart = collapseStart;
+    window.pgExpandStart   = expandStart;
+
+    /* ── Linjera korten mot formulär/preview-rutnätet ──
+       Korten delade 1:1 medan formulär + preview under delar 2:1 → gapet
+       mellan korten låg inte i linje. Kopiera .pg_grid:s faktiska kolumner
+       och gap (följer Designer); enkolumnigt (mobil/tablet) lämnas orört. */
+    function alignStartGrid() {
+      var sg = startBlock && startBlock.querySelector('.selection-grid');
+      var pg = document.querySelector('.pg_grid');
+      if (!sg || !pg) return;
+      var cs = getComputedStyle(pg);
+      var cols = cs.gridTemplateColumns.split(' ').filter(Boolean);
+      if (cs.display === 'grid' && cols.length === 2 && pg.offsetWidth) {
+        sg.style.gridTemplateColumns = cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ');
+        sg.style.columnGap = cs.columnGap;
+      } else {
+        sg.style.gridTemplateColumns = '';
+        sg.style.columnGap = '';
+      }
+    }
+    alignStartGrid();
+    window.addEventListener('resize', alignStartGrid);
+
     /* Väljer en väg: visa innehållet, scrolla till formuläret, logga i GA4 */
     function chooseMode(mode) {
       showSteps();
+      collapseStart();
+      alignStartGrid(); // .pg_grid kan ha varit dold (gated) vid första mätningen
       var fc = document.getElementById('form-container');
       if (fc) fc.scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (window.gtag) gtag('event', 'pg_start_mode', { start_mode: mode });
@@ -1197,6 +1294,7 @@ document.addEventListener("DOMContentLoaded", function () {
     /* Landade med URL-param/import → mall-vägen redan vald: visa direkt.
        Låser även upp gaten; handleImportedPrompt() sköter scroll till fältet. */
     if (gated && pgImport) showSteps();
+    if (pgImport) collapseStart(); // länk med förifyllt formulär = väg redan vald
 
     /* Kort A "Bygg från scratch" */
     var scratchBtn = document.getElementById('pg-start-scratch');
