@@ -253,7 +253,13 @@ document.addEventListener("DOMContentLoaded", function () {
       if (role) sys.push(`Agera som en erfaren ${role}.`);
     }
     if (TONE[d.ton]) sys.push(TONE[d.ton]);
-    const content = (isImage && d.imageSubject) || (isVideo && d.videoScene) || (isCode && d.codeTask) || d.brief;
+    /* Media-typer använder BARA sitt eget fält — aldrig den (dolda) briefen
+       från steg 1, annars kunde gammal text smyga in i bild/video/kod-prompten.
+       Briefen förs i stället över till mediafältet i avsnitt I. */
+    const content = isImage ? d.imageSubject
+                  : isVideo ? d.videoScene
+                  : isCode  ? d.codeTask
+                  : d.brief;
     if (content) {
       const fn = TASK[d.taskType];
       task.push(fn ? fn(content) : `Hjälp mig med följande: ${content}`);
@@ -685,8 +691,10 @@ document.addEventListener("DOMContentLoaded", function () {
      ============================================================ */
   const stepConditions = [
     /* 0 – Steg 1: Uppgift (task-type + brief) */
+    /* Vid bild/video/kod är brief-fältet dolt (avsnitt I) — då räcker valet. */
     () => !!document.querySelector('input[name="task-type"]:checked') &&
-          ($val("#brief-input").length >= 3),
+          (MEDIA_TYPES.includes(checkedValue("task-type", "").toLowerCase()) ||
+           $val("#brief-input").length >= 3),
     /* 1 – Steg 2: Roll & ton */
     () => (!!document.querySelector('input[name="Roll"]:checked') ||
            $val("#custom-role-input").length > 0) &&
@@ -771,6 +779,38 @@ document.addEventListener("DOMContentLoaded", function () {
       h.style.display = isMedia ? "none" : "";
     });
   }
+
+  /* ============================================================
+     I. BRIEF-FÄLTET VID BILD/VIDEO/KOD
+     Bild/video/kod har egna beskrivningsfält i sina steg. Tidigare
+     visades ändå "Vad vill du ha hjälp med?" i steg 1, och det som
+     skrevs där försvann (användaren fick skriva samma sak två gånger).
+     Nu: brief-fältet döljs när en media-typ är vald, och redan
+     inskriven text förs över till mediafältet om det är tomt.
+     Briefen lämnas kvar orörd, så byter man tillbaka till en
+     texttyp finns texten kvar där.
+     ============================================================ */
+  const briefInput = document.getElementById("brief-input");
+  const briefWrap  = briefInput ? briefInput.closest(".form_field-wrapper") : null;
+  const MEDIA_FIELD = {
+    bild: "image-subject", bildprompta: "image-subject",
+    video: "video-scene", kod: "code-task",
+  };
+  function syncBriefForTaskType() {
+    if (!briefWrap) return;
+    const t      = checkedValue("task-type", "").toLowerCase();
+    const target = MEDIA_FIELD[t] ? document.getElementById(MEDIA_FIELD[t]) : null;
+    briefWrap.style.display = target ? "none" : "";
+    if (target && briefInput.value.trim() && !target.value.trim()) {
+      target.value = briefInput.value.trim();
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+  /* Lyssnar direkt på varje radio — når även de icke-bubblande
+     change-events som avmarkering (avsnitt 11) och "Skapa ny" skickar. */
+  document.querySelectorAll('input[name="task-type"]').forEach((r) =>
+    r.addEventListener("change", () => { syncBriefForTaskType(); updateLivePreview(); })
+  );
 
   /* ============================================================
      D. URL-PARAMETRAR — importera prompt från biblioteket
@@ -877,6 +917,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* Hantera URL-import sist (efter att step-1 är visat och DOM är redo) */
   handleImportedPrompt();
+  syncBriefForTaskType(); // rätt synlighet även om en typ redan är vald vid laddning
 
   /* ============================================================
      E. STARTVAL "Hur vill du börja?" + GATED-LÄGE (valfritt)
