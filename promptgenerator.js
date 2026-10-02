@@ -604,7 +604,15 @@ document.addEventListener("DOMContentLoaded", function () {
       "@keyframes pgShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}" +
       ".pg-shake{animation:pgShake .4s ease}" +
       ".pg-slider-wrap.pg-untouched{opacity:.55;transition:opacity .2s}" +
-      ".pg-slider-wrap.pg-untouched:hover{opacity:.8}";
+      ".pg-slider-wrap.pg-untouched:hover{opacity:.8}" +
+      /* Sök-dropdownen hamnade under pillsen: #pg-start och formuläret delar
+         stacking context (båda z-index 1) och formuläret ritas senare. */
+      "#pg-start{z-index:30!important}" +
+      /* Expandera-knappen: texten syntes igenom (12 % bakgrund) — tätare yta + blur */
+      ".pg-brief-expand-btn{background:rgba(9,32,52,.82)!important;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}" +
+      "html.pg-light-page .pg-brief-expand-btn{background:rgba(234,250,246,.9)!important}" +
+      /* Mall-bannern ligger nu överst i preview-kortet */
+      "#prompt-preview-wrapper .pg-search-banner{margin:4px 0 12px}";
     document.head.appendChild(st);
   }
 
@@ -788,6 +796,9 @@ document.addEventListener("DOMContentLoaded", function () {
       lastChipTaskType = null;
       hasFirstContent = false;
       applyDefaults(); // Text + Svenska förvalda igen
+      /* Mall-bannern hör till den gamla prompten — bort med den */
+      var libBanner = document.getElementById("pg-search-banner");
+      if (libBanner) { libBanner.classList.remove("is-visible"); libBanner.innerHTML = ""; }
       showStep("step-1");
       updateLivePreview();
     });
@@ -1515,6 +1526,12 @@ document.addEventListener("DOMContentLoaded", function () {
     var dropdown       = document.getElementById('pg-search-dropdown');
     var clearBtn       = document.getElementById('pg-search-clear');
     var banner         = document.getElementById('pg-search-banner');
+    /* Flytta "Startad från biblioteket"-bannern överst i preview-kortet
+       (under rubriken "Live preview"), där den hör ihop med prompten. */
+    (function () {
+      var top = document.querySelector('#prompt-preview-wrapper .pg_preview_top');
+      if (banner && top && top.parentNode) top.parentNode.insertBefore(banner, top.nextSibling);
+    })();
     if (!searchInput) return;
 
     var activeIdx      = -1;
