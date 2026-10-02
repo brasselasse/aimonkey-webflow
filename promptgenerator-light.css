@@ -33,9 +33,14 @@
 
 /* ══════════════════════════════════════════
    STEG-KORT (.step-inner.is-light)
+   OBS: ingen background här längre — den styrs i Webflow Designer
+   (satt till ett transparent-vitt, t.ex. rgba(255,255,255, x)).
+   Denna fil satte tidigare en solid #ffffff som körde över det
+   Designer-värdet; borttaget på begäran så färgen bara kontrolleras
+   på ett ställe (Designer), inte två. Border/skugga är fortsatt
+   CSS-styrda eftersom de inte var det som rapporterades fel.
 ══════════════════════════════════════════ */
 .step-inner.is-light {
-  background: #ffffff;
   border    : 1px solid rgba(17, 24, 39, 0.08);
   box-shadow: 0 4px 20px rgba(17, 24, 39, 0.06);
 }
@@ -59,17 +64,16 @@
    combo-klass satt i Designer — annars hade du behövt tagga
    varenda pill-instans (80+ stycken) för hand.
 
-   Default (ovald): vit yta med en gradient-"ram" bakom (en egen
-   ::before-pseudoelement, 1.5px större än pillen, samma radie).
-   Vald (.w--redirected-checked): hel gradient-bakgrund, ramen dold.
+   Default (ovald): vit yta med en solid stroke i caribbean green
+   (#00c9a7).
+   Vald (.w--redirected-checked): solid caribbean green-bakgrund,
+   samma färg som stroken.
 
-   OBS: bytt från den tidigare dubbel-bakgrunds-tekniken
-   (padding-box + border-box på samma background-deklaration) —
-   den gav en synlig sömn/kant-artefakt vid de rundade ändarna på
-   piller (helt rund radie, 100px). Pseudoelement-ramen är samma
-   visuella resultat men utan den bugen, eftersom det är två
-   separata, var för sig rena rundade ytor istället för två
-   bakgrundslager i samma box.
+   Bytt bort från den tidigare gradient-tekniken (linear-gradient
+   #00c9a7 → #c9e265 via ett ::before-pseudoelement, som fanns för
+   att undvika en sömn-artefakt i de rundade ändarna på piller med
+   en äkta CSS border). En solid färg har inte det problemet —
+   en vanlig border räcker, inget pseudoelement behövs längre.
 
    !important behövs eftersom Webflows egna komponentstilar för
    .checkbox2_button/.w--redirected-checked annars vinner —
@@ -77,21 +81,11 @@
    ══════════════════════════════════════════════════════════════ */
 html.pg-light-page .checkbox2_button {
   background: #ffffff !important;
-  border    : none !important;
-}
-html.pg-light-page .checkbox2_button::before {
-  content      : "";
-  position     : absolute;
-  inset        : -1.5px;
-  border-radius: inherit;
-  background   : linear-gradient(135deg, #00c9a7 0%, #c9e265 100%);
-  z-index      : -1;
+  border    : 1.5px solid #00c9a7 !important;
 }
 html.pg-light-page .checkbox2_button.w--redirected-checked {
-  background: linear-gradient(135deg, #00c9a7 0%, #c9e265 100%) !important;
-}
-html.pg-light-page .checkbox2_button.w--redirected-checked::before {
-  display: none;
+  background: #00c9a7 !important;
+  border    : 1.5px solid #00c9a7 !important;
 }
 html.pg-light-page .radio2_label {
   color: #1a1f29 !important;
