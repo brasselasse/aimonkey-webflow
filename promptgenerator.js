@@ -1666,7 +1666,8 @@ document.addEventListener("DOMContentLoaded", function () {
     /* ── Sökning: matchar titel och kategori ── */
     function doSearch(q, data) {
       var ql = q.toLowerCase().trim();
-      if (ql.length < 2) return [];
+      /* I mobilens bottenark (avsnitt M): tomt sökord = bläddra bland alla */
+      if (ql.length < 2) return sheetOpen ? data.slice() : [];
       return data.filter(function (p) {
         return p.name.toLowerCase().includes(ql) ||
                p.category.toLowerCase().includes(ql);
@@ -1676,7 +1677,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ai >= 0 && bi < 0) return -1;
         if (bi >= 0 && ai < 0) return 1;
         return 0;
-      }).slice(0, 8);
+      }).slice(0, sheetOpen ? 60 : 8);
     }
 
     function esc(s) {
@@ -1688,7 +1689,15 @@ document.addEventListener("DOMContentLoaded", function () {
       dropdown.innerHTML = '';
       activeIdx      = -1;
       currentResults = results;
-      if (!results.length) { dropdown.classList.remove('is-open'); return; }
+      if (!results.length) {
+        if (sheetOpen && searchInput.value.trim().length >= 2) {
+          dropdown.innerHTML = '<li class="pg-search-empty">Inga mallar matchar – prova ett annat ord</li>';
+          dropdown.classList.add('is-open');
+        } else {
+          dropdown.classList.remove('is-open');
+        }
+        return;
+      }
       results.forEach(function (p, i) {
         var li = document.createElement('li');
         li.className = 'pg-search-item';
@@ -1746,6 +1755,7 @@ document.addEventListener("DOMContentLoaded", function () {
       searchInput.value  = '';
       clearBtn.style.display = 'none';
       currentResults     = [];
+      if (sheetOpen) closeSheet();
     }
 
     /* ── Event-lyssnare ── */
@@ -1754,7 +1764,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var q = searchInput.value;
       clearBtn.style.display = q ? '' : 'none';
       clearTimeout(debTimer);
-      if (q.length < 2) { dropdown.classList.remove('is-open'); return; }
+      if (q.length < 2 && !sheetOpen) { dropdown.classList.remove('is-open'); return; }
       debTimer = setTimeout(function () {
         loadPrompts(function (data) { renderDropdown(doSearch(q, data)); });
       }, 160);
@@ -1780,6 +1790,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       } else if (e.key === 'Escape') {
         dropdown.classList.remove('is-open');
+        if (sheetOpen) closeSheet();
         return;
       }
       items.forEach(function (li, i) { li.classList.toggle('is-active', i === activeIdx); });
@@ -1799,5 +1810,134 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /* Förhämta data tyst i bakgrunden 800ms efter laddning */
     setTimeout(function () { loadPrompts(function () {}); }, 800);
+
+    /* ============================================================
+       M. MOBIL: SÖKRESULTAT SOM BOTTENARK
+       På mobil (≤ 767 px) öppnar ett tryck i sökrutan ett ark som glider
+       upp nerifrån i full bredd. Sök-wrappen (input + lista) FLYTTAS in
+       i arket — samma sök-logik — och tillbaka när arket stängs. Tomt
+       sökord = bläddra bland alla mallar. Stängs vid val, ✕, tryck
+       utanför, svep nedåt på handtaget eller Escape. Desktop orört.
+       ============================================================ */
+    var sheetMQ = window.matchMedia('(max-width: 767px)');
+    var sheet = null, sheetPanel = null, sheetBody = null;
+    var sheetOpen = false, sheetHome = null;
+
+    function injectSheetStyles() {
+      if (document.getElementById('pg-sheet-style')) return;
+      var st = document.createElement('style');
+      st.id = 'pg-sheet-style';
+      st.textContent =
+        'html.pg-sheet-lock,html.pg-sheet-lock body{overflow:hidden!important}' +
+        '.pg-sheet{position:fixed;inset:0;z-index:100000;pointer-events:none}' +
+        '.pg-sheet.is-open{pointer-events:auto}' +
+        '.pg-sheet-backdrop{position:absolute;inset:0;background:rgba(4,12,24,.55);opacity:0;transition:opacity .25s ease}' +
+        '.pg-sheet.is-open .pg-sheet-backdrop{opacity:1}' +
+        '.pg-sheet-panel{position:absolute;left:0;right:0;bottom:0;height:90vh;display:flex;flex-direction:column;' +
+          'background:#0f2238;color:#f5f6fa;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.35);' +
+          'transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);padding:0 16px env(safe-area-inset-bottom)}' +
+        '.pg-sheet.is-open .pg-sheet-panel{transform:translateY(0)}' +
+        '.pg-sheet-grab{padding:10px 0 4px;touch-action:none;cursor:grab}' +
+        '.pg-sheet-handle{width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.25);margin:0 auto 10px}' +
+        '.pg-sheet-head{display:flex;align-items:center;justify-content:space-between}' +
+        '.pg-sheet-title{font-weight:700;font-size:1.05rem}' +
+        '.pg-sheet-close{background:rgba(255,255,255,.08);border:0;color:inherit;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer}' +
+        '.pg-sheet-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:16px}' +
+        '.pg-sheet .pg-search-wrap{margin:0}' +
+        '.pg-sheet .pg-search-inner{position:sticky;top:0;z-index:2;padding:10px 0;background:#0f2238}' +
+        '.pg-sheet .pg-search-dropdown{display:block!important;position:static!important;max-height:none!important;' +
+          'overflow:visible!important;box-shadow:none!important;border:0!important;background:transparent!important;margin:0!important;padding:0!important}' +
+        '.pg-sheet .pg-search-item{padding:14px 4px!important;border-bottom:1px solid rgba(255,255,255,.07)}' +
+        '.pg-search-empty{list-style:none;padding:24px 8px;text-align:center;opacity:.6}' +
+        'html.pg-light-page .pg-sheet-panel{background:#ffffff;color:#1a1f29}' +
+        'html.pg-light-page .pg-sheet .pg-search-inner{background:#ffffff}' +
+        'html.pg-light-page .pg-sheet-handle{background:rgba(17,24,39,.18)}' +
+        'html.pg-light-page .pg-sheet-close{background:rgba(17,24,39,.06)}' +
+        'html.pg-light-page .pg-sheet .pg-search-item{border-bottom-color:rgba(17,24,39,.07)}';
+      document.head.appendChild(st);
+    }
+
+    function buildSheet() {
+      injectSheetStyles();
+      sheet = document.createElement('div');
+      sheet.className = 'pg-sheet';
+      sheet.innerHTML =
+        '<div class="pg-sheet-backdrop"></div>' +
+        '<div class="pg-sheet-panel" role="dialog" aria-modal="true" aria-label="Färdiga mallar">' +
+          '<div class="pg-sheet-grab">' +
+            '<div class="pg-sheet-handle"></div>' +
+            '<div class="pg-sheet-head"><span class="pg-sheet-title">Färdiga mallar</span>' +
+            '<button type="button" class="pg-sheet-close" aria-label="Stäng">✕</button></div>' +
+          '</div>' +
+          '<div class="pg-sheet-body"></div>' +
+        '</div>';
+      document.body.appendChild(sheet);
+      sheetPanel = sheet.querySelector('.pg-sheet-panel');
+      sheetBody  = sheet.querySelector('.pg-sheet-body');
+      sheet.querySelector('.pg-sheet-backdrop').addEventListener('click', closeSheet);
+      sheet.querySelector('.pg-sheet-close').addEventListener('click', closeSheet);
+
+      /* Svep nedåt på handtaget/rubriken för att stänga */
+      var grab = sheet.querySelector('.pg-sheet-grab'), y0 = null, dy = 0;
+      grab.addEventListener('touchstart', function (e) { y0 = e.touches[0].clientY; dy = 0; sheetPanel.style.transition = 'none'; }, { passive: true });
+      grab.addEventListener('touchmove', function (e) {
+        if (y0 === null) return;
+        dy = Math.max(0, e.touches[0].clientY - y0);
+        sheetPanel.style.transform = 'translateY(' + dy + 'px)';
+      }, { passive: true });
+      grab.addEventListener('touchend', function () {
+        sheetPanel.style.transition = ''; sheetPanel.style.transform = '';
+        if (dy > 90) closeSheet();
+        y0 = null; dy = 0;
+      });
+    }
+
+    /* Anpassa höjd/position efter synliga ytan (tangentbordet på iOS/Android) */
+    function fitSheet() {
+      if (!sheetOpen || !sheetPanel) return;
+      var vv = window.visualViewport;
+      if (!vv) return;
+      sheetPanel.style.height = Math.round(vv.height * 0.9) + 'px';
+      sheetPanel.style.bottom = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) + 'px';
+    }
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', fitSheet);
+      window.visualViewport.addEventListener('scroll', fitSheet);
+    }
+
+    function openSheet() {
+      if (sheetOpen) return;
+      if (!sheet) buildSheet();
+      sheetHome = { parent: wrap.parentNode, next: wrap.nextSibling, ph: searchInput.placeholder };
+      searchInput.placeholder = 'Sök bland mallarna…';   // den långa kapas i arket
+      sheetOpen = true;                       // före flytt: focus-lyssnaren ska inte öppna igen
+      sheetBody.appendChild(wrap);
+      sheet.classList.add('is-open');
+      document.documentElement.classList.add('pg-sheet-lock');
+      fitSheet();
+      searchInput.focus({ preventScroll: true });   // flytten tappar fokus — återställ
+      loadPrompts(function (data) { renderDropdown(doSearch(searchInput.value, data)); });
+    }
+
+    function closeSheet() {
+      if (!sheetOpen) return;
+      sheetOpen = false;
+      sheet.classList.remove('is-open');
+      document.documentElement.classList.remove('pg-sheet-lock');
+      /* Tillbaka till där sökrutan låg — om inte avsnitt E redan flyttat den
+         (mallval fäller ihop startkorten och flyttar sökrutan till raden). */
+      if (sheet.contains(wrap) && sheetHome && sheetHome.parent) {
+        sheetHome.parent.insertBefore(wrap, sheetHome.next && sheetHome.next.parentNode === sheetHome.parent ? sheetHome.next : null);
+        searchInput.placeholder = sheetHome.ph;   // annars har avsnitt E redan satt rätt text
+      }
+      dropdown.classList.remove('is-open');
+      if (document.activeElement === searchInput) searchInput.blur();
+      sheetPanel.style.height = ''; sheetPanel.style.bottom = '';
+    }
+    window.pgCloseSearchSheet = closeSheet;
+
+    searchInput.addEventListener('focus', function () {
+      if (sheetMQ.matches && !sheetOpen) openSheet();
+    });
   })();
 });
