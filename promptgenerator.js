@@ -271,14 +271,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const isCode  = d.taskType === "kod";
     const isMedia = isImage || isVideo;
     const sys = [], out = [], rules = [], cat = [];
-    if (isImage)      sys.push("Du är expert på att skriva prompter för AI-bildgeneratorer.", "Använd visuellt beskrivande språk.");
-    else if (isVideo) sys.push("Du är expert på att skriva prompter för AI-videogeneratorer.", "Beskriv scen, rörelse, tempo, ljus och kamera tydligt.");
-    else if (isCode)  sys.push("Du är en senior utvecklare som skriver tydlig och robust kod.");
-    else {
-      const role = roleText(d.customRole || d.roll);
-      if (role) sys.push(/^(en|ett) /i.test(role) ? `Du är ${role}.` : `Du är en erfaren ${role}.`);
-    }
-    if (TONE[d.ton]) sys.push(TONE[d.ton]);
     /* Media-typer använder BARA sitt eget fält — aldrig den (dolda) briefen
        från steg 1, annars kunde gammal text smyga in i bild/video/kod-prompten.
        Briefen förs i stället över till mediafältet i avsnitt I. */
@@ -286,11 +278,25 @@ document.addEventListener("DOMContentLoaded", function () {
                   : isVideo ? d.videoScene
                   : isCode  ? d.codeTask
                   : d.brief) || "";
+    /* En hel prompt från biblioteket/mallarna skickas som den är. Har den
+       redan en egen roll ("Du är en …") lägger vi inte till en till. */
+    const fullPrompt = !isMedia && !!content && isFullPrompt(content);
+    const ownRole = fullPrompt && /^\s*(du är|agera som|tänk dig att du är|act as|you are)\b/i.test(content);
+    if (isImage)      sys.push("Du är expert på att skriva prompter för AI-bildgeneratorer.", "Använd visuellt beskrivande språk.");
+    else if (isVideo) sys.push("Du är expert på att skriva prompter för AI-videogeneratorer.", "Beskriv scen, rörelse, tempo, ljus och kamera tydligt.");
+    else if (ownRole) { /* rollen finns redan i prompten */ }
+    else if (isCode)  sys.push("Du är en senior utvecklare som skriver tydlig och robust kod.");
+    else {
+      const role = roleText(d.customRole || d.roll);
+      if (role) sys.push(/^(en|ett) /i.test(role) ? `Du är ${role}.` : `Du är en erfaren ${role}.`);
+    }
+    /* Med egen roll hamnar tonen under "Så ska svaret se ut" i stället för
+       före prompten. */
+    if (TONE[d.ton]) (ownRole ? out : sys).push(TONE[d.ton]);
     let taskMain = "";
     if (content) {
       const fn = TASK[d.taskType];
-      taskMain = (!isMedia && !isCode && isFullPrompt(content)) ? content
-               : fn ? fn(content) : content;
+      taskMain = fullPrompt ? content : fn ? fn(content) : content;
     }
     /* Kontext: dynamiska namn/värde-fält + målgrupp som punktlista. */
     const contextLines = [];
