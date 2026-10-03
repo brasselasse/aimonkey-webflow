@@ -10,10 +10,12 @@ var pgImport = (function () {
   var ton      = params.get("ton")      || "";
   var malgrupp = params.get("malgrupp") || "";
   var namn     = params.get("namn")     || "";
-  var source   = params.get("source");  // "biblioteket" = sessionStorage-läge
+  var source   = params.get("source");  // "biblioteket"/"mallar" = sessionStorage-läge
 
-  /* Fallback: lång brief sparad i sessionStorage */
-  if (!brief && source === "biblioteket") {
+  /* Fallback: lång brief sparad i sessionStorage. Både promptbiblioteket
+     (source=biblioteket) och mall-/artikelsidorna (source=mallar) använder
+     den — tidigare lästes bara "biblioteket", så långa mallar kom fram tomma. */
+  if (!brief && source) {
     try {
       brief    = sessionStorage.getItem("pg_imported_prompt")   || "";
       namn     = namn     || sessionStorage.getItem("pg_imported_namn")     || "";
