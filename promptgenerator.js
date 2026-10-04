@@ -1,4 +1,54 @@
 /* ============================================================
+   T. ANALYS — events till Google Tag Manager
+   Sajtens GA4 ligger i GTM. Direkta gtag("event")-anrop når INTE
+   GA4 där (verifierat 2026-10-04), så vi pushar vanliga GTM-events
+   till dataLayer. I GTM: trigger "Anpassad händelse" med regex
+   ^pg_ + GA4-händelsetagg med namn {{Event}} och parametrarna nedan
+   (Datalager-variabler). Alla nycklar skickas varje gång (tomma =
+   undefined) så att gamla värden inte ligger kvar i GTM:s datamodell.
+   ============================================================ */
+var PG_TRACK_KEYS = ["source", "task_type", "step", "tool", "template", "count", "filled"];
+function pgTrack(name, params) {
+  try {
+    var ev = { event: name };
+    params = params || {};
+    PG_TRACK_KEYS.forEach(function (k) {
+      ev["pg_" + k] = (params[k] === undefined || params[k] === "") ? undefined : params[k];
+    });
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(ev);
+  } catch (e) { /* analys får aldrig stoppa generatorn */ }
+}
+/* Varifrån kom besökaren? Används när generatorn öppnas via länk.
+   Sajten skickar ingen referrer mellan sidor, så prompt-format.js
+   (sajtfootern) sparar sökvägen i sessionStorage "pg_from" vid klick på
+   en länk hit. Läses och raderas en gång per sidladdning. */
+var pgEntryPath = (function () {
+  try {
+    var p = sessionStorage.getItem("pg_from");
+    sessionStorage.removeItem("pg_from");
+    if (p) return p;
+  } catch (e) { /* sessionStorage ej tillgänglig */ }
+  try {
+    if (!document.referrer) return "";
+    var r = new URL(document.referrer);
+    if (r.hostname.replace(/^www\./, "") !== location.hostname.replace(/^www\./, "")) return "extern";
+    return r.pathname;
+  } catch (e) { return ""; }
+})();
+function pgSourceFromReferrer() {
+  var p = pgEntryPath;
+  if (!p) return "direkt";
+  if (p === "extern") return "extern";
+  if (/^\/(ai-prompter|promptbiblioteket)/.test(p)) return "biblioteket";
+  if (/^\/ai-mallar/.test(p)) return "mallar";
+  if (/^\/artiklar/.test(p))  return "artiklar";
+  if (/^\/ai-for-/.test(p))   return "temasida";
+  if (p === "/")               return "startsida";
+  return "sajt";
+}
+
+/* ============================================================
    D-PRE. LÄS URL-PARAMETRAR DIREKT (innan DOMContentLoaded)
    Så att värdena finns redo när DOM är klar.
    ============================================================ */
@@ -29,9 +79,14 @@ var pgImport = (function () {
     } catch (e) { /* sessionStorage ej tillgänglig */ }
   }
 
+  /* Källa för analys: sidan man kom från (biblioteket/mallar/artiklar)
+     väger tyngst; annars source-parametern, annars "lank". */
+  var ref = pgSourceFromReferrer();
+  var importSource = /^(biblioteket|mallar|artiklar)$/.test(ref) ? ref : (source || "lank");
+
   return (brief || tasktype)
     ? { brief: brief, tasktype: tasktype, roll: roll,
-        ton: ton, malgrupp: malgrupp, namn: namn }
+        ton: ton, malgrupp: malgrupp, namn: namn, source: importSource }
     : null;
 })();
 
@@ -129,6 +184,51 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
+  /* ── T2. Analys: state per "prompt-session" (nollställs vid Skapa ny) ──
+     pg_open          generatorn öppnad (source: scratch/sok/biblioteket/mallar/artiklar/lank)
+     pg_step_view     ett steg visas första gången (step: "1-uppgift" …)
+     pg_template_select  mall vald i sökrutan (template)
+     pg_placeholders_shown  ifyllnadsfält visas (count)
+     pg_ready         prompten blev redo första gången
+     pg_copy          Kopiera prompt (step = längsta steg, count = tecken, filled = "3/7")
+     pg_copy_empty    Kopiera utan innehåll
+     pg_ai_open       ChatGPT/Claude/Gemini-knapp (tool)
+     pg_reset         Skapa ny / Börja om
+     OBS: var/function — showStep() och updateReadyState() anropar dessa. */
+  var trackState = { opened: false, source: "", steps: {}, maxStep: 0, ready: false };
+  var STEP_NAMES = {
+    "step-1": "1-uppgift", "step-4": "2-roll-ton", "step-5": "3-underlag",
+    "step-riktlinjer": "4-riktlinjer",
+    "step-image": "2-bild", "step-video": "2-video", "step-code": "2-kod",
+  };
+  function currentTaskType() { return checkedValue("task-type", "").toLowerCase(); }
+  function trackOpen(source) {
+    if (!trackState || trackState.opened) return;
+    trackState.opened = true;
+    trackState.source = source;
+    pgTrack("pg_open", { source: source, task_type: currentTaskType() });
+    trackStep(currentStepId);
+  }
+  function trackStep(id) {
+    if (!trackState || !trackState.opened) return;
+    var n = STEP_NAMES[id];
+    if (!n || trackState.steps[n]) return;
+    trackState.steps[n] = true;
+    trackState.maxStep = Math.max(trackState.maxStep, parseInt(n, 10) || 0);
+    pgTrack("pg_step_view", { step: n, source: trackState.source, task_type: currentTaskType() });
+  }
+  function trackReady(isReady) {
+    if (!trackState || !trackState.opened || trackState.ready || !isReady) return;
+    trackState.ready = true;
+    pgTrack("pg_ready", { source: trackState.source, task_type: currentTaskType() });
+  }
+  function trackReset() {
+    if (!trackState) return;
+    if (trackState.opened)
+      pgTrack("pg_reset", { source: trackState.source, step: String(trackState.maxStep), task_type: currentTaskType() });
+    trackState = { opened: false, source: "", steps: {}, maxStep: 0, ready: false };
+  }
+
   /* ============================================================
      3. STEP-NAVIGATION + PROGRESS
      ============================================================ */
@@ -138,6 +238,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function showStep(stepId) {
     currentStepId = stepId;
     allSteps.forEach((s) => (s.style.display = s.id === stepId ? "block" : "none"));
+    trackStep(stepId);
     updateProgress();
     updateLivePreview();
     if (typeof autoGrowAll === "function") autoGrowAll(); // avsnitt F0 — mät fält som nu blivit synliga
@@ -175,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function buildPromptData() {
     return {
       taskType:      checkedValue("task-type", "").toLowerCase(),
-      brief:         $val("#brief-input"),
+      brief:         applyFills($val("#brief-input")),   // avsnitt P: ifyllda platshållare
       roll:          checkedLabel("Roll"),
       customRole:    $val("#custom-role-input"),
       malgrupp:      $val("#malgrupp-input"),
@@ -192,14 +293,14 @@ document.addEventListener("DOMContentLoaded", function () {
       threeOptions:  $check("#three-options"),
       fallbackInfo:  $check("#fallback-info"),
       plainTextOnly: $check("#plain-text-only"),
-      imageSubject:  $val("#image-subject"),
+      imageSubject:  applyFills($val("#image-subject")),
       imageStyle:    checkedValue("image-style"),
       aspectRatio:   checkedValue("aspect-ratio"),
       lighting:      checkedValue("lighting"),
       camera:        checkedValue("camera"),
       detailLevel:   checkedValue("detail-level"),
       noTextImage:   $check("#no-text-image"),
-      videoScene:    $val("#video-scene"),
+      videoScene:    applyFills($val("#video-scene")),
       videoStyle:    checkedValue("video-style"),
       cameraMovement:checkedValue("camera-movement"),
       videoAspect:   checkedValue("video-aspect"),
@@ -207,7 +308,7 @@ document.addEventListener("DOMContentLoaded", function () {
       motionLevel:   checkedValue("motion-level"),
       videoLighting: checkedValue("video-lighting"),
       loopVideo:     $check("#loop-video"),
-      codeTask:      $val("#code-task"),
+      codeTask:      applyFills($val("#code-task")),
       codeLanguage:  checkedValue("code-language"),
       framework:     $val("#framework-input"),
       codeHelp:      checkedValue("code-help"),
@@ -684,14 +785,18 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateReadyState(d) {
     ensureReadyElements();
     var ready = isPromptReady(d || buildPromptData());
+    trackReady(ready);
     /* Ett felmeddelande (tom kopiering) står kvar en stund — men bara
        tills prompten faktiskt blivit redo. */
     if (ready && readyStatusEl) readyStatusEl.classList.remove("is-error");
     if (readyStatusEl && !readyStatusEl.classList.contains("is-error")) {
       readyStatusEl.classList.toggle("is-ready", ready);
-      readyStatusEl.textContent = ready
-        ? "✓ Prompten är redo att kopiera – resten av stegen är valfria."
-        : "Skriv vad du vill ha hjälp med för att skapa din prompt.";
+      var open = ready ? phOpenCount() : 0;   // avsnitt P: ej ifyllda mallfält
+      readyStatusEl.textContent = !ready
+        ? "Skriv vad du vill ha hjälp med för att skapa din prompt."
+        : open > 0
+          ? "✓ Prompten är redo – fyll gärna i " + (open === 1 ? "det sista fältet" : "de " + open + " fälten") + " i mallen för ett träffsäkrare svar."
+          : "✓ Prompten är redo att kopiera – resten av stegen är valfria.";
     }
     readyHintEls.forEach(function (h) { h.classList.toggle("is-visible", ready); });
 
@@ -774,7 +879,15 @@ document.addEventListener("DOMContentLoaded", function () {
       const text = previewRaw?.value?.trim() || "";
       /* Avsnitt R: utan beskrivning finns ingen uppgift att kopiera (prompten
          är aldrig helt tom längre — "Svara på svenska" är förvalt). */
-      if (!text || !(promptDescription(buildPromptData()) || "").trim()) { nudgeEmptyPrompt(); return; }
+      if (!text || !(promptDescription(buildPromptData()) || "").trim()) {
+        pgTrack("pg_copy_empty", { source: trackState.source, step: String(trackState.maxStep) });
+        nudgeEmptyPrompt();
+        return;
+      }
+      pgTrack("pg_copy", {
+        source: trackState.source, task_type: currentTaskType(),
+        step: String(trackState.maxStep), count: text.length, filled: phFilledSummary(),
+      });
       /* Spara + feedback sker ALLTID — oberoende av om urklippet lyckas.
          (Tidigare låg detta inuti clipboard.then(), så om writeText
           avvisades sparades prompten aldrig i Senaste prompter.) */
@@ -806,6 +919,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (restartBtn) {
     restartBtn.addEventListener("click", function (e) {
       e.preventDefault();
+      trackReset();
+      phReset();   // avsnitt P: glöm ifyllda mallfält
       document.querySelectorAll("input[type='text'], textarea").forEach((el) => (el.value = ""));
       document.querySelectorAll("input[type='radio'], input[type='checkbox']").forEach((el) => {
         el.checked = false;
@@ -1039,6 +1154,7 @@ document.addEventListener("DOMContentLoaded", function () {
      ============================================================ */
   function handleImportedPrompt() {
     if (!pgImport) return;
+    trackOpen(pgImport.source || "lank");
 
     const dec = (s) => s ? decodeURIComponent(s) : "";
 
@@ -1298,7 +1414,7 @@ document.addEventListener("DOMContentLoaded", function () {
       alignStartGrid(); // .pg_grid kan ha varit dold (gated) vid första mätningen
       var fc = document.getElementById('form-container');
       if (fc) fc.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (window.gtag) gtag('event', 'pg_start_mode', { start_mode: mode });
+      trackOpen(mode === 'template' ? 'sok' : mode);
     }
     /* Exponera så sök-modulen (selectPrompt) kan anropa den vid mall-val */
     window.pgRevealSteps = chooseMode;
@@ -1758,6 +1874,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.pgShowStep) window.pgShowStep(target);
       /* 3b. Gated-läge: visa stegen om de är dolda + logga att mall-vägen valdes */
       if (window.pgRevealSteps) window.pgRevealSteps('template');
+      pgTrack('pg_template_select', { template: p.name, task_type: p.tasktype });
       /* 4. Visa banner */
       banner.innerHTML =
         '🐒 <strong>Startad från biblioteket:</strong> ' + esc(p.name) +
@@ -1955,4 +2072,234 @@ document.addEventListener("DOMContentLoaded", function () {
       if (sheetMQ.matches && !sheetOpen) openSheet();
     });
   })();
+
+  /* ============================================================
+     P. MALL-PLATSHÅLLARE → IFYLLNADSFÄLT
+     Mallar och bibliotekprompter innehåller [PLATSHÅLLARE]. I stället
+     för att användaren ska leta upp och skriva över dem i texten visas
+     ett litet fält per platshållare under beskrivningsfältet.
+       - Textrutan lämnas orörd; ifyllda värden ersätter [platshållaren]
+         först när prompten byggs (applyFills i buildPromptData).
+       - Etikett: texten före platshållaren på samma rad ("**Mål:** [..]"
+         → "Mål"), annars platshållaren själv i normal skiftläge.
+       - Samma platshållare på flera ställen = ett fält som fyller alla.
+       - Tomma fält får stå kvar som [platshållare] i prompten.
+     OBS: var/function — buildPromptData() och updateReadyState() anropar
+     applyFills()/phOpenCount() redan vid init, innan avsnittet nåtts.
+     ============================================================ */
+  var PH_FIELDS = ["brief-input", "image-subject", "video-scene", "code-task"];
+  var PH_MAX_VISIBLE = 8;
+  var PH_SRC = "\\[([^\\[\\]\\n]{2,160})\\](?!\\()";   // [text] men inte [länk](url)
+  var phValues = {};   // platshållartext → ifyllt värde
+  var phTokens = {};   // fält-id → [{ key, label, hint, multi }]
+  var phPanels = {};   // fält-id → panel
+  var phTracked = {};  // signaturer som redan spårats (pg_placeholders_shown)
+
+  function applyFills(s) {
+    if (!s || !phValues) return s;
+    return s.replace(new RegExp(PH_SRC, "g"), function (m, inner) {
+      var v = phValues[inner];
+      return v && v.trim() ? v.trim() : m;
+    });
+  }
+  function phActiveField() {
+    var t = checkedValue("task-type", "").toLowerCase();
+    return t === "bild" || t === "bildprompta" ? "image-subject"
+         : t === "video" ? "video-scene"
+         : t === "kod"   ? "code-task" : "brief-input";
+  }
+  function phOpenCount() {
+    if (!phTokens) return 0;
+    var list = phTokens[phActiveField()] || [];
+    return list.filter(function (t) { return !(phValues[t.key] || "").trim(); }).length;
+  }
+  function phFilledSummary() {
+    if (!phTokens) return undefined;
+    var list = phTokens[phActiveField()] || [];
+    if (!list.length) return undefined;
+    return (list.length - phOpenCount()) + "/" + list.length;
+  }
+  function phReset() {
+    if (!phValues) return;
+    phValues = {};
+    PH_FIELDS.forEach(function (id) {
+      var p = phPanels[id];
+      if (p) { p.hidden = true; p.removeAttribute("data-sig"); }
+      phTokens[id] = [];
+    });
+  }
+
+  function phSentence(s) {
+    s = s.trim();
+    var letters = s.replace(/[^A-Za-zÅÄÖåäö]/g, "");
+    if (letters && letters === letters.toUpperCase()) s = s.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function phParse(text) {
+    var out = [], seen = {}, counts = {};
+    var all = text.match(new RegExp(PH_SRC, "g")) || [];
+    all.forEach(function (m) { var k = m.slice(1, -1); counts[k] = (counts[k] || 0) + 1; });
+    text.split("\n").forEach(function (line) {
+      var re = new RegExp(PH_SRC, "g"), m;
+      while ((m = re.exec(line))) {
+        var inner = m[1];
+        if (seen[inner] || !inner.trim() || /^\s*[xX✓]\s*$/.test(inner)) continue;
+        seen[inner] = true;
+        var isExample = /^\s*(t\.?\s?ex\.?|ex\.|e\.g\.)/i.test(inner);
+        var before = line.slice(0, m.index)
+          .replace(/\*\*|__|`/g, "").replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim();
+        var label = "";
+        if (counts[inner] === 1 && /:$/.test(before)) {
+          label = before.replace(/:$/, "").trim();
+          if (label.length < 2 || label.length > 48 || /[\[\]]/.test(label)) label = "";
+        }
+        if (!label) label = isExample ? "Ditt val" : phSentence(inner);
+        if (label.length > 70) label = label.slice(0, 67) + "…";
+        var alone = line.trim() === m[0];
+        out.push({
+          key: inner,
+          label: label,
+          hint: isExample ? inner : label !== phSentence(inner) ? phSentence(inner) : "Skriv här…",
+          multi: alone || /klistra in/i.test(inner),
+          uses: counts[inner],
+        });
+      }
+    });
+    return out;
+  }
+
+  function phInjectStyles() {
+    if (document.getElementById("pg-ph-style")) return;
+    var st = document.createElement("style");
+    st.id = "pg-ph-style";
+    st.textContent =
+      ".pg-ph{margin-top:12px;padding:14px 16px 16px;border-radius:14px;border:1px dashed rgba(0,201,167,.45);background:rgba(0,201,167,.06);text-align:left}" +
+      ".pg-ph[hidden]{display:none!important}" +
+      ".pg-ph-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}" +
+      ".pg-ph-title{font-weight:700;font-size:1rem}" +
+      ".pg-ph-count{font-size:.85rem;font-weight:600;color:#00866f;white-space:nowrap}" +
+      ".pg-ph-help{margin:4px 0 12px;font-size:.85rem;line-height:1.4;opacity:.7}" +
+      ".pg-ph-help code{font-size:.9em;background:rgba(0,201,167,.16);border-radius:4px;padding:0 .25em}" +
+      ".pg-ph-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}" +
+      ".pg-ph-field{display:flex;flex-direction:column;gap:4px;margin:0;min-width:0}" +
+      ".pg-ph-field.is-wide{grid-column:1/-1}" +
+      ".pg-ph-field.is-extra{display:none}.pg-ph.show-all .pg-ph-field.is-extra{display:flex}" +
+      ".pg-ph-label{font-size:.82rem;font-weight:600;line-height:1.3;display:flex;gap:6px;align-items:center}" +
+      ".pg-ph-label .pg-ph-dot{width:8px;height:8px;border-radius:50%;flex:none;border:1.5px solid rgba(0,134,111,.6);transition:background .15s}" +
+      ".pg-ph-field.is-filled .pg-ph-dot{background:#00c9a7;border-color:#00c9a7}" +
+      ".pg-ph-uses{font-weight:400;opacity:.6}" +
+      ".pg-ph .pg-ph-input{margin:0!important;min-height:0!important;height:auto;padding:9px 11px!important;font-size:.95rem!important;line-height:1.4}" +
+      ".pg-ph textarea.pg-ph-input{min-height:64px!important;resize:vertical}" +
+      ".pg-ph-more{margin-top:10px;background:none;border:0;padding:4px 0;font:inherit;font-size:.88rem;font-weight:600;color:#00866f;cursor:pointer;text-decoration:underline}" +
+      ".pg-ph.show-all .pg-ph-more{display:none}" +
+      "@media (max-width:767px){.pg-ph-grid{grid-template-columns:1fr}.pg-ph{padding:12px}}" +
+      /* Mörka sidan (om den återanvänds) */
+      "html:not(.pg-light-page) .pg-ph-count,html:not(.pg-light-page) .pg-ph-more{color:#39ff8a}";
+    document.head.appendChild(st);
+  }
+
+  function phEsc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function phUpdateCount(fieldId) {
+    var panel = phPanels[fieldId], list = phTokens[fieldId] || [];
+    if (!panel) return;
+    var filled = list.filter(function (t) { return (phValues[t.key] || "").trim(); }).length;
+    var c = panel.querySelector(".pg-ph-count");
+    if (c) c.textContent = filled === list.length ? "✓ Alla ifyllda" : filled + " av " + list.length + " ifyllda";
+  }
+
+  function phRender(fieldId) {
+    var ta = document.getElementById(fieldId);
+    if (!ta) return;
+    var tokens = phParse(ta.value || "");
+    phTokens[fieldId] = tokens;
+    var panel = phPanels[fieldId];
+    if (!tokens.length) { if (panel) panel.hidden = true; return; }
+    phInjectStyles();
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.className = "pg-ph";
+      panel.setAttribute("role", "group");
+      panel.setAttribute("aria-label", "Fyll i mallen");
+      var anchor = ta.closest(".pg-brief-wrap") || ta;
+      anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+      phPanels[fieldId] = panel;
+    }
+    var sig = tokens.map(function (t) { return t.key + "|" + t.label; }).join("\n");
+    if (panel.getAttribute("data-sig") !== sig) {
+      panel.setAttribute("data-sig", sig);
+      panel.classList.remove("show-all");
+      var html =
+        '<div class="pg-ph-head"><span class="pg-ph-title">🐒 Fyll i mallen</span><span class="pg-ph-count"></span></div>' +
+        '<p class="pg-ph-help">Det du skriver här ersätter <code>[platshållarna]</code> i prompten. Tomma fält får stå kvar – AI:n frågar då eller gissar.</p>' +
+        '<div class="pg-ph-grid">';
+      tokens.forEach(function (t, i) {
+        var val = phValues[t.key] || "";
+        var cls = "pg-ph-field" + (t.multi ? " is-wide" : "") + (i >= PH_MAX_VISIBLE ? " is-extra" : "") + (val.trim() ? " is-filled" : "");
+        var uses = t.uses > 1 ? ' <span class="pg-ph-uses">(' + t.uses + " ställen)</span>" : "";
+        var input = t.multi
+          ? '<textarea class="form_input is-text-area is-small w-input pg-ph-input" rows="2" placeholder="' + phEsc(t.hint) + '"></textarea>'
+          : '<input type="text" class="form_input w-input pg-ph-input" autocomplete="off" placeholder="' + phEsc(t.hint) + '">';
+        html += '<label class="' + cls + '" data-ph-index="' + i + '"><span class="pg-ph-label"><span class="pg-ph-dot"></span>' +
+                phEsc(t.label) + uses + "</span>" + input + "</label>";
+      });
+      html += "</div>";
+      if (tokens.length > PH_MAX_VISIBLE)
+        html += '<button type="button" class="pg-ph-more">Visa ' + (tokens.length - PH_MAX_VISIBLE) + " fler fält</button>";
+      panel.innerHTML = html;
+      panel.querySelectorAll(".pg-ph-field").forEach(function (lab) {
+        var t = tokens[+lab.getAttribute("data-ph-index")];
+        var inp = lab.querySelector(".pg-ph-input");
+        inp.value = phValues[t.key] || "";
+        inp.addEventListener("input", function () {
+          phValues[t.key] = inp.value;
+          lab.classList.toggle("is-filled", !!inp.value.trim());
+          phUpdateCount(fieldId);
+          updateLivePreview();
+        });
+        /* Enter i ett textfält får inte skicka Webflow-formuläret */
+        inp.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" && inp.tagName === "INPUT") e.preventDefault();
+        });
+      });
+      var more = panel.querySelector(".pg-ph-more");
+      if (more) more.addEventListener("click", function () { panel.classList.add("show-all"); });
+      if (!phTracked[sig]) {
+        phTracked[sig] = true;
+        pgTrack("pg_placeholders_shown", { count: tokens.length, task_type: currentTaskType(), source: trackState.source });
+      }
+    }
+    panel.hidden = false;
+    phUpdateCount(fieldId);
+  }
+
+  PH_FIELDS.forEach(function (id) {
+    var ta = document.getElementById(id);
+    if (!ta) return;
+    var t;
+    var rescan = function () {
+      clearTimeout(t);
+      t = setTimeout(function () { phRender(id); updateLivePreview(); }, 250);
+    };
+    ta.addEventListener("input", rescan);
+    ta.addEventListener("change", rescan);
+    phRender(id);   // fält kan redan vara ifyllda (URL-import, mallval)
+  });
+  updateLivePreview();
+
+  /* ── T3. Analys: AI-knapparna (ChatGPT/Claude/Gemini) ── */
+  if (toolLinks) {
+    toolLinks.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest("a");
+      if (!a) return;
+      var h = ((a.getAttribute("href") || "") + " " + a.textContent).toLowerCase();
+      var tool = /chatgpt|openai/.test(h) ? "chatgpt" : /claude/.test(h) ? "claude"
+               : /gemini/.test(h) ? "gemini" : /copilot/.test(h) ? "copilot" : "annat";
+      pgTrack("pg_ai_open", { tool: tool, source: trackState.source, task_type: currentTaskType() });
+    }, true);
+  }
 });

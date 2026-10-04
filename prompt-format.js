@@ -203,6 +203,16 @@
     }
   }
 
+  /* Analys: sajten skickar ingen referrer mellan sidor, så vi minns
+     varifrån man klickade sig till promptgeneratorn (läses av
+     promptgenerator.js → pg_open source). Funkar även för knappar som
+     skapas dynamiskt (Anpassa i Promptgeneratorn). */
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest && e.target.closest('a[href*="/promptgeneratorn"]');
+    if (!a) return;
+    try { sessionStorage.setItem('pg_from', location.pathname); } catch (err) { /* privat läge */ }
+  }, true);
+
   window.aimRenderPrompts = renderAll;
   window.aimPromptMarkdown = render;
 
