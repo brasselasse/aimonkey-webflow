@@ -2081,8 +2081,12 @@ document.addEventListener("DOMContentLoaded", function () {
      Mallar och bibliotekprompter innehåller [PLATSHÅLLARE]. I stället
      för att användaren ska leta upp och skriva över dem i texten visas
      ett litet fält per platshållare under beskrivningsfältet.
-       - Textrutan lämnas orörd; ifyllda värden ersätter [platshållaren]
-         först när prompten byggs (applyFills i buildPromptData).
+       - Live-ifyllning: det man skriver i ett fält skrivs direkt in i
+         textrutan ovanför. Mallen (med [platshållarna] kvar) sparas i
+         phTemplate, så fälten finns kvar och ett tömt fält ger tillbaka
+         [platshållaren]. Skriver man själv i textrutan mappas ifyllda
+         värden tillbaka till [platshållare] i mallen (phReverse) så att
+         fälten inte försvinner.
        - Etikett: texten före platshållaren på samma rad ("**Mål:** [..]"
          → "Mål"), annars platshållaren själv i normal skiftläge.
        - Samma platshållare på flera ställen = ett fält som fyller alla.
@@ -2097,6 +2101,9 @@ document.addEventListener("DOMContentLoaded", function () {
   var phTokens = {};   // fält-id → [{ key, label, hint, multi }]
   var phPanels = {};   // fält-id → panel
   var phTracked = {};  // signaturer som redan spårats (pg_placeholders_shown)
+  var phTemplate = {}; // fält-id → mallen med [platshållare] kvar
+  var phSilent = false; // true när vi själva skriver i textrutan
+  var PH_REVERSE_MIN = 3; // kortare värden mappas inte tillbaka (för många falska träffar)
 
   function applyFills(s) {
     if (!s || !phValues) return s;
@@ -2122,9 +2129,33 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!list.length) return undefined;
     return (list.length - phOpenCount()) + "/" + list.length;
   }
+  /* Textrutans text → mall: ifyllda värden blir [platshållare] igen.
+     Längsta värdet först så att "Anna Svensson" går före "Anna". */
+  function phReverse(text) {
+    var keys = Object.keys(phValues).filter(function (k) {
+      return (phValues[k] || "").trim().length >= PH_REVERSE_MIN;
+    }).sort(function (a, b) { return phValues[b].trim().length - phValues[a].trim().length; });
+    keys.forEach(function (k) { text = text.split(phValues[k].trim()).join("[" + k + "]"); });
+    return text;
+  }
+  /* Skriv mallen + ifyllda värden till textrutan utan att trigga omläsning */
+  function phWriteField(fieldId) {
+    var ta = document.getElementById(fieldId);
+    if (!ta || phTemplate[fieldId] == null) return;
+    var next = applyFills(phTemplate[fieldId]);
+    if (ta.value === next) return;
+    var st = ta.scrollTop;
+    ta.value = next;
+    phSilent = true;
+    try { ta.dispatchEvent(new Event("input", { bubbles: true })); }
+    finally { phSilent = false; }
+    ta.scrollTop = st;
+  }
+
   function phReset() {
     if (!phValues) return;
     phValues = {};
+    phTemplate = {};
     PH_FIELDS.forEach(function (id) {
       var p = phPanels[id];
       if (p) { p.hidden = true; p.removeAttribute("data-sig"); }
@@ -2218,7 +2249,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function phRender(fieldId) {
     var ta = document.getElementById(fieldId);
     if (!ta) return;
-    var tokens = phParse(ta.value || "");
+    if (phTemplate[fieldId] == null) phTemplate[fieldId] = ta.value || "";
+    var tokens = phParse(phTemplate[fieldId]);
     phTokens[fieldId] = tokens;
     var panel = phPanels[fieldId];
     if (!tokens.length) { if (panel) panel.hidden = true; return; }
@@ -2238,7 +2270,7 @@ document.addEventListener("DOMContentLoaded", function () {
       panel.classList.remove("show-all");
       var html =
         '<div class="pg-ph-head"><span class="pg-ph-title">🐒 Fyll i mallen</span><span class="pg-ph-count"></span></div>' +
-        '<p class="pg-ph-help">Det du skriver här ersätter <code>[platshållarna]</code> i prompten. Tomma fält får stå kvar – AI:n frågar då eller gissar.</p>' +
+        '<p class="pg-ph-help">Det du skriver här fylls i direkt i texten ovanför. Tomma fält står kvar som <code>[platshållare]</code> – AI:n frågar då eller gissar.</p>' +
         '<div class="pg-ph-grid">';
       tokens.forEach(function (t, i) {
         var val = phValues[t.key] || "";
@@ -2262,6 +2294,7 @@ document.addEventListener("DOMContentLoaded", function () {
           phValues[t.key] = inp.value;
           lab.classList.toggle("is-filled", !!inp.value.trim());
           phUpdateCount(fieldId);
+          phWriteField(fieldId);   // live i textrutan (triggar även preview)
           updateLivePreview();
         });
         /* Enter i ett textfält får inte skicka Webflow-formuläret */
@@ -2284,9 +2317,17 @@ document.addEventListener("DOMContentLoaded", function () {
     var ta = document.getElementById(id);
     if (!ta) return;
     var t;
+    /* Användaren (eller import/mallval) ändrade textrutan: läs om mallen.
+       Våra egna skrivningar (phSilent) hoppas över. */
     var rescan = function () {
+      if (phSilent) return;
       clearTimeout(t);
-      t = setTimeout(function () { phRender(id); updateLivePreview(); }, 250);
+      t = setTimeout(function () {
+        phTemplate[id] = phReverse(ta.value || "");
+        phRender(id);
+        phWriteField(id);   // t.ex. ny mall med ett namn som redan fyllts i
+        updateLivePreview();
+      }, 250);
     };
     ta.addEventListener("input", rescan);
     ta.addEventListener("change", rescan);
