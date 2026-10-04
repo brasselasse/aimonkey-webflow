@@ -1683,7 +1683,10 @@ document.addEventListener("DOMContentLoaded", function () {
      Uppdateras automatiskt varje gång du publicerar CMS-ändringar.
      ============================================================ */
   (function () {
-    var DATA_URL = '/prompt-data';
+    /* Absolut URL från sidans egen origin: testdomänen har <base href=
+       "https://www.aimonkey.se/">, så en relativ fetch gick till produktion
+       och stoppades (CORS) → sökningen gav inga träffar på testsidan. */
+    var DATA_URL = location.origin + '/prompt-data';
     var cachedPrompts = null;
 
     /* Kategori → task-type-mappning */
