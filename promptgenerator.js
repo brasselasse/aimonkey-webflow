@@ -2091,6 +2091,11 @@ document.addEventListener("DOMContentLoaded", function () {
          → "Mål"), annars platshållaren själv i normal skiftläge.
        - Samma platshållare på flera ställen = ett fält som fyller alla.
        - Tomma fält får stå kvar som [platshållare] i prompten.
+       - Kopplade platshållare (bara textflödet): [TON], [ROLL] och
+         [MOTTAGARE]/[MÅLGRUPP] får inget eget fält — de fylls från
+         generatorns befintliga steg (Steg 2 Roll & ton, Steg 3 Mottagare).
+         Panelen visar kopplingen med en länk till steget. Bild/video/kod
+         saknar de stegen, där blir de vanliga fält.
      OBS: var/function — buildPromptData() och updateReadyState() anropar
      applyFills()/phOpenCount() redan vid init, innan avsnittet nåtts.
      ============================================================ */
@@ -2104,11 +2109,44 @@ document.addEventListener("DOMContentLoaded", function () {
   var phTemplate = {}; // fält-id → mallen med [platshållare] kvar
   var phSilent = false; // true när vi själva skriver i textrutan
   var PH_REVERSE_MIN = 3; // kortare värden mappas inte tillbaka (för många falska träffar)
+  var phKeyLink = {};   // platshållartext → "ton" | "roll" | "malgrupp" (textflödet)
+  var PH_LINKS = {
+    ton: { re: /^(ton|tonen|tonalitet|tonläge|tonfall|ton och stil)$/i,
+           step: "step-4", where: "Steg 2 · Roll & ton", what: "Ton", focusSel: 'input[name="Ton"]' },
+    roll: { re: /^(roll|ai:?ns roll|ai-roll|expertroll|roll för ai:?n)$/i,
+            step: "step-4", where: "Steg 2 · Roll & ton", what: "Roll", focusSel: "#custom-role-input" },
+    malgrupp: { re: /^(mottagare|mottagaren|målgrupp|målgruppen|publik|läsare|läsarna|mottagare ?\/ ?målgrupp)$/i,
+                step: "step-5", where: "Steg 3 · Underlag", what: "Mottagare", focusSel: "#malgrupp-input" },
+  };
+  function phLinkFor(t) {
+    var cands = [t.label, phSentence(t.key)].map(function (x) {
+      return String(x || "").replace(/[:.]+$/, "").trim();
+    });
+    for (var type in PH_LINKS) {
+      if (cands.some(function (c) { return PH_LINKS[type].re.test(c); })) return type;
+    }
+    return "";
+  }
+  /* Värdet i generatorns eget steg för en kopplad platshållare */
+  function phLinkedValue(type) {
+    if (type === "ton")      return (checkedLabel("Ton") || "").toLowerCase();
+    if (type === "roll")     return roleText($val("#custom-role-input") || checkedLabel("Roll"));
+    if (type === "malgrupp") return $val("#malgrupp-input");
+    return "";
+  }
+  function phValueFor(key) {
+    if (phKeyLink && phKeyLink[key]) return phLinkedValue(phKeyLink[key]) || "";
+    return (phValues && phValues[key]) || "";
+  }
+  /* Bara de platshållare som får egna fält (inte kopplade) */
+  function phGridTokens(fieldId) {
+    return ((phTokens && phTokens[fieldId]) || []).filter(function (t) { return !t.link; });
+  }
 
   function applyFills(s) {
     if (!s || !phValues) return s;
     return s.replace(new RegExp(PH_SRC, "g"), function (m, inner) {
-      var v = phValues[inner];
+      var v = phValueFor(inner);
       return v && v.trim() ? v.trim() : m;
     });
   }
@@ -2120,22 +2158,23 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   function phOpenCount() {
     if (!phTokens) return 0;
-    var list = phTokens[phActiveField()] || [];
+    var list = phGridTokens(phActiveField());
     return list.filter(function (t) { return !(phValues[t.key] || "").trim(); }).length;
   }
   function phFilledSummary() {
     if (!phTokens) return undefined;
-    var list = phTokens[phActiveField()] || [];
+    var list = phGridTokens(phActiveField());
     if (!list.length) return undefined;
     return (list.length - phOpenCount()) + "/" + list.length;
   }
   /* Textrutans text → mall: ifyllda värden blir [platshållare] igen.
      Längsta värdet först så att "Anna Svensson" går före "Anna". */
   function phReverse(text) {
-    var keys = Object.keys(phValues).filter(function (k) {
-      return (phValues[k] || "").trim().length >= PH_REVERSE_MIN;
-    }).sort(function (a, b) { return phValues[b].trim().length - phValues[a].trim().length; });
-    keys.forEach(function (k) { text = text.split(phValues[k].trim()).join("[" + k + "]"); });
+    var all = Object.keys(phValues).concat(Object.keys(phKeyLink));
+    var keys = all.filter(function (k, i) {
+      return all.indexOf(k) === i && phValueFor(k).trim().length >= PH_REVERSE_MIN;
+    }).sort(function (a, b) { return phValueFor(b).trim().length - phValueFor(a).trim().length; });
+    keys.forEach(function (k) { text = text.split(phValueFor(k).trim()).join("[" + k + "]"); });
     return text;
   }
   /* Skriv mallen + ifyllda värden till textrutan utan att trigga omläsning */
@@ -2156,6 +2195,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!phValues) return;
     phValues = {};
     phTemplate = {};
+    phKeyLink = {};
     PH_FIELDS.forEach(function (id) {
       var p = phPanels[id];
       if (p) { p.hidden = true; p.removeAttribute("data-sig"); }
@@ -2226,6 +2266,25 @@ document.addEventListener("DOMContentLoaded", function () {
       ".pg-ph textarea.pg-ph-input{min-height:64px!important;resize:vertical}" +
       ".pg-ph-more{margin-top:10px;background:none;border:0;padding:4px 0;font:inherit;font-size:.88rem;font-weight:600;color:#00866f;cursor:pointer;text-decoration:underline}" +
       ".pg-ph.show-all .pg-ph-more{display:none}" +
+      ".pg-ph-grid:empty{display:none}" +
+      ".pg-ph-links{margin-top:12px;padding-top:10px;border-top:1px dashed rgba(0,201,167,.35);display:flex;flex-direction:column;gap:6px}" +
+      ".pg-ph-head+.pg-ph-grid:empty+.pg-ph-links{margin-top:6px;padding-top:0;border-top:0}" +
+      ".pg-ph-links-title{margin:0 0 2px;font-size:.82rem;opacity:.7}" +
+      ".pg-ph-link{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-size:.88rem;color:inherit;" +
+        "background:rgba(255,255,255,.6);border:1px solid rgba(17,24,39,.08);border-radius:10px;padding:8px 10px;cursor:pointer}" +
+      ".pg-ph-link:hover{border-color:rgba(0,201,167,.6)}" +
+      ".pg-ph-link .pg-ph-dot{width:8px;height:8px;border-radius:50%;flex:none;border:1.5px solid rgba(0,134,111,.6)}" +
+      ".pg-ph-link.is-filled .pg-ph-dot{background:#00c9a7;border-color:#00c9a7}" +
+      ".pg-ph-link-name{flex:1;min-width:0}" +
+      ".pg-ph-link-name code{font-size:.85em;background:rgba(0,201,167,.16);border-radius:4px;padding:0 .25em}" +
+      ".pg-ph-link-where{opacity:.6;font-size:.9em;white-space:nowrap}" +
+      ".pg-ph-link-val{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#00866f}" +
+      ".pg-ph-link:not(.is-filled) .pg-ph-link-val{text-decoration:underline}" +
+      "html:not(.pg-light-page) .pg-ph-link{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}" +
+      "html:not(.pg-light-page) .pg-ph-link-val{color:#39ff8a}" +
+      "@keyframes pgPhFlash{0%{box-shadow:0 0 0 0 rgba(0,201,167,.55)}100%{box-shadow:0 0 0 12px rgba(0,201,167,0)}}" +
+      ".pg-ph-flash{animation:pgPhFlash .9s ease-out 2;border-radius:12px}" +
+      "@media (max-width:767px){.pg-ph-link{flex-wrap:wrap}.pg-ph-link-val{max-width:100%;margin-left:16px}}" +
       "@media (max-width:767px){.pg-ph-grid{grid-template-columns:1fr}.pg-ph{padding:12px}}" +
       /* Mörka sidan (om den återanvänds) */
       "html:not(.pg-light-page) .pg-ph-count,html:not(.pg-light-page) .pg-ph-more{color:#39ff8a}";
@@ -2239,11 +2298,21 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function phUpdateCount(fieldId) {
-    var panel = phPanels[fieldId], list = phTokens[fieldId] || [];
+    var panel = phPanels[fieldId];
     if (!panel) return;
+    var list = phGridTokens(fieldId);
     var filled = list.filter(function (t) { return (phValues[t.key] || "").trim(); }).length;
     var c = panel.querySelector(".pg-ph-count");
-    if (c) c.textContent = filled === list.length ? "✓ Alla ifyllda" : filled + " av " + list.length + " ifyllda";
+    if (c) c.textContent = !list.length ? "" : filled === list.length ? "✓ Alla ifyllda" : filled + " av " + list.length + " ifyllda";
+    /* Kopplade platshållare: visa aktuellt värde från steget */
+    var linked = (phTokens[fieldId] || []).filter(function (t) { return t.link; });
+    panel.querySelectorAll(".pg-ph-link").forEach(function (btn) {
+      var t = linked[+btn.getAttribute("data-link-index")];
+      if (!t) return;
+      var v = phLinkedValue(t.link);
+      btn.classList.toggle("is-filled", !!v);
+      btn.querySelector(".pg-ph-link-val").textContent = v ? v : "Välj →";
+    });
   }
 
   function phRender(fieldId) {
@@ -2252,6 +2321,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (phTemplate[fieldId] == null) phTemplate[fieldId] = ta.value || "";
     var tokens = phParse(phTemplate[fieldId]);
     phTokens[fieldId] = tokens;
+    tokens.forEach(function (t) {
+      t.link = fieldId === "brief-input" ? phLinkFor(t) : "";
+      if (t.link) phKeyLink[t.key] = t.link;
+    });
+    var grid   = tokens.filter(function (t) { return !t.link; });
+    var linked = tokens.filter(function (t) { return t.link; });
     var panel = phPanels[fieldId];
     if (!tokens.length) { if (panel) panel.hidden = true; return; }
     phInjectStyles();
@@ -2264,15 +2339,16 @@ document.addEventListener("DOMContentLoaded", function () {
       anchor.parentNode.insertBefore(panel, anchor.nextSibling);
       phPanels[fieldId] = panel;
     }
-    var sig = tokens.map(function (t) { return t.key + "|" + t.label; }).join("\n");
+    var sig = tokens.map(function (t) { return t.key + "|" + t.label + "|" + (t.link || ""); }).join("\n");
     if (panel.getAttribute("data-sig") !== sig) {
       panel.setAttribute("data-sig", sig);
       panel.classList.remove("show-all");
       var html =
-        '<div class="pg-ph-head"><span class="pg-ph-title">🐒 Fyll i mallen</span><span class="pg-ph-count"></span></div>' +
-        '<p class="pg-ph-help">Det du skriver här fylls i direkt i texten ovanför. Tomma fält står kvar som <code>[platshållare]</code> – AI:n frågar då eller gissar.</p>' +
+        '<div class="pg-ph-head"><span class="pg-ph-title">' + (grid.length ? "🐒 Fyll i mallen" : "🐒 Mallen hämtar från dina val") +
+          '</span><span class="pg-ph-count"></span></div>' +
+        (grid.length ? '<p class="pg-ph-help">Det du skriver här fylls i direkt i texten ovanför. Tomma fält står kvar som <code>[platshållare]</code> – AI:n frågar då eller gissar.</p>' : "") +
         '<div class="pg-ph-grid">';
-      tokens.forEach(function (t, i) {
+      grid.forEach(function (t, i) {
         var val = phValues[t.key] || "";
         var cls = "pg-ph-field" + (t.multi ? " is-wide" : "") + (i >= PH_MAX_VISIBLE ? " is-extra" : "") + (val.trim() ? " is-filled" : "");
         var uses = t.uses > 1 ? ' <span class="pg-ph-uses">(' + t.uses + " ställen)</span>" : "";
@@ -2283,11 +2359,36 @@ document.addEventListener("DOMContentLoaded", function () {
                 phEsc(t.label) + uses + "</span>" + input + "</label>";
       });
       html += "</div>";
-      if (tokens.length > PH_MAX_VISIBLE)
-        html += '<button type="button" class="pg-ph-more">Visa ' + (tokens.length - PH_MAX_VISIBLE) + " fler fält</button>";
+      if (grid.length > PH_MAX_VISIBLE)
+        html += '<button type="button" class="pg-ph-more">Visa ' + (grid.length - PH_MAX_VISIBLE) + " fler fält</button>";
+      if (linked.length) {
+        html += '<div class="pg-ph-links"><p class="pg-ph-links-title">' +
+          (grid.length ? "Fylls i från dina val i generatorn:" : "De här platshållarna fylls i automatiskt från stegen nedan:") + "</p>";
+        linked.forEach(function (t, i) {
+          var L = PH_LINKS[t.link];
+          html += '<button type="button" class="pg-ph-link" data-link-index="' + i + '"><span class="pg-ph-dot"></span>' +
+            '<span class="pg-ph-link-name"><code>[' + phEsc(t.key) + "]</code> → " + L.what +
+            ' <span class="pg-ph-link-where">' + L.where + "</span></span>" +
+            '<span class="pg-ph-link-val"></span></button>';
+        });
+        html += "</div>";
+      }
       panel.innerHTML = html;
+      /* Kopplade: klick tar användaren till rätt steg och fält */
+      panel.querySelectorAll(".pg-ph-link").forEach(function (btn) {
+        var t = linked[+btn.getAttribute("data-link-index")], L = PH_LINKS[t.link];
+        btn.addEventListener("click", function () {
+          showStep(L.step);
+          var el = document.querySelector(L.focusSel);
+          if (!el) return;
+          var target = el.closest(".radio2_component, .form_field-wrapper") || el;
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el.tagName === "TEXTAREA" || el.type === "text") el.focus({ preventScroll: true });
+          target.classList.remove("pg-ph-flash"); void target.offsetWidth; target.classList.add("pg-ph-flash");
+        });
+      });
       panel.querySelectorAll(".pg-ph-field").forEach(function (lab) {
-        var t = tokens[+lab.getAttribute("data-ph-index")];
+        var t = grid[+lab.getAttribute("data-ph-index")];
         var inp = lab.querySelector(".pg-ph-input");
         inp.value = phValues[t.key] || "";
         inp.addEventListener("input", function () {
@@ -2306,7 +2407,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (more) more.addEventListener("click", function () { panel.classList.add("show-all"); });
       if (!phTracked[sig]) {
         phTracked[sig] = true;
-        pgTrack("pg_placeholders_shown", { count: tokens.length, task_type: currentTaskType(), source: trackState.source });
+        pgTrack("pg_placeholders_shown", { count: grid.length, task_type: currentTaskType(), source: trackState.source });
       }
     }
     panel.hidden = false;
@@ -2331,7 +2432,24 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     ta.addEventListener("input", rescan);
     ta.addEventListener("change", rescan);
-    phRender(id);   // fält kan redan vara ifyllda (URL-import, mallval)
+    phRender(id);       // fält kan redan vara ifyllda (URL-import, mallval)
+    phWriteField(id);   // kopplade platshållare fylls direkt (t.ex. ton/målgrupp från biblioteket)
+  });
+
+  /* Kopplade platshållare: ändrar man Ton, Roll eller Mottagare i stegen
+     uppdateras texten i "Vad vill du ha hjälp med?" direkt. Radioknapparna
+     lyssnas på direkt (avmarkering skickar icke-bubblande change). */
+  function phSyncLinks() {
+    if (!phTemplate || phTemplate["brief-input"] == null) return;
+    phWriteField("brief-input");
+    phUpdateCount("brief-input");
+  }
+  ["malgrupp-input", "custom-role-input"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("input", phSyncLinks);
+  });
+  document.querySelectorAll('input[name="Ton"], input[name="Roll"]').forEach(function (r) {
+    r.addEventListener("change", phSyncLinks);
   });
   updateLivePreview();
 
