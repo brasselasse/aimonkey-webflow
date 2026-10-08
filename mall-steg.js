@@ -140,6 +140,7 @@
   }
   /* Pillar-sidor per roll (Roller-slug → adress). Lägg till när sidorna finns. */
   var PILLAR_URL = {
+    saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
     marknadsforare: '/ai-for-marknadsforing-sociala-medier'
   };

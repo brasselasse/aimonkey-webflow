@@ -95,6 +95,7 @@
     return (roll.slice(-1) === 'e' ? roll.slice(0, -1) : roll) + 'resan';
   }
   var PILLAR_URL = {
+    saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
     marknadsforare: '/ai-for-marknadsforing-sociala-medier'
   };
