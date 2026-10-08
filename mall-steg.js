@@ -5,11 +5,11 @@
    Webflow-struktur (Designer):
      [data-mall-v2="wrapper"]
        RichText  (Intro)          — bunden till AI-Mallar.intro
-       Collection list [data-mall-v2="steg"] — Prompters, filter
-                                    Huvudmall är satt (+ helst Huvudmall =
-                                    aktuell mall, sätts i Designer), sort Steg ↑
+       Collection list [data-mall-v2="steg"] — källa: mallens referensfält
+                                    "Prompts" (AI-Mallar.prompts), sort Steg ↑
          .stegkort[data-steg][data-slug][data-roll][data-malgrupp][data-namn][data-mall]
-       data-mall = huvudmallens slug; kort för andra mallar tas bort här.
+       data-mall = promptens huvudmall (slug). Bara kort där den = sidans mall visas,
+       så prompter som bara "används även i" mallen blir inga stegkort.
        RichText  (Efter stegen)   — bunden till AI-Mallar.efter-stegen
 
    Regel: finns minst ett stegkort → stegkort-layout (body.mall-v2-on),
@@ -107,7 +107,7 @@
        (behövs om listans filter "Huvudmall = aktuell mall" saknas). */
     cards = cards.filter(function (c) {
       var m = c.getAttribute('data-mall');
-      var keep = !m || m === mallSlug;
+      var keep = !!m && m === mallSlug;
       if (!keep) { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
       return keep;
     });
