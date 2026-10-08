@@ -30,7 +30,7 @@
     '.mall-resa{background:#0b1f3b;color:#f5f6fa;border-radius:16px;padding:20px;margin-top:20px}',
     '.mall-resa-label{margin:0 0 12px!important;font-size:12px!important;letter-spacing:.04em;text-transform:uppercase;color:#4cd9c1!important;font-weight:600}',
     '.mall-resa ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}',
-    '.mall-resa li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.35;color:#ced2d7}',
+    '.mall-resa li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.35;color:#ced2d7;min-width:0;overflow-wrap:anywhere;hyphens:auto}',
     '.mall-resa li i{font-style:normal;width:22px;height:22px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;border:1px solid #5b6b82;margin-top:-1px}',
     '.mall-resa li.is-here{color:#fff;font-weight:600}',
     '.mall-resa li.is-here i{background:#00c9a7;border-color:#00c9a7;color:#0b1f3b}',
