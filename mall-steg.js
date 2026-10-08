@@ -24,6 +24,7 @@
     'body.mall-v2-on [fs-toc-element="contents"]{display:none!important}',
     'body.mall-v2-on .content27_link-content{display:none!important}',
     '[data-mall-v2="steg"] .w-dyn-empty{display:none!important}',
+    '[data-stegkort="meta"]{display:none!important}',
     '[data-mall-v2="intro"]{margin-bottom:2rem}',
     '[data-mall-v2="efter"]{margin-top:2.5rem}',
     '.stegkort-rubrik{font-size:2rem;line-height:1.15;margin:0 0 .5rem}',
@@ -115,6 +116,17 @@
       var keep = n > 0 && !!t && !(numEl.classList.contains('w-dyn-bind-empty') || titelEl.classList.contains('w-dyn-bind-empty'));
       if (keep) {
         if (!c.getAttribute('data-steg')) c.setAttribute('data-steg', String(n));
+        /* Dolda metafält (bundna textblock) → data-attribut */
+        ['slug', 'roll', 'malgrupp'].forEach(function (k) {
+          var el = c.querySelector('[data-stegkort="' + k + '"]');
+          var v = el && !el.classList.contains('w-dyn-bind-empty') ? el.textContent.trim() : '';
+          if (v && !c.getAttribute('data-' + k)) c.setAttribute('data-' + k, v);
+        });
+        var oppna = c.querySelector('.stegkort-oppna');
+        if (oppna) {
+          if (c.getAttribute('data-slug')) oppna.setAttribute('href', '/ai-prompter/' + c.getAttribute('data-slug'));
+          else oppna.style.display = 'none';
+        }
         /* Märkningen "Bygger på förra steget": visa bara när prompten tar in ett tidigare svar */
         var pr = c.querySelector('.stegkort-prompt');
         var badge = c.querySelector('.stegkort-badge');
@@ -253,6 +265,7 @@
       var klar = card.querySelector('.stegkort-klar');
       if (klar) klar.addEventListener('click', function (e) {
         e.preventDefault();
+        e.stopPropagation();
         var idx = done.indexOf(n);
         if (idx === -1) {
           done.push(n);
