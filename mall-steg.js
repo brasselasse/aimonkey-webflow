@@ -7,9 +7,9 @@
        RichText  (Intro)          — bunden till AI-Mallar.intro
        Collection list [data-mall-v2="steg"] — källa: mallens referensfält
                                     "Prompts" (AI-Mallar.prompts), sort Steg ↑
-         .stegkort[data-steg][data-slug][data-roll][data-malgrupp][data-namn][data-mall]
-       data-mall = promptens huvudmall (slug). Bara kort där den = sidans mall visas,
-       så prompter som bara "används även i" mallen blir inga stegkort.
+         .stegkort (.stegkort-num ← Steg, .stegkort-titel ← Stegrubrik, …)
+       Prompter utan Steg/Stegrubrik tas bort, så mallar som bara har
+       "används även i"-prompter i fältet behåller gamla layouten.
        RichText  (Efter stegen)   — bunden till AI-Mallar.efter-stegen
 
    Regel: finns minst ett stegkort → stegkort-layout (body.mall-v2-on),
@@ -103,12 +103,23 @@
 
     var list = document.querySelector('[data-mall-v2="steg"]');
     var cards = list ? Array.prototype.slice.call(list.querySelectorAll('.stegkort')) : [];
-    /* Säkerhetsnät: visa bara steg vars huvudmall är den här mallen
-       (behövs om listans filter "Huvudmall = aktuell mall" saknas). */
+    /* Listan hämtar mallens referensfält "Prompts". Webflow publicerar inte
+       attributbindningar här, så stegnummer/rubrik läses ur kortet.
+       Bara prompter med Steg + Stegrubrik blir stegkort; vanliga
+       "används även i"-prompter (utan steg) tas bort. */
     cards = cards.filter(function (c) {
-      var m = c.getAttribute('data-mall');
-      var keep = !!m && m === mallSlug;
-      if (!keep) { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
+      var numEl = c.querySelector('.stegkort-num');
+      var titelEl = c.querySelector('.stegkort-titel');
+      var n = numEl ? parseInt(numEl.textContent, 10) : NaN;
+      var t = titelEl ? titelEl.textContent.trim() : '';
+      var keep = n > 0 && !!t && !(numEl.classList.contains('w-dyn-bind-empty') || titelEl.classList.contains('w-dyn-bind-empty'));
+      if (keep) {
+        if (!c.getAttribute('data-steg')) c.setAttribute('data-steg', String(n));
+        /* Märkningen "Bygger på förra steget": visa bara när prompten tar in ett tidigare svar */
+        var pr = c.querySelector('.stegkort-prompt');
+        var badge = c.querySelector('.stegkort-badge');
+        if (badge && pr && !/klistra in [^\]]*fr[åa]n (steg|fas|kundkort)/i.test(pr.textContent)) badge.style.display = 'none';
+      } else { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
       return keep;
     });
     if (!cards.length) { document.body.classList.add('mall-v2-off'); return; }
