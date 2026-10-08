@@ -25,6 +25,28 @@
     'body.mall-v2-on .content27_link-content{display:none!important}',
     '[data-mall-v2="steg"] .w-dyn-empty{display:none!important}',
     '[data-stegkort="meta"]{display:none!important}',
+    '[data-mall-meta]{display:none!important}',
+    '.mall-fasmarke{display:inline-flex;align-items:center;gap:8px;background:#fff3c4;color:#665419;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;margin-bottom:16px;text-decoration:none}',
+    'a.mall-fasmarke:hover{background:#ffe9a0;color:#665419}',
+    '.mall-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:1.5rem 0 2.5rem}',
+    '.mall-info-kort{border:1px solid #e6e8ec;border-radius:16px;padding:20px 22px;background:#fff}',
+    '.mall-info-kort h2,.mall-info-kort h3{font-size:20px!important;line-height:1.25;margin:0 0 10px!important;color:#0b1f3b}',
+    '.mall-info-kort ul{margin:0;padding-left:0}',
+    '.mall-info-kort p:last-child,.mall-info-kort ul:last-child{margin-bottom:0}',
+    '.mall-misstag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:1rem 0 2.5rem}',
+    '.mall-misstag-kort{background:#f5f6fa;border-radius:16px;padding:18px 20px}',
+    '.mall-misstag-kort strong{display:block;color:#0b1f3b;margin-bottom:6px}',
+    '.mall-misstag-kort p{margin:0;font-size:15px;line-height:1.6}',
+    '.mall-nastafas{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:center;background:#0b1f3b;border-radius:24px;padding:28px 32px;margin:2rem 0}',
+    '.mall-nastafas-text{flex:1 1 300px;min-width:0}',
+    '.mall-nastafas .mall-nastafas-label{margin:0 0 6px!important;font-size:13px!important;line-height:1.4!important;letter-spacing:.04em;text-transform:uppercase;color:#4cd9c1!important;font-weight:600}',
+    '.mall-nastafas .mall-nastafas-titel{margin:0 0 8px!important;font-size:28px!important;line-height:1.15!important;font-weight:700;color:#fff!important}',
+    '.mall-nastafas .mall-nastafas-text p{color:#ced2d7;margin:0;font-size:15px;line-height:1.6}',
+    'body.mall-v2-on .mallar-content > .w-dyn-list > .w-dyn-empty{display:none!important}',
+    '.mall-nastafas-text a{color:#4cd9c1}',
+    '.mall-nastafas-btn{background:#ffd23f;color:#0b1f3b!important;padding:14px 22px;border-radius:12px;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap}',
+    '.mall-nastafas-btn:hover{background:#ffdf78}',
+    '.stegnav-pillar{display:block;margin-top:12px;font-size:13px;color:#00806b}',
     '[data-mall-v2="intro"]{margin-bottom:2rem}',
     '[data-mall-v2="efter"]{margin-top:2.5rem}',
     '.stegkort-rubrik{font-size:2rem;line-height:1.15;margin:0 0 .5rem}',
@@ -54,7 +76,7 @@
     '.stegnav i{font-style:normal;width:24px;height:24px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;border:1px solid #ced2d7;color:#5b6573}',
     '.stegnav a.is-done i{background:#00c9a7;border-color:#00c9a7;color:#0b1f3b}',
     '.stegnav-progress{font-size:13px;color:#5b6573;margin:.25rem 0 .5rem}',
-    '@media (max-width:767px){.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
+    '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
 
   function track(event, params) {
@@ -95,6 +117,117 @@
       try { document.execCommand('copy'); ok(); } catch (e) {}
       document.body.removeChild(ta);
     }
+  }
+
+
+  /* ── Grafiska delar ur rich text (innehållet redigeras i CMS som vanlig text) ── */
+  function metaText(key) {
+    var el = document.querySelector('[data-mall-meta="' + key + '"]');
+    return el && !el.classList.contains('w-dyn-bind-empty') ? el.textContent.trim() : '';
+  }
+  /* Pillar-sidor per roll (Roller-slug → adress). Lägg till när sidorna finns. */
+  var PILLAR_URL = {
+    smaforetagare: '/ai-for-smaforetagare',
+    marknadsforare: '/ai-for-marknadsforing-sociala-medier'
+  };
+  function resanNamn(roll) {
+    if (!roll) return '';
+    return (roll.slice(-1) === 'e' ? roll.slice(0, -1) : roll) + 'resan';
+  }
+  /* Delar upp en rich text i sektioner per H2: [{h, nodes}] */
+  function sections(root) {
+    var out = [], cur = { h: null, nodes: [] };
+    Array.prototype.slice.call(root.children).forEach(function (n) {
+      if (n.tagName === 'H2') { out.push(cur); cur = { h: n, nodes: [] }; }
+      else cur.nodes.push(n);
+    });
+    out.push(cur);
+    return out;
+  }
+  function htxt(s) { return s.h ? s.h.textContent.trim().toLowerCase() : ''; }
+
+  function enhanceIntro() {
+    var root = document.querySelector('[data-mall-v2="intro"]');
+    if (!root) return;
+    var secs = sections(root);
+    var anv = secs.filter(function (s) { return /^anv[äa]nd (den h[äa]r )?mallen/.test(htxt(s)); })[0];
+    var fa = secs.filter(function (s) { return /(vad du f[åa]r ut|det h[äa]r f[åa]r du ut)/.test(htxt(s)); })[0];
+    if (!anv && !fa) return;
+    var grid = document.createElement('div');
+    grid.className = 'mall-info-grid';
+    [anv, fa].forEach(function (s) {
+      if (!s) return;
+      var kort = document.createElement('div');
+      kort.className = 'mall-info-kort';
+      s.h.parentNode.insertBefore(grid, s.h);
+      kort.appendChild(s.h);
+      s.nodes.forEach(function (n) { kort.appendChild(n); });
+      grid.appendChild(kort);
+    });
+  }
+
+  function enhanceEfter(fas) {
+    var root = document.querySelector('[data-mall-v2="efter"]');
+    if (!root) return;
+    sections(root).forEach(function (s) {
+      var t = htxt(s);
+      if (/^vanliga misstag/.test(t)) {
+        var ps = s.nodes.filter(function (n) { return n.tagName === 'P' && n.firstElementChild && n.firstElementChild.tagName === 'STRONG' && n.textContent.indexOf(n.firstElementChild.textContent) === 0; });
+        if (ps.length < 2) return;
+        var grid = document.createElement('div');
+        grid.className = 'mall-misstag-grid';
+        ps[0].parentNode.insertBefore(grid, ps[0]);
+        ps.forEach(function (p) {
+          var kort = document.createElement('div');
+          kort.className = 'mall-misstag-kort';
+          var st = p.firstElementChild;
+          var titel = document.createElement('strong');
+          titel.textContent = st.textContent.replace(/[.:]\s*$/, '');
+          p.removeChild(st);
+          kort.appendChild(titel);
+          kort.appendChild(p);
+          grid.appendChild(kort);
+        });
+      } else if (/^n[äa]sta (fas|steg)/.test(t)) {
+        var link = null;
+        s.nodes.some(function (n) { link = n.querySelector && n.querySelector('a[href]'); return !!link; });
+        if (!link) return;
+        var card = document.createElement('div');
+        card.className = 'mall-nastafas';
+        var txt = document.createElement('div');
+        txt.className = 'mall-nastafas-text';
+        var label = document.createElement('p');
+        label.className = 'mall-nastafas-label';
+        label.textContent = fas ? 'Nästa fas · ' + (fas + 1) : s.h.textContent.trim();
+        var titel = document.createElement('p');
+        titel.className = 'mall-nastafas-titel';
+        titel.textContent = link.textContent.replace(/[→>\s]+$/, '').trim();
+        txt.appendChild(label);
+        txt.appendChild(titel);
+        s.nodes.forEach(function (n) { txt.appendChild(n); });
+        var btn = document.createElement('a');
+        btn.className = 'mall-nastafas-btn';
+        btn.href = link.getAttribute('href');
+        btn.textContent = (fas ? 'Fortsätt till fas ' + (fas + 1) : 'Fortsätt') + ' →';
+        s.h.parentNode.insertBefore(card, s.h);
+        s.h.parentNode.removeChild(s.h);
+        card.appendChild(txt);
+        card.appendChild(btn);
+      }
+    });
+  }
+
+  function addFasmarke(roll, rollSlug, fas) {
+    var h1 = document.querySelector('h1');
+    if (!h1 || !roll || !fas) return null;
+    var url = PILLAR_URL[rollSlug];
+    var el = document.createElement(url ? 'a' : 'span');
+    el.className = 'mall-fasmarke';
+    el.textContent = resanNamn(roll) + ' · Fas ' + fas;
+    if (url) el.href = url;
+    var holder = h1.parentNode;
+    holder.parentNode.insertBefore(el, holder);
+    return url;
   }
 
   function init() {
@@ -140,6 +273,9 @@
     cards.sort(function (a, b) { return (+a.getAttribute('data-steg') || 0) - (+b.getAttribute('data-steg') || 0); });
     var total = cards.length;
     var mallNamn = (document.querySelector('h1') || {}).textContent || document.title;
+    var rollNamn = metaText('roll'), rollSlug = metaText('rollslug'), fasNr = parseInt(metaText('fas'), 10) || 0;
+    var pillarUrl = null;
+    try { pillarUrl = addFasmarke(rollNamn, rollSlug, fasNr); enhanceIntro(); enhanceEfter(fasNr); } catch (err) { /* grafiken är ett tillägg, stegkorten ska alltid fungera */ }
 
     /* Rubrik + förlopp ovanför listan */
     var head = document.createElement('div');
@@ -303,6 +439,13 @@
       navProg = document.createElement('p');
       navProg.className = 'stegnav-progress';
       nav.parentNode.insertBefore(navProg, nav);
+      if (rollNamn && fasNr) {
+        var pl = document.createElement(pillarUrl ? 'a' : 'span');
+        pl.className = 'stegnav-pillar';
+        pl.textContent = 'Del av ' + resanNamn(rollNamn) + ', fas ' + fasNr + (pillarUrl ? ' →' : '');
+        if (pillarUrl) pl.href = pillarUrl;
+        nav.parentNode.appendChild(pl);
+      }
     }
 
     function update() {
