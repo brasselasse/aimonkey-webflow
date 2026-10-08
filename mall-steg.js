@@ -6,8 +6,10 @@
      [data-mall-v2="wrapper"]
        RichText  (Intro)          — bunden till AI-Mallar.intro
        Collection list [data-mall-v2="steg"] — Prompters, filter
-                                    Huvudmall = aktuell mall, sort Steg ↑
-         .stegkort[data-steg][data-slug][data-roll][data-malgrupp][data-namn]
+                                    Huvudmall är satt (+ helst Huvudmall =
+                                    aktuell mall, sätts i Designer), sort Steg ↑
+         .stegkort[data-steg][data-slug][data-roll][data-malgrupp][data-namn][data-mall]
+       data-mall = huvudmallens slug; kort för andra mallar tas bort här.
        RichText  (Efter stegen)   — bunden till AI-Mallar.efter-stegen
 
    Regel: finns minst ett stegkort → stegkort-layout (body.mall-v2-on),
@@ -101,6 +103,14 @@
 
     var list = document.querySelector('[data-mall-v2="steg"]');
     var cards = list ? Array.prototype.slice.call(list.querySelectorAll('.stegkort')) : [];
+    /* Säkerhetsnät: visa bara steg vars huvudmall är den här mallen
+       (behövs om listans filter "Huvudmall = aktuell mall" saknas). */
+    cards = cards.filter(function (c) {
+      var m = c.getAttribute('data-mall');
+      var keep = !m || m === mallSlug;
+      if (!keep) { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
+      return keep;
+    });
     if (!cards.length) { document.body.classList.add('mall-v2-off'); return; }
     document.body.classList.add('mall-v2-on');
 
