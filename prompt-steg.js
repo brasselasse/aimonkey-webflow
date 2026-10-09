@@ -293,8 +293,9 @@
         });
       }
       nums.sort(function (a, b) { return a - b; });
+      var fasM = /fr[åa]n fas (\d+)/i.exec(promptText);
       var lbl = nums.length > 1 ? 'Bygger på steg ' + nums.slice(0, -1).join(', ') + ' och ' + nums[nums.length - 1]
-        : nums.length ? 'Bygger på steg ' + nums[0] : 'Bygger på tidigare steg';
+        : nums.length ? 'Bygger på steg ' + nums[0] : fasM ? 'Bygger på fas ' + fasM[1] : 'Bygger på tidigare steg';
       if (meta) meta.appendChild(make('span', 'ps-badge', lbl));
     }
 
