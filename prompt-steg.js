@@ -283,8 +283,15 @@
     /* "Bygger på steg N" när prompten tar in ett tidigare svar */
     if (steg > 1 && /klistra in [^\]]*fr[åa]n (steg|fas|kundkort)/i.test(promptText)) {
       var meta = card.querySelector('.blog40_meta-wrapper');
-      var nums = [], re = /fr[åa]n steg (\d+)/gi, mm;
-      while ((mm = re.exec(promptText))) { var v = +mm[1]; if (v < steg && nums.indexOf(v) === -1) nums.push(v); }
+      /* "från steg 2", "från steg 1 och 2", "från steg 1–3" */
+      var nums = [], re = /fr[åa]n steg (\d+(?:\s*(?:[–-]|,|och)\s*\d+)*)/gi, mm;
+      function add(v) { if (v > 0 && v < steg && nums.indexOf(v) === -1) nums.push(v); }
+      while ((mm = re.exec(promptText))) {
+        mm[1].split(/\s*(?:,|och)\s*/i).forEach(function (part) {
+          var r = /^(\d+)\s*[–-]\s*(\d+)$/.exec(part);
+          if (r) { for (var k = +r[1]; k <= +r[2]; k++) add(k); } else add(parseInt(part, 10));
+        });
+      }
       nums.sort(function (a, b) { return a - b; });
       var lbl = nums.length > 1 ? 'Bygger på steg ' + nums.slice(0, -1).join(', ') + ' och ' + nums[nums.length - 1]
         : nums.length ? 'Bygger på steg ' + nums[0] : 'Bygger på tidigare steg';
