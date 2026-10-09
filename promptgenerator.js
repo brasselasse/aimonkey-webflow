@@ -2464,4 +2464,389 @@ document.addEventListener("DOMContentLoaded", function () {
       pgTrack("pg_ai_open", { tool: tool, source: trackState.source, task_type: currentTaskType() });
     }, true);
   }
+
+  /* ============================================================
+     K. KEDJELÄGE — ?mall=<slug>&steg=N
+     Länkar från stegkorten (mallsidan) och promptsidorna skickar med
+     mall + steg. Då visas:
+       - en stegrad överst: "Kundkartläggaren · Steg 2 av 4", prickar,
+         ← föregående / nästa → (laddar nästa stegs prompt i generatorn)
+       - under Kopiera: "Nästa steg"-knapp + ruta där man sparar AI:ns svar
+     "Fyll i en gång": ifyllda [platshållare] sparas i localStorage
+     (pg_kedja) och fylls i automatiskt i nästa steg och nästa mall.
+     [KLISTRA IN … FRÅN STEG N] fylls med sparade svar från steg N i samma
+     mall, och kundkortet (fas 1) med sista svaret i Kundkartläggaren.
+     Kopierat steg markeras som klart på mallsidan (aim_mall_klar_<slug>).
+     Saknas mall/steg beter sig generatorn exakt som förut.
+     ============================================================ */
+  (function initChain() {
+    var qs = new URLSearchParams(window.location.search);
+    var mallSlug = (qs.get("mall") || "").trim().toLowerCase();
+    var steg = parseInt(qs.get("steg"), 10) || 0;
+    if (!/^[a-z0-9-]{2,120}$/.test(mallSlug) || steg < 1) return;
+
+    var KUNDKORT_MALL = "kundkartlaggaren";
+    var STORE = "pg_kedja";
+    function loadStore() {
+      var s = null;
+      try { s = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) {}
+      s = s && typeof s === "object" ? s : {};
+      s.fyll = s.fyll || {};
+      s.mallar = s.mallar || {};
+      return s;
+    }
+    function saveStore() { try { localStorage.setItem(STORE, JSON.stringify(store)); } catch (e) {} }
+    var store = loadStore();
+    function mallStore(slug) {
+      var m = store.mallar[slug] = store.mallar[slug] || {};
+      m.svar = m.svar || {};
+      m.fyll = m.fyll || {};
+      return m;
+    }
+    var mine = mallStore(mallSlug);
+
+    var doneKey = "aim_mall_klar_" + mallSlug;
+    function loadDone() { try { return JSON.parse(localStorage.getItem(doneKey) || "[]") || []; } catch (e) { return []; } }
+    function markDone(n) {
+      var d = loadDone();
+      if (d.indexOf(n) === -1) { d.push(n); try { localStorage.setItem(doneKey, JSON.stringify(d)); } catch (e) {} }
+    }
+
+    /* Stegen: först det snabba från sessionStorage, sedan mallsidan */
+    var chain = null;
+    try { chain = JSON.parse(sessionStorage.getItem("pg_chain") || "null"); } catch (e) {}
+    var state = {
+      mallNamn: chain && chain.mall === mallSlug ? chain.mallNamn || "" : "",
+      steps: chain && chain.mall === mallSlug && chain.steps ? chain.steps.map(function (s) { return { n: +s.steg, titel: s.titel || "" }; }) : [],
+      loaded: false,
+    };
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+    function idxOf(n) { for (var i = 0; i < state.steps.length; i++) if (state.steps[i].n === n) return i; return -1; }
+    function track(name, extra) {
+      var p = { source: "mallar", template: mallSlug, step: String(steg), count: state.steps.length || undefined };
+      for (var k in extra) p[k] = extra[k];
+      pgTrack(name, p);
+    }
+
+    /* ── Stilar ── */
+    if (!document.getElementById("pg-kedja-style")) {
+      var st = document.createElement("style");
+      st.id = "pg-kedja-style";
+      st.textContent =
+        ".pg-kedja{background:#0b1f3b;color:#fff;border-radius:20px;padding:18px 22px;margin:0 0 18px;text-align:left}" +
+        ".pg-kedja-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}" +
+        ".pg-kedja-mall{color:#4cd9c1!important;font-weight:600;font-size:.9rem;text-decoration:none}" +
+        ".pg-kedja-mall:hover{text-decoration:underline}" +
+        ".pg-kedja-count{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#ffd23f}" +
+        ".pg-kedja-titel{margin:6px 0 12px!important;font-size:1.3rem;line-height:1.25;font-weight:700;color:#fff}" +
+        ".pg-kedja-dots{list-style:none;display:flex;gap:6px;margin:0 0 14px;padding:0;flex-wrap:wrap}" +
+        ".pg-kedja-dots li{margin:0}" +
+        ".pg-kedja-dot{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);" +
+          "background:transparent;color:#fff;font:inherit;font-size:.85rem;font-weight:700;cursor:pointer;padding:0}" +
+        ".pg-kedja-dot:hover{border-color:#4cd9c1}" +
+        ".pg-kedja-dot.is-done{background:#4cd9c1;border-color:#4cd9c1;color:#0b1f3b}" +
+        ".pg-kedja-dot.is-here{background:#ffd23f;border-color:#ffd23f;color:#0b1f3b;cursor:default}" +
+        ".pg-kedja-nav{display:flex;gap:10px;flex-wrap:wrap}" +
+        ".pg-kedja-btn{font:inherit;font-size:.92rem;font-weight:600;border-radius:12px;padding:10px 16px;cursor:pointer;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;text-align:left;max-width:100%}" +
+        ".pg-kedja-btn:hover{border-color:#4cd9c1}" +
+        ".pg-kedja-btn.is-primary{background:#ffd23f;border-color:#ffd23f;color:#0b1f3b}" +
+        ".pg-kedja-btn.is-primary:hover{background:#ffdf78}" +
+        ".pg-kedja-note{margin:12px 0 0!important;font-size:.85rem;color:#4cd9c1}" +
+        ".pg-kedja-note:empty{display:none}" +
+        /* Under Kopiera i preview-kortet */
+        ".pg-kedja-efter{margin-top:14px;padding:14px 16px;border-radius:14px;background:rgba(11,31,59,.05);border:1px solid rgba(11,31,59,.1);text-align:left}" +
+        ".pg-kedja-efter-titel{margin:0 0 4px!important;font-weight:700;font-size:.95rem}" +
+        ".pg-kedja-efter-help{margin:0 0 8px!important;font-size:.85rem;line-height:1.4;opacity:.75}" +
+        ".pg-kedja-efter textarea{width:100%;min-height:90px;border-radius:10px;border:1px solid rgba(17,24,39,.15);padding:9px 11px;font:inherit;font-size:.9rem;resize:vertical;background:#fff}" +
+        ".pg-kedja-saved{display:block;font-size:.8rem;color:#00866f;font-weight:600;min-height:1.2em;margin-top:4px}" +
+        ".pg-kedja-next{display:block;width:100%;margin-top:10px;font:inherit;font-weight:700;font-size:.95rem;border:0;border-radius:12px;padding:12px 16px;cursor:pointer;background:#0b1f3b;color:#fff;text-align:center}" +
+        ".pg-kedja-next:hover{background:#163a6b}" +
+        "@keyframes pgKedjaPulse{0%{box-shadow:0 0 0 0 rgba(255,210,63,.7)}100%{box-shadow:0 0 0 14px rgba(255,210,63,0)}}" +
+        ".pg-kedja-pulse{animation:pgKedjaPulse 1s ease-out 2}" +
+        "@media (max-width:767px){.pg-kedja{padding:16px;border-radius:16px}.pg-kedja-titel{font-size:1.1rem}.pg-kedja-btn{flex:1 1 100%;text-align:center}}";
+      document.head.appendChild(st);
+    }
+
+    /* ── Stegraden överst i formuläret ── */
+    var bar = document.createElement("div");
+    bar.className = "pg-kedja";
+    bar.setAttribute("role", "navigation");
+    bar.setAttribute("aria-label", "Steg i mallen");
+    var fc = document.getElementById("form-container");
+    if (fc) fc.insertBefore(bar, fc.firstChild);
+    /* Importen scrollar till textrutan; i kedjeläget ska stegraden synas */
+    setTimeout(function () {
+      if (!bar.isConnected) return;
+      var top = bar.getBoundingClientRect().top + window.scrollY - 90;
+      if (Math.abs(window.scrollY - top) > 40) {
+        var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: Math.max(0, top), behavior: reduced ? "auto" : "smooth" });
+      }
+    }, 700);
+
+    /* ── Under Kopiera: spara svaret + nästa steg ── */
+    var efter = document.createElement("div");
+    efter.className = "pg-kedja-efter";
+    var row = copyBtn && copyBtn.parentElement;
+    if (row && row.parentNode) row.parentNode.insertBefore(efter, row.nextSibling);
+
+    function goTo(n, ersatt) {
+      var s = state.steps[idxOf(n)];
+      if (!s) return;
+      if (!ersatt) track("pg_chain_next", { step: String(n) });
+      try {
+        sessionStorage.setItem("pg_chain", JSON.stringify({
+          mall: mallSlug, mallNamn: state.mallNamn, steg: n, total: state.steps.length,
+          steps: state.steps.map(function (x) { return { steg: x.n, titel: x.titel }; }),
+        }));
+        if (s.prompt) {
+          sessionStorage.setItem("pg_imported_prompt", s.prompt);
+          sessionStorage.setItem("pg_imported_namn", s.titel || "");
+          sessionStorage.setItem("pg_imported_tasktype", "");
+          sessionStorage.setItem("pg_imported_roll", s.roll || "");
+          sessionStorage.setItem("pg_imported_ton", "");
+          sessionStorage.setItem("pg_imported_malgrupp", s.malgrupp || "");
+        }
+      } catch (e) {}
+      var url = "/promptgeneratorn?source=mallar&mall=" + encodeURIComponent(mallSlug) +
+        "&steg=" + n + "&namn=" + encodeURIComponent(s.titel || "");
+      if (ersatt) window.location.replace(url); else window.location.href = url;
+    }
+
+    var autoNote = "";
+    function render() {
+      var i = idxOf(steg), total = state.steps.length;
+      var here = state.steps[i] || { titel: "" };
+      var prev = i > 0 ? state.steps[i - 1] : null;
+      var next = i > -1 && i < total - 1 ? state.steps[i + 1] : null;
+      var done = loadDone();
+      var mallHref = "/ai-mallar/" + encodeURIComponent(mallSlug);
+      var html =
+        '<div class="pg-kedja-top"><a class="pg-kedja-mall" href="' + mallHref + '">← ' + esc(state.mallNamn || "Tillbaka till mallen") + "</a>" +
+        (total ? '<span class="pg-kedja-count">Steg ' + steg + " av " + total + "</span>" : "") + "</div>" +
+        '<p class="pg-kedja-titel">' + esc(here.titel || "Steg " + steg) + "</p>";
+      if (total > 1) {
+        html += '<ol class="pg-kedja-dots">';
+        state.steps.forEach(function (s) {
+          var cls = "pg-kedja-dot" + (s.n === steg ? " is-here" : done.indexOf(s.n) > -1 ? " is-done" : "");
+          html += '<li><button type="button" class="' + cls + '" data-n="' + s.n + '" title="Steg ' + s.n + ": " + esc(s.titel) + '"' +
+            (s.n === steg ? ' aria-current="step"' : "") + ">" + (done.indexOf(s.n) > -1 && s.n !== steg ? "✓" : s.n) + "</button></li>";
+        });
+        html += "</ol>";
+      }
+      html += '<div class="pg-kedja-nav">';
+      if (prev) html += '<button type="button" class="pg-kedja-btn" data-n="' + prev.n + '">← Steg ' + prev.n + "</button>";
+      if (next) html += '<button type="button" class="pg-kedja-btn is-primary" data-n="' + next.n + '">Nästa: ' + esc(next.titel) + " →</button>";
+      else if (total) html += '<a class="pg-kedja-btn is-primary" href="' + mallHref + '">Klart! Tillbaka till mallen →</a>';
+      html += '</div><p class="pg-kedja-note">' + esc(autoNote) + "</p>";
+      bar.innerHTML = html;
+      bar.querySelectorAll("button[data-n]").forEach(function (b) {
+        var n = +b.getAttribute("data-n");
+        if (n === steg) return;
+        b.addEventListener("click", function () { goTo(n); });
+        if (!state.loaded) b.disabled = true;   // prompten för steget hämtas fortfarande
+      });
+
+      var saved = mine.svar[steg] || "";
+      efter.innerHTML =
+        '<p class="pg-kedja-efter-titel">📋 Har du fått svaret från AI:n?</p>' +
+        '<p class="pg-kedja-efter-help">' + (next
+          ? "Klistra in det här. Där ett senare steg ber om svaret från steg " + steg + " fylls det i automatiskt."
+          : "Klistra in det här, så fylls det i automatiskt i nästa mall som behöver det.") + "</p>" +
+        '<textarea aria-label="AI:ns svar i steg ' + steg + '" placeholder="Klistra in AI:ns svar…"></textarea>' +
+        '<span class="pg-kedja-saved"></span>' +
+        (next ? '<button type="button" class="pg-kedja-next" data-n="' + next.n + '">Nästa steg: ' + esc(next.titel) + " →</button>"
+              : total ? '<a class="pg-kedja-next" href="' + mallHref + '">Klart! Tillbaka till mallen →</a>' : "");
+      var ta = efter.querySelector("textarea"), lab = efter.querySelector(".pg-kedja-saved"), tSave;
+      ta.value = saved;
+      if (saved) lab.textContent = "✓ Sparat";
+      ta.addEventListener("input", function () {
+        clearTimeout(tSave);
+        lab.textContent = "";
+        tSave = setTimeout(function () {
+          var v = ta.value.trim();
+          if (v) mine.svar[steg] = v; else delete mine.svar[steg];
+          mine.t = new Date().toISOString();
+          saveStore();
+          lab.textContent = v ? "✓ Sparat" : "";
+          if (v && !ta.dataset.tracked) { ta.dataset.tracked = "1"; track("pg_chain_answer", {}); }
+        }, 400);
+      });
+      var nb = efter.querySelector("button.pg-kedja-next");
+      if (nb) {
+        nb.disabled = !state.loaded;
+        nb.addEventListener("click", function () { goTo(+nb.getAttribute("data-n")); });
+      }
+    }
+    render();
+
+    /* Hämta mallsidan: stegens titel, prompt, roll och målgrupp */
+    fetch("/ai-mallar/" + encodeURIComponent(mallSlug), { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .then(function (html) {
+        if (!html) return;
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        function t(root, sel) {
+          var e = root.querySelector(sel);
+          return e && !e.classList.contains("w-dyn-bind-empty") ? e.textContent.trim() : "";
+        }
+        var seen = {};
+        var steps = Array.prototype.slice.call(doc.querySelectorAll('[data-mall-v2="steg"] .stegkort')).map(function (c) {
+          var p = c.querySelector(".stegkort-prompt");
+          return {
+            n: parseInt(t(c, ".stegkort-num"), 10) || 0, titel: t(c, ".stegkort-titel"),
+            prompt: p && !p.classList.contains("w-dyn-bind-empty") ? p.textContent.replace(/^\s+|\s+$/g, "") : "",
+            roll: t(c, '[data-stegkort="roll"]'), malgrupp: t(c, '[data-stegkort="malgrupp"]'),
+          };
+        }).filter(function (s) {
+          if (!(s.n > 0 && s.titel) || seen[s.n]) return false;
+          return (seen[s.n] = true);
+        }).sort(function (a, b) { return a.n - b.n; });
+        if (!steps.length) return;
+        /* Fas + stegrubriker sparas så att senare mallar hittar rätt svar ("från fas 2") */
+        var fasEl = doc.querySelector('[data-mall-meta="fas"]');
+        var fasNr = fasEl ? parseInt(fasEl.textContent, 10) || 0 : 0;
+        if (fasNr) mine.fas = fasNr;
+        mine.titlar = {};
+        steps.forEach(function (s) { mine.titlar[s.n] = s.titel; });
+        saveStore();
+        var h1 = doc.querySelector("h1");
+        var namn = h1 ? h1.textContent.trim() : "";
+        state.mallNamn = (namn.split(/\s*[:—–]\s+|\s+-\s+/)[0] || namn || state.mallNamn).trim();
+        state.steps = steps;
+      })
+      .catch(function () {})
+      .then(function () {
+        state.loaded = !!state.steps.length && state.steps.some(function (s) { return s.prompt; });
+        if (!state.steps.length) { bar.remove(); efter.remove(); return; }   // okänd mall → vanlig generator
+        /* Öppnad med bara ?mall=&steg= (utan prompt): ladda stegets prompt en gång */
+        var here = state.steps[idxOf(steg)];
+        var flag = "pg_kedja_auto_" + mallSlug + "_" + steg;
+        if (!pgImport && here && here.prompt) {
+          var tried = false;
+          try { tried = sessionStorage.getItem(flag) === "1"; sessionStorage.setItem(flag, "1"); } catch (e) { tried = true; }
+          if (!tried) { goTo(steg, true); return; }
+        }
+        try { sessionStorage.removeItem(flag); } catch (e) {}
+        render();
+      });
+
+    /* ── Fyll i en gång ──
+       Nycklar med "från steg N" gäller bara den här mallen; övriga
+       ([DITT FÖRETAG], [KUNDFÖRETAG] …) följer med till alla mallar. */
+    function isStepKey(k) { return /fr[åa]n steg\s*\d/i.test(k); }
+    function answerFor(k) {
+      var m = /fr[åa]n steg\s*(\d+(?:\s*(?:[–-]|,|och)\s*\d+)*)/i.exec(k);
+      if (m) {
+        var nums = [];
+        m[1].split(/\s*(?:,|och)\s*/i).forEach(function (part) {
+          var r = /^(\d+)\s*[–-]\s*(\d+)$/.exec(part);
+          if (r) { for (var x = +r[1]; x <= +r[2]; x++) nums.push(x); } else nums.push(parseInt(part, 10));
+        });
+        return nums.filter(function (x) { return x < steg && mine.svar[x]; })
+          .map(function (x) { return mine.svar[x]; }).join("\n\n");
+      }
+      if (/kundkort/i.test(k) && mallSlug !== KUNDKORT_MALL) {
+        var kk = (store.mallar[KUNDKORT_MALL] || {}).svar || {};
+        var last = Object.keys(kk).map(Number).sort(function (a, b) { return b - a; })[0];
+        return last ? kk[last] : "";
+      }
+      var f = /fr[åa]n fas (\d+)/i.exec(k);
+      if (f) return fasAnswer(+f[1], k);
+      return "";
+    }
+    /* "[KLISTRA IN VÄRDEPROPOSITIONEN FRÅN FAS 2]": leta bland sparade svar i
+       mallen med den fasen och välj steget vars rubrik liknar platshållaren
+       (annars sista besvarade steget). */
+    var SYNONYMER = { roi: "nytta räkna", kalkyl: "nytta räkna", affärsnytta: "nytta", värdeproposition: "värde",
+                      värdeerbjudande: "värde", kundkort: "kundkort", pitch: "pitch", invändning: "invänd" };
+    function fasAnswer(fas, k) {
+      var best = "", bestScore = -1, bestT = "";
+      var STOPP = ["klistra", "eller", "svaret", "svar", "det", "den", "dem", "från", "och", "som", "din", "ditt", "dina"];
+      var ord = k.toLowerCase().replace(/fr[åa]n fas \d+.*$/, "")
+        .split(/[^a-zåäö]+/).filter(function (w) { return w.length >= 3 && STOPP.indexOf(w) === -1; });
+      var stammar = [];
+      ord.forEach(function (w) {
+        stammar.push(w.slice(0, 5));
+        Object.keys(SYNONYMER).forEach(function (s) { if (w.indexOf(s) === 0) stammar = stammar.concat(SYNONYMER[s].split(" ")); });
+      });
+      Object.keys(store.mallar).forEach(function (slug) {
+        var m = store.mallar[slug];
+        if (slug === mallSlug || +m.fas !== fas || !m.svar) return;
+        Object.keys(m.svar).map(Number).forEach(function (n) {
+          var titel = ((m.titlar || {})[n] || "").toLowerCase();
+          var score = stammar.filter(function (st) { return titel.indexOf(st) > -1; }).length * 100 + n;
+          if (score > bestScore || (score === bestScore && (m.t || "") > bestT)) { bestScore = score; best = m.svar[n]; bestT = m.t || ""; }
+        });
+      });
+      return best;
+    }
+    function restoreFills() {
+      if (!phTokens || !phValues) return;
+      var filled = 0;
+      PH_FIELDS.forEach(function (id) {
+        var list = phGridTokens(id);
+        var changed = false;
+        list.forEach(function (tk) {
+          if ((phValues[tk.key] || "").trim()) return;
+          var v = isStepKey(tk.key) ? (mine.fyll[tk.key] || answerFor(tk.key)) : (store.fyll[tk.key] || answerFor(tk.key));
+          if (v && v.trim()) { phValues[tk.key] = v; changed = true; filled++; }
+        });
+        if (changed && phPanels[id]) {
+          phPanels[id].removeAttribute("data-sig");   // bygg om panelen med värdena
+          phRender(id);
+          phWriteField(id);
+        }
+      });
+      if (filled) {
+        autoNote = "✓ Fyllde i " + filled + (filled === 1 ? " fält" : " fält") + " från tidigare steg. Kolla gärna att det stämmer.";
+        render();
+        updateLivePreview();
+        track("pg_chain_autofill", { count: filled });
+      }
+    }
+    /* Importen läses om med 250 ms fördröjning (avsnitt P) → vänta in den */
+    setTimeout(restoreFills, 600);
+
+    var tFill;
+    document.addEventListener("input", function (e) {
+      if (!e.target || !e.target.classList || !e.target.classList.contains("pg-ph-input")) return;
+      clearTimeout(tFill);
+      tFill = setTimeout(function () {
+        PH_FIELDS.forEach(function (id) {
+          phGridTokens(id).forEach(function (tk) {
+            var v = (phValues[tk.key] || "").trim();
+            var bucket = isStepKey(tk.key) ? mine.fyll : store.fyll;
+            if (v && v.length <= 4000) bucket[tk.key] = v; else delete bucket[tk.key];
+          });
+        });
+        saveStore();
+      }, 500);
+    });
+
+    /* ── Efter Kopiera: markera klart och peka på nästa steg ── */
+    var startTracked = false;
+    function trackStart() { if (!startTracked) { startTracked = true; track("pg_chain_step", {}); } }
+    setTimeout(trackStart, 0);
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        var text = previewRaw && previewRaw.value ? previewRaw.value.trim() : "";
+        if (!text || !(promptDescription(buildPromptData()) || "").trim()) return;
+        markDone(steg);
+        var last = state.steps.length && idxOf(steg) === state.steps.length - 1;
+        if (last) track("pg_chain_complete", {});
+        render();
+        var nb = efter.querySelector(".pg-kedja-next");
+        if (nb) { nb.classList.remove("pg-kedja-pulse"); void nb.offsetWidth; nb.classList.add("pg-kedja-pulse"); }
+      });
+    }
+
+    /* "Skapa ny" = lämna kedjan */
+    if (restartBtn) restartBtn.addEventListener("click", function () { bar.remove(); efter.remove(); });
+  })();
 });
