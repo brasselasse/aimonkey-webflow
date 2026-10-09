@@ -22,7 +22,11 @@
   var CSS = [
     'body.mall-v2-off [data-mall-v2="wrapper"]{display:none!important}',
     'body.mall-v2-on [fs-toc-element="contents"]{display:none!important}',
-    'body.mall-v2-on .content27_link-content{display:none!important}',
+    /* Gamla TOC-länkarna döljs, men behållaren behålls: den är dropdownen
+       "Din väg" på mobil/surfplatta (Webflow-interaktionen växlar höjden). */
+    'body.mall-v2-on .content27_link-content > .content27_link-wrapper{display:none!important}',
+    'body.mall-v2-on .content27_link-content{overflow:hidden}',
+    'body.mall-v2-on .content27_link-content > .stegnav-progress{margin-top:.75rem}',
     '[data-mall-v2="steg"] .w-dyn-empty{display:none!important}',
     '[data-stegkort="meta"]{display:none!important}',
     '[data-mall-meta]{display:none!important}',
@@ -364,7 +368,9 @@
       nav = document.createElement('nav');
       nav.className = 'stegnav';
       nav.setAttribute('aria-label', 'Mallens steg');
-      sidebar.appendChild(nav);
+      /* Lägg stegmenyn i dropdown-behållaren (där TOC:n låg), annars direkt i sidokolumnen */
+      var navHost = sidebar.querySelector('.content27_link-content') || sidebar;
+      navHost.appendChild(nav);
     }
 
     var done = loadDone();
@@ -492,7 +498,13 @@
         a.href = '#steg-' + n;
         a.innerHTML = '<i></i><span></span>';
         a.querySelector('span').textContent = titel.trim();
-        a.addEventListener('click', function () { openOverride[n] = true; update(); });
+        a.addEventListener('click', function () {
+          openOverride[n] = true; update();
+          /* Mobil/surfplatta: stäng dropdownen "Din väg" när man valt ett steg */
+          var lc = nav.parentNode;
+          var head = sidebar.querySelector('.content27_sidebar-heading');
+          if (window.innerWidth < 992 && head && lc && lc.classList.contains('content27_link-content') && lc.getBoundingClientRect().height > 0) head.click();
+        });
         nav.appendChild(a);
         card._nav = a;
       }
