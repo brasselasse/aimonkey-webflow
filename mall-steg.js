@@ -21,6 +21,8 @@
 
   var CSS = [
     'body.mall-v2-off [data-mall-v2="wrapper"]{display:none!important}',
+    /* Långa ord i rubriken (t.ex. "Invändningshanteraren") sprängde mobilbredden */
+    '@media (max-width:767px){h1.heading-style-h1{hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}}',
     'body.mall-v2-on [fs-toc-element="contents"]{display:none!important}',
     /* Gamla TOC-länkarna döljs, men behållaren behålls: den är dropdownen
        "Din väg" på mobil/surfplatta (Webflow-interaktionen växlar höjden). */
