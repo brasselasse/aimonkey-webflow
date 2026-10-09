@@ -152,8 +152,12 @@
   };
   function resanNamn(roll) {
     if (!roll) return '';
+    if (SAMLING[roll]) return SAMLING[roll];
     return (roll.slice(-1) === 'e' ? roll.slice(0, -1) : roll) + 'resan';
   }
+  /* Samlingssidor (pillar-typ Samlingssida) har delar i stället för faser */
+  var SAMLING = { 'Småföretagare': 'Din AI-avdelning' };
+  function enhet(roll) { return SAMLING[roll] ? 'del' : 'fas'; }
   /* Delar upp en rich text i sektioner per H2: [{h, nodes}] */
   function sections(root) {
     var out = [], cur = { h: null, nodes: [] };
@@ -245,7 +249,7 @@
     var url = PILLAR_URL[rollSlug];
     var el = document.createElement(url ? 'a' : 'span');
     el.className = 'mall-fasmarke';
-    el.textContent = resanNamn(roll) + ' · Fas ' + fas;
+    el.textContent = resanNamn(roll) + ' · ' + (enhet(roll) === 'del' ? 'Del ' : 'Fas ') + fas;
     if (url) el.href = url;
     var holder = h1.parentNode;
     holder.parentNode.insertBefore(el, holder);
@@ -294,7 +298,7 @@
         var a = document.createElement('a');
         a.className = 'mall-resa-mer';
         a.href = pillarUrl;
-        a.textContent = 'Se hela ' + resanNamn(roll).toLowerCase() + ' →';
+        a.textContent = (enhet(roll) === 'del' ? 'Se alla delar →' : 'Se hela ' + resanNamn(roll).toLowerCase() + ' →');
         box.appendChild(a);
       }
       return box;
@@ -522,7 +526,7 @@
       if (rollNamn && fasNr) {
         var pl = document.createElement(pillarUrl ? 'a' : 'span');
         pl.className = 'stegnav-pillar';
-        pl.textContent = 'Del av ' + resanNamn(rollNamn) + ', fas ' + fasNr + (pillarUrl ? ' →' : '');
+        pl.textContent = (enhet(rollNamn) === 'del' ? 'Ingår i ' + resanNamn(rollNamn).replace(/^Din /, 'din ') : 'Del av ' + resanNamn(rollNamn)) + ', ' + enhet(rollNamn) + ' ' + fasNr + (pillarUrl ? ' →' : '');
         if (pillarUrl) pl.href = pillarUrl;
         nav.parentNode.appendChild(pl);
       }

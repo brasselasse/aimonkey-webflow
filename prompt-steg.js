@@ -92,8 +92,12 @@
   function shortName(n) { return n.split(/\s*[:—–]\s+|\s+[—–]\s*/)[0].trim(); }
   function resanNamn(roll) {
     if (!roll) return '';
+    if (SAMLING[roll]) return SAMLING[roll];
     return (roll.slice(-1) === 'e' ? roll.slice(0, -1) : roll) + 'resan';
   }
+  /* Samlingssidor (pillar-typ Samlingssida) har delar i stället för faser */
+  var SAMLING = { 'Småföretagare': 'Din AI-avdelning' };
+  function enhet(roll) { return SAMLING[roll] ? 'del' : 'fas'; }
   var PILLAR_URL = {
     saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
@@ -172,7 +176,7 @@
     var a = make('a', '', shortName(mallNamn));
     a.href = '/ai-mallar/' + mallSlug;
     p.appendChild(a);
-    if (roll && fas) p.appendChild(document.createTextNode(' · ' + resanNamn(roll) + ', fas ' + fas));
+    if (roll && fas) p.appendChild(document.createTextNode(' · ' + resanNamn(roll) + ', ' + enhet(roll) + ' ' + fas));
     b.appendChild(p);
     var prev = idx > 0 ? steps[idx - 1] : null;
     var next = idx > -1 && idx < total - 1 ? steps[idx + 1] : null;
@@ -393,7 +397,7 @@
       }
       if (d && d.rollSlug && PILLAR_URL[d.rollSlug]) {
         var pl = document.querySelector('.ps-banner-text');
-        if (pl && pl.lastChild && pl.lastChild.nodeType === 3 && /resan, fas/.test(pl.lastChild.nodeValue)) {
+        if (pl && pl.lastChild && pl.lastChild.nodeType === 3 && /(resan|avdelning), (fas|del) /.test(pl.lastChild.nodeValue)) {
           var txtNode = pl.lastChild;
           var link = make('a', '', txtNode.nodeValue.replace(/^ · /, ''));
           link.href = PILLAR_URL[d.rollSlug];
