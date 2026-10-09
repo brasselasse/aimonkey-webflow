@@ -327,7 +327,7 @@
         /* Märkningen "Bygger på förra steget": visa bara när prompten tar in ett tidigare svar */
         var pr = c.querySelector('.stegkort-prompt');
         var badge = c.querySelector('.stegkort-badge');
-        if (badge && pr && !/klistra in [^\]]*fr[åa]n (steg|fas|kundkort)/i.test(pr.textContent)) badge.style.display = 'none';
+        if (badge && pr && (n < 2 || !/klistra in [^\]]*fr[åa]n (steg|fas|kundkort)/i.test(pr.textContent))) badge.style.display = 'none';
       } else { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
       return keep;
     });
