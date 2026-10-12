@@ -95,6 +95,34 @@
     '.stegnav i{font-style:normal;width:24px;height:24px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;border:1px solid #ced2d7;color:#5b6573}',
     '.stegnav a.is-done i{background:#00c9a7;border-color:#00c9a7;color:#0b1f3b}',
     '.stegnav-progress{font-size:13px;color:#5b6573;margin:.25rem 0 .5rem}',
+    /* "Din väg" som kort i samma formspråk som stegkorten: ram, tidslinje, förlopp och knapp */
+    '.stegnav-kort{background:#fff;border:2px solid #00c9a7;border-radius:20px;padding:20px 18px 18px;box-shadow:rgba(0,0,0,.07) 10px 8px 18px 0,rgba(0,0,0,.02) 4px 4px 3px 0}',
+    '.stegnav-kort .content27_sidebar-heading{padding:0}',
+    '.stegnav-kort .spacer-xsmall{display:none}',
+    '.stegnav-eyebrow{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#00806b;margin:0 0 4px}',
+    '.stegnav-kort .content27_sidebar-heading .heading-style-h5{color:#0b1f3b!important;font-size:24px!important;line-height:1.2}',
+    '.stegnav-kort > .stegnav-progress{display:flex;align-items:center;gap:10px;margin:.75rem 0 .75rem;font-weight:600;color:#313a47}',
+    '.stegnav-kort .content27_sidebar-heading{border:0!important;background:transparent!important;box-shadow:none!important}',
+    '@media (max-width:991px){.stegnav-kort .content27_sidebar-heading{cursor:pointer}.stegnav-kort .stegnav{margin-bottom:4px}}',
+    '.stegnav-bar{flex:1;height:6px;border-radius:6px;background:#e5f9f6;overflow:hidden}',
+    '.stegnav-bar span{display:block;height:6px;width:0;background:#00c9a7;border-radius:6px;transition:width .3s}',
+    '.stegnav-kort .stegnav{gap:0;margin-top:0}',
+    '.stegnav-kort .stegnav a{position:relative;padding:9px 10px 9px 8px;gap:12px;line-height:1.35}',
+    '.stegnav-kort .stegnav a:not(:last-child):after{content:"";position:absolute;left:21px;top:36px;bottom:-9px;width:2px;background:#d7dde5}',
+    '.stegnav-kort .stegnav a.is-done:not(:last-child):after{background:#00c9a7}',
+    '.stegnav-kort .stegnav i{width:28px;height:28px;font-size:13px;font-weight:600;background:#fff;position:relative;z-index:1}',
+    '.stegnav-kort .stegnav a.is-done i{background:#00c9a7}',
+    '.stegnav-kort .stegnav a.is-current i{background:#0b1f3b;border-color:#0b1f3b;color:#fff}',
+    '.stegnav-kort .stegnav a.is-viewing:not(.is-current){color:#0b1f3b;font-weight:600}',
+    '.stegnav-kort .stegnav a.is-viewing:not(.is-current) i{border-color:#0b1f3b;color:#0b1f3b}',
+    '.stegnav-kort .stegnav a:hover{color:#005042}',
+    '.stegnav-nu{display:block;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#00806b;margin-bottom:1px}',
+    '.stegnav-cta{display:block;text-align:center;margin-top:14px;background:#00806b;color:#fff!important;border-radius:10px;padding:12px 14px;font-weight:600;font-size:15px;line-height:1.3;text-decoration:none}',
+    '.stegnav-cta:hover{background:#005042}',
+    '.content27_sidebar.har-resa .stegnav-pillar{display:none}',
+    '.content27_sidebar .mall-resa{margin-top:16px;padding:16px 18px}',
+    '.content27_sidebar .mall-resa li{font-size:13px;hyphens:manual;-webkit-hyphens:manual}',
+    '.mall-resa li > *{min-width:0}',
     '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
 
@@ -257,6 +285,13 @@
   }
 
   function shortName(n) { return n.split(/\s*[:—–]\s+|\s+[—–]\s*/)[0].trim(); }
+  /* Mjuka bindestreck i långa sammansättningar ("Presentations-berättaren") så att smala spalter bryter snyggt */
+  function mjukaBindestreck(t) {
+    return String(t).replace(/[A-Za-zÅÄÖåäö]{16,}/g, function (w) {
+      return w.replace(/(tions|nings|hets|skaps|mötes)(?=[a-zåäö]{5,})/g, '$1\u00ad');
+    });
+  }
+
   function renderResa(roll, rollSlug, fas, pillarUrl) {
     if (!roll || !rollSlug || !fas) return null;
     var items = Array.prototype.slice.call(document.querySelectorAll('[data-resa="item"]')).map(function (it) {
@@ -286,7 +321,7 @@
           if (k) span.appendChild(document.createTextNode(' + '));
           var here = location.pathname.split('/').filter(Boolean).pop() === m.slug;
           var el = document.createElement(here ? 'span' : 'a');
-          el.textContent = shortName(m.namn);
+          el.textContent = mjukaBindestreck(shortName(m.namn));
           if (!here) el.href = '/ai-mallar/' + m.slug;
           span.appendChild(el);
         });
@@ -379,6 +414,18 @@
       /* Lägg stegmenyn i dropdown-behållaren (där TOC:n låg), annars direkt i sidokolumnen */
       var navHost = sidebar.querySelector('.content27_link-content') || sidebar;
       navHost.appendChild(nav);
+      /* Rubrik + stegmeny i ett gemensamt kort (dropdown-interaktionen på mobil sitter kvar på rubriken) */
+      try {
+        var kort = document.createElement('div');
+        kort.className = 'stegnav-kort';
+        var first = sidebar.querySelector('.content27_sidebar-heading') || navHost;
+        sidebar.insertBefore(kort, first);
+        [].slice.call(sidebar.children).forEach(function (c) { if (c !== kort) kort.appendChild(c); });
+        var ey = document.createElement('p');
+        ey.className = 'stegnav-eyebrow';
+        ey.textContent = 'Mallens ' + total + ' steg';
+        kort.insertBefore(ey, kort.firstChild);
+      } catch (err) {}
     }
 
     var done = loadDone();
@@ -520,9 +567,27 @@
 
     var navProg = null;
     if (nav) {
-      navProg = document.createElement('p');
+      navProg = document.createElement('div');
       navProg.className = 'stegnav-progress';
-      nav.parentNode.insertBefore(navProg, nav);
+      navProg.innerHTML = '<span></span><div class="stegnav-bar"><span></span></div>';
+      var kortEl = sidebar.querySelector('.stegnav-kort');
+      var lcEl = nav.parentNode;
+      if (kortEl && lcEl.parentNode === kortEl) kortEl.insertBefore(navProg, lcEl);
+      else nav.parentNode.insertBefore(navProg, nav);
+      var navProgTxt = navProg.querySelector('span');
+      var navProgBar = navProg.querySelector('.stegnav-bar span');
+      var cta = document.createElement('a');
+      cta.className = 'stegnav-cta';
+      cta.addEventListener('click', function () {
+        var n = +cta.getAttribute('data-steg');
+        openOverride[n] = true; update();
+        track('mall_stegnav_cta', { steg: n });
+        var lc = nav.parentNode;
+        var head = sidebar.querySelector('.content27_sidebar-heading');
+        if (window.innerWidth < 992 && head && lc && lc.classList.contains('content27_link-content') && lc.getBoundingClientRect().height > 0) head.click();
+      });
+      if (kortEl && lcEl.parentNode === kortEl) kortEl.insertBefore(cta, lcEl.nextSibling);
+      else nav.parentNode.insertBefore(cta, nav.nextSibling);
       if (rollNamn && fasNr) {
         var pl = document.createElement(pillarUrl ? 'a' : 'span');
         pl.className = 'stegnav-pillar';
@@ -535,7 +600,7 @@
     try {
       var resa = renderResa(rollNamn, rollSlug, fasNr, pillarUrl);
       if (resa) {
-        if (sidebar) sidebar.appendChild(resa());
+        if (sidebar) { sidebar.appendChild(resa()); sidebar.classList.add('har-resa'); }
         klartBox.parentNode.insertBefore(resa('mall-resa-mobil'), klartBox.nextSibling);
       }
     } catch (err) {}
@@ -561,15 +626,42 @@
           card._nav.classList.toggle('is-done', isDone);
           card._nav.classList.toggle('is-current', isCurrent);
           card._nav.querySelector('i').textContent = isDone ? '✓' : String(n);
+          var nu = card._nav.querySelector('.stegnav-nu');
+          if (isCurrent) {
+            if (!nu) { nu = document.createElement('em'); nu.className = 'stegnav-nu'; var sp = card._nav.querySelector('span'); sp.insertBefore(nu, sp.firstChild); }
+            nu.textContent = done.length ? 'Nästa steg' : 'Börja här';
+          } else if (nu) nu.parentNode.removeChild(nu);
         }
       });
       var c = done.filter(function (d) { return cards.some(function (k) { return +k.getAttribute('data-steg') === d; }); }).length;
       progTxt.textContent = c + ' av ' + total + ' steg klara';
       progBar.style.width = Math.round(c / total * 100) + '%';
-      if (navProg) navProg.textContent = c + ' av ' + total + ' steg klara';
+      if (navProg) {
+        navProgTxt.textContent = c + ' av ' + total + ' klara';
+        navProgBar.style.width = Math.round(c / total * 100) + '%';
+        if (current === null) cta.style.display = 'none';
+        else {
+          cta.style.display = '';
+          cta.href = '#steg-' + current;
+          cta.setAttribute('data-steg', current);
+          cta.textContent = (c ? 'Fortsätt med steg ' : 'Börja med steg ') + current + ' →';
+        }
+      }
       klartBox.style.display = c === total ? 'block' : 'none';
     }
     update();
+
+    /* Markera i "Din väg" vilket steg man läser just nu */
+    if (nav && 'IntersectionObserver' in window) {
+      var synliga = {};
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { synliga[e.target.id] = e.isIntersecting ? e.boundingClientRect.top : null; });
+        var best = null, bestTop = Infinity;
+        Object.keys(synliga).forEach(function (id) { var t = synliga[id]; if (t !== null && Math.abs(t) < bestTop) { bestTop = Math.abs(t); best = id; } });
+        cards.forEach(function (card) { if (card._nav) card._nav.classList.toggle('is-viewing', card.id === best); });
+      }, { rootMargin: '-30% 0px -50% 0px' });
+      cards.forEach(function (card) { io.observe(card); });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
