@@ -87,7 +87,7 @@
     '.pp-ikon{width:42px;height:42px;flex-shrink:0;border-radius:12px;background:#0b1f3b;color:#4cd9c1;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}',
     '.pp-koppling-topp b{display:block;font-size:17px;color:#0b1f3b}',
     '.pp-koppling-topp small{display:block;font-size:13px;color:#4a5668}',
-    '.pp-koppling > span{font-size:15px;line-height:1.5;color:#24384f;flex-grow:1}',
+    '.pp-koppling .pp-gor{font-size:15px;line-height:1.5;color:#24384f;flex-grow:1}',
     '.pp-badge{align-self:flex-start;font-size:13px;font-weight:600;padding:5px 10px;border-radius:999px}',
     '.pp-badge.is-finns{background:#e5f9f6;color:#005042}',
     '.pp-badge.is-saknas{background:#eef1f5;color:#4a5668}',
@@ -269,7 +269,7 @@
       var pl = document.createElement('a');
       pl.className = 'pp-pillar';
       pl.href = PILLAR_URL[P.rollSlug];
-      pl.textContent = 'Del av ' + (P.rollNamn ? 'AI för ' + P.rollNamn.toLowerCase() : 'resan') + ' →';
+      pl.textContent = 'Fler mallar och prompter →';
       topp.appendChild(pl);
     }
     if (!textAv(etikett)) etikett.style.display = 'none';
@@ -414,7 +414,7 @@
       var s = k.status[S.tjanst];
       return '<div class="pp-koppling' + (vald ? ' is-vald' : '') + '">' +
         '<div class="pp-koppling-topp"><span class="pp-ikon" aria-hidden="true">' + esc(k.ikon || k.namn.charAt(0)) + '</span><span><b>' + esc(k.namn) + '</b><small>' + esc(k.exempel) + '</small></span></div>' +
-        '<span>' + esc(k.gor) + '</span>' +
+        '<span class="pp-gor">' + esc(k.gor) + '</span>' +
         '<span class="pp-badge ' + statusKlass(s) + '">' + esc(statusText(s, t.namn)) + '</span>' +
         '<button type="button" class="pp-liten" data-kopp="' + esc(k.slug) + '" aria-pressed="' + vald + '">' + (vald ? '✓ Med i instruktionerna' : '+ Lägg till i instruktionerna') + '</button>' +
       '</div>';
