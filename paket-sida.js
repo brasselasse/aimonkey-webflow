@@ -165,7 +165,22 @@
     '[data-paket="apan"]:before{content:"Apan tycker:";font-weight:700;color:#4cd9c1;white-space:nowrap}',
     '[data-paket="apan"] p{margin:0;color:#e8edf3;font-size:16px;line-height:1.55}',
     '[data-paket="apan"].pp-tom{display:none}',
-    '@media (max-width:767px){.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
+    '.pp-h1-typ{color:#00806b}',
+    '[data-paket="namn"]{font-size:clamp(34px,5vw,56px)!important;line-height:1.1!important}',
+    '.pp-val{border:1.5px solid #e1e7ee;border-radius:16px;padding:16px 18px;margin:0 0 18px}',
+    '.pp-val.is-mint{background:#e5f9f6;border-color:#bfeee5}',
+    '.pp-valrubrik{margin:0 0 4px!important;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#005042}',
+    '.pp-valingress{margin:0 0 12px!important;font-size:14px;line-height:1.5;color:#4a5668}',
+    '.pp-reglerlista small{display:block;font-size:13px;color:#4a5668}',
+    '.pp-reglerlista .pp-badge{margin-left:auto;flex-shrink:0;font-size:12px;padding:3px 8px}',
+    '.pp-reglerlista label>span{flex:1}',
+    '.pp-pil{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-size:15px;font-weight:600;color:#0b1f3b}',
+    '.pp-pil:before{content:"↓";display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#00c9a7;color:#0b1f3b;font-weight:700}',
+    '.pp-andrat{display:none;margin-top:12px;background:#fff4cc;border:1.5px solid #f2d66b;color:#4d3b00;border-radius:14px;padding:12px 16px;font-size:15px}',
+    '.pp-andrat.is-synlig{display:block}',
+    '.pp-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
+    '.pp-koppstatus.is-av{color:#5b6573;font-weight:500}',
+    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
   ].join('\n');
   var st = document.createElement('style');
   st.textContent = CSS;
@@ -278,7 +293,9 @@
       malgrupp: kedja.fyll[FYLL.malgrupp] || ''
     },
     av: las('aim_paket_av_' + P.slug, []),         /* bortklickade regler/arbetssätt */
-    filer: las('aim_paket_filer_' + P.slug, []),    /* bockade filer (index) */
+    filer: las('aim_paket_filer_' + P.slug, []),    /* uppladdade filer (index) */
+    utanFiler: las('aim_paket_utanfiler_' + P.slug, []), /* filer användaren inte har (index) */
+    kopierad: las('aim_paket_kopierad_' + P.slug, ''),  /* senast kopierade texten */
     kopp: las('aim_paket_kopp_' + P.slug, []),      /* valda kopplingar (slug) */
     steg: las(STEG_KEY, {})                         /* valt, kopierat, inklistrat, testat */
   };
@@ -312,9 +329,10 @@
     r.push((P.roll || 'Var min erfarna medhjälpare').replace(/[.\s]+$/, '') + ' i det här projektet. Använd det du vet om mig ovan i varje svar, utan att jag behöver upprepa det.');
     var arbete = P.arbete.filter(aktiv);
     if (arbete.length) { r.push('', '# Så jobbar vi'); arbete.forEach(function (a) { r.push(punkt(a)); }); }
-    if (P.filer.length) {
+    var medFiler = P.filer.filter(function (x, i) { return S.utanFiler.indexOf(i) === -1; });
+    if (medFiler.length) {
       r.push('', '# Filer i projektet');
-      r.push('Jag har laddat upp: ' + P.filer.map(function (x) { return x.namn.charAt(0).toLowerCase() + x.namn.slice(1); }).join(', ') + '. Använd dem som källa och säg till om något saknas.');
+      r.push('Jag har laddat upp: ' + medFiler.map(function (x) { return x.namn.charAt(0).toLowerCase() + x.namn.slice(1); }).join(', ') + '. Använd dem som källa och säg till om något saknas.');
     }
     var valda = kopplingar.filter(function (k) { return S.kopp.indexOf(k.slug) !== -1 && k.rad; });
     if (valda.length) { r.push('', '# Dina kopplingar'); valda.forEach(function (k) { r.push('- ' + k.rad); }); }
@@ -360,11 +378,13 @@
 
   var topp = document.createElement('div');
   topp.className = 'pp-overst';
-  var kicker = document.createElement('span');
-  kicker.className = 'pp-kicker';
-  kicker.textContent = 'Färdigt AI-projekt';
-  topp.appendChild(kicker);
   var namnEl = app.querySelector('[data-paket="namn"]');
+  if (namnEl && !namnEl.querySelector('.pp-h1-typ')) {
+    var typ = document.createElement('span');
+    typ.className = 'pp-h1-typ';
+    typ.textContent = 'Projektmall: ';
+    namnEl.insertBefore(typ, namnEl.firstChild);
+  }
   (etikett || namnEl).parentNode.insertBefore(topp, etikett || namnEl);
   if (etikett) {
     topp.appendChild(etikett);
@@ -384,9 +404,9 @@
 
   var FORLOPP = [
     { id: 'valt', namn: 'Välj tjänst', mal: 'pp-s1' },
-    { id: 'kopierat', namn: 'Kopiera', mal: 'pp-s2' },
+    { id: 'kopierat', namn: 'Anpassa och kopiera', mal: 'pp-s2' },
     { id: 'inklistrat', namn: 'Skapa projektet', mal: 'pp-s3' },
-    { id: 'filer', namn: 'Filerna', mal: 'pp-s4' },
+    { id: 'filer', namn: 'Ladda upp filer', mal: 'pp-s4' },
     { id: 'testat', namn: 'Testa', mal: 'pp-s5' }
   ];
 
@@ -399,7 +419,7 @@
 
     '<section class="pp-forklaring" aria-labelledby="pp-vad">' +
       '<h2 id="pp-vad">Vad är det här?</h2>' +
-      '<p>Ett färdigt upplägg för ett <strong>projekt</strong> i din AI-tjänst. Ett projekt är en egen arbetsyta där AI:n alltid kommer ihåg vem du är och hur du vill ha det. Du ställer in det en gång, sedan gäller det i varje samtal.</p>' +
+      '<p>En <strong>projektmall</strong> är ett färdigt upplägg för ett nytt projekt i din AI-tjänst. Ett projekt är en egen arbetsyta i ChatGPT, Claude, Gemini eller Copilot där AI:n alltid kommer ihåg vem du är och hur du vill ha det. Du ställer in det en gång, sedan gäller det i varje samtal. Här anpassar du mallen och kopierar texten, sedan klistrar du in den i ditt nya projekt.</p>' +
       '<div class="pp-jamfor">' +
         '<div class="pp-chatt is-utan"><span class="pp-chatt-rubrik">Utan projekt</span>' +
           '<div class="pp-bubbla">Jag jobbar på ett städföretag, vi säljer till kontor, våra kunder är kontorschefer, skriv professionellt och kort … Kan du skriva ett mejl till Anna?</div>' +
@@ -423,25 +443,37 @@
     '</section>' +
 
     '<section class="pp-steg" id="pp-s2" data-stegid="kopierat" aria-labelledby="pp-s2-rubrik">' +
-      steghuvud(2, 'Anpassa och kopiera instruktionerna', 'Instruktionerna är texten AI:n läser innan varje svar. Fyll i det paketet inte kan veta, sedan kopierar du.', 'pp-s2') +
+      steghuvud(2, 'Anpassa och kopiera instruktionerna', 'Instruktionerna är texten AI:n läser innan varje svar. Allt du väljer här ändrar texten i rutan längst ned. Kopiera när du är nöjd.', 'pp-s2') +
       '<div class="pp-kort">' +
-        '<p class="pp-delrubrik">Om dig</p>' +
-        '<p class="pp-delingress">Sparas bara i din webbläsare och fylls i automatiskt i promptgeneratorn och mallarna.</p>' +
-        '<div class="pp-falt">' +
-          '<label>Namn eller företag<input data-du="foretag" autocomplete="organization" placeholder="' + esc(P.exForetag || 'T.ex. Bageriet i Gnesta') + '"></label>' +
-          '<label>Vad du gör eller säljer<input data-du="gor" placeholder="' + esc(P.exErbjudande || 'T.ex. surdegsbröd och catering') + '"></label>' +
-          '<label>Vilka du pratar med<input data-du="malgrupp" placeholder="' + esc(P.exMalgrupp || 'T.ex. barnfamiljer i Sörmland') + '"></label>' +
+        '<div class="pp-val">' +
+          '<p class="pp-valrubrik">Om dig</p>' +
+          '<p class="pp-valingress">Sparas bara i din webbläsare och fylls i automatiskt i promptgeneratorn och mallarna.</p>' +
+          '<div class="pp-falt">' +
+            '<label>Namn eller företag<input data-du="foretag" autocomplete="organization" placeholder="' + esc(P.exForetag || 'T.ex. Bageriet i Gnesta') + '"></label>' +
+            '<label>Vad du gör eller säljer<input data-du="gor" placeholder="' + esc(P.exErbjudande || 'T.ex. surdegsbröd och catering') + '"></label>' +
+            '<label>Vilka du pratar med<input data-du="malgrupp" placeholder="' + esc(P.exMalgrupp || 'T.ex. barnfamiljer i Sörmland') + '"></label>' +
+          '</div>' +
         '</div>' +
         ((P.regler.length || P.arbete.length) ?
-        '<div class="pp-regler"><p>Ingår i paketet · klicka ur det som inte passar</p><ul class="pp-reglerlista">' +
+        '<div class="pp-val is-mint"><p class="pp-valrubrik">Regler och arbetssätt</p><p class="pp-valingress">Ingår i mallen. Klicka ur det som inte passar dig.</p><ul class="pp-reglerlista">' +
           P.regler.concat(P.arbete).map(function (t, i) {
             var m = /^(alltid|aldrig):\s*/i.exec(t);
             var visa = m ? '<em>' + (m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()) + ':</em> ' + esc(t.slice(m[0].length)) : esc(t);
             return '<li><label><input type="checkbox" data-regel="' + i + '"> <span>' + visa + '</span></label></li>';
           }).join('') +
         '</ul></div>' : '') +
+        (P.filer.length ?
+        '<div class="pp-val"><p class="pp-valrubrik">Filer du lägger i projektet</p><p class="pp-valingress">AI:n får veta vilka filer som finns, så att den läser i dem i stället för att gissa. Klicka ur det du inte har. Du laddar upp filerna i steg 4.</p><ul class="pp-reglerlista">' +
+          P.filer.map(function (x, i) {
+            return '<li><label><input type="checkbox" data-filval="' + i + '"> <span><b>' + esc(x.namn) + '</b>' + (x.varfor ? '<small>' + esc(x.varfor) + '</small>' : '') + '</span></label></li>';
+          }).join('') +
+        '</ul></div>' : '') +
+        (kopplingar.length ?
+        '<div class="pp-val"><p class="pp-valrubrik">Verktyg AI:n får använda (valfritt)</p><p class="pp-valingress">Bara om du har kopplat, eller tänker koppla, verktyget i din AI-tjänst. Då får AI:n veta när den ska använda det. Hur du kopplar står <a href="#pp-s6">längst ned</a>.</p><ul class="pp-reglerlista" data-pp="koppval"></ul></div>' : '') +
+        '<p class="pp-pil">Det här klistrar du in</p>' +
         '<div class="pp-instr"><div class="pp-instr-topp"><strong data-pp="kortrubrik"></strong><span data-pp="tecken"></span></div><pre data-pp="instr"></pre></div>' +
         '<div class="pp-knappar"><button type="button" class="pp-kopiera" data-pp="kopiera">Kopiera instruktionerna</button><small>Du kan ändra dem i AI-tjänsten när som helst.</small></div>' +
+        '<div class="pp-andrat" data-pp="andrat" role="status">Du har ändrat något sedan du kopierade. Kopiera igen och ersätt texten i ditt projekt.</div>' +
         '<div class="pp-nasta" data-pp="nasta" role="status"><span data-pp="nastatext"></span><a class="pp-oppna" data-pp="oppna1" target="_blank" rel="noopener"></a></div>' +
       '</div>' +
     '</section>' +
@@ -455,10 +487,8 @@
 
     (P.filer.length ?
     '<section class="pp-steg" id="pp-s4" data-stegid="filer" aria-labelledby="pp-s4-rubrik">' +
-      steghuvud(4, 'Ladda upp filerna', 'Då hämtar AI:n fakta därifrån i stället för att gissa. Inget måste, men börja gärna med en eller två. Bocka av det du har lagt in.', 'pp-s4') +
-      '<div class="pp-kort"><ul class="pp-filer">' + P.filer.map(function (x, i) {
-        return '<li><button type="button" class="pp-fil" data-fil="' + i + '" aria-pressed="false"><i aria-hidden="true"></i><span><b>' + esc(x.namn) + '</b>' + (x.varfor ? '<span>' + esc(x.varfor) + '</span>' : '') + '</span></button></li>';
-      }).join('') + '</ul><p class="pp-filnot" data-pp="filnot"></p></div>' +
+      steghuvud(4, 'Ladda upp filerna', 'Det här är filerna du valde i steg 2. Lägg in dem i projektet och bocka av. Saknar du någon? Klicka ur den i steg 2 och kopiera igen.', 'pp-s4') +
+      '<div class="pp-kort"><ul class="pp-filer" data-pp="fillista"></ul><p class="pp-filnot" data-pp="filnot"></p></div>' +
     '</section>' : '') +
 
     (P.start.length ?
@@ -472,7 +502,7 @@
     '</section>' : '') +
 
     '<section class="pp-steg is-extra" id="pp-s6" aria-labelledby="pp-s6-rubrik">' +
-      steghuvud('Extra', 'Koppla dina verktyg (valfritt)', 'När projektet fungerar kan du låta AI:n läsa i dina andra verktyg, så slipper du klistra in.', 'pp-s6') +
+      steghuvud('Extra', 'Koppla dina verktyg (valfritt)', 'När projektet fungerar kan du låta AI:n läsa i dina andra verktyg, så slipper du klistra in. Du kopplar i AI-tjänstens inställningar, inte här. Det du valde i steg 2 står redan i instruktionerna.', 'pp-s6') +
       '<div class="pp-kort">' +
       (kopplingar.length ?
         '<div class="pp-kopplingar" data-pp="kopplingar"></div>' +
@@ -480,7 +510,7 @@
           '<strong>Innan du kopplar</strong>Använd bara kopplingar från tjänstens egen katalog, aldrig okända tillägg från nätet. Börja med en koppling och ge AI:n bara läsrätt om det går. Kunduppgifter omfattas av GDPR, så kolla att ditt företag får använda AI-tjänsten med kunddata. <a href="' + GDPR_URL + '">Så funkar AI och GDPR →</a>' +
         '</div></div>' +
         '<span class="pp-koll" data-pp="koll"></span>'
-      : '<p class="pp-inga">Det här paketet behöver inga kopplingar. Filerna räcker gott.</p>') +
+      : '<p class="pp-inga">Den här projektmallen behöver inga kopplingar. Filerna räcker gott.</p>') +
       '</div>' +
     '</section>';
 
@@ -552,11 +582,27 @@
     });
   });
 
+  [].forEach.call(root.querySelectorAll('[data-filval]'), function (cb) {
+    var i = +cb.getAttribute('data-filval');
+    cb.checked = S.utanFiler.indexOf(i) === -1;
+    cb.addEventListener('change', function () {
+      var j = S.utanFiler.indexOf(i);
+      if (cb.checked && j !== -1) S.utanFiler.splice(j, 1);
+      if (!cb.checked && j === -1) S.utanFiler.push(i);
+      spara('aim_paket_utanfiler_' + P.slug, S.utanFiler);
+      track('paket_filval', { fil: i + 1, med: cb.checked ? 1 : 0 });
+      ritaInstr(); ritaFiler();
+    });
+  });
+
   /* ── Rita ── */
   function ritaInstr() {
     var txt = instruktioner();
     $('[data-pp="instr"]').textContent = txt;
     $('[data-pp="tecken"]').textContent = String(txt.length).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' tecken';
+    var andrat = !!(S.steg.kopierat && S.kopierad && S.kopierad !== txt);
+    $('[data-pp="andrat"]').classList.toggle('is-synlig', andrat);
+    if (andrat) $('[data-pp="nasta"]').classList.remove('is-synlig');
   }
 
   function ritaForlopp() {
@@ -564,7 +610,7 @@
       valt: !!S.steg.valt,
       kopierat: !!S.steg.kopierat,
       inklistrat: !!S.steg.inklistrat,
-      filer: S.filer.length > 0,
+      filer: S.filer.some(function (i) { return S.utanFiler.indexOf(i) === -1; }),
       testat: !!S.steg.testat
     };
     [].forEach.call(root.querySelectorAll('[data-fl]'), function (li) { li.classList.toggle('is-klar', !!klar[li.getAttribute('data-fl')]); });
@@ -581,6 +627,8 @@
     [].forEach.call(root.querySelectorAll('[data-tjanst]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-tjanst') === S.tjanst ? 'true' : 'false'); });
     $('[data-pp="term"]').textContent = t.termText;
     $('[data-pp="kortrubrik"]').textContent = 'Instruktioner för ' + t.ditt + ' i ' + t.namn;
+    var pil = $('.pp-pil');
+    if (pil) pil.textContent = 'Det här klistrar du in i ' + t.ditt + ' i ' + t.namn;
     $('[data-pp="s3titel"]').textContent = 'Skapa ' + (t.term === 'projekt' ? 'projektet' : t.term === 'Gem' ? 'din Gem' : 'agenten') + ' i ' + t.namn + ' och klistra in';
     $('[data-pp="s3text"]').textContent = 'Öppna ' + t.namn + ' i en ny flik och följ stegen. Kom tillbaka hit när du är klar.';
     $('[data-pp="guide"]').innerHTML = t.steg.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
@@ -619,8 +667,13 @@
         '<div class="pp-koppling-topp"><span class="pp-ikon" aria-hidden="true">' + esc(k.ikon || k.namn.charAt(0)) + '</span><span><b>' + esc(k.namn) + '</b><small>' + esc(k.exempel) + '</small></span></div>' +
         '<span class="pp-gor">' + esc(k.gor) + '</span>' +
         '<span class="pp-badge ' + statusKlass(s) + '">' + esc(statusText(s, t.namn)) + '</span>' +
-        '<button type="button" class="pp-liten" data-kopp="' + esc(k.slug) + '" aria-pressed="' + vald + '">' + (vald ? '✓ Med i instruktionerna' : '+ Lägg till i instruktionerna') + '</button>' +
+        '<span class="pp-koppstatus' + (vald ? '' : ' is-av') + '">' + (vald ? '✓ Med i instruktionerna' : 'Inte med i instruktionerna. <a href="#pp-s2">Välj i steg 2 ↑</a>') + '</span>' +
       '</div>';
+    }).join('');
+    var val = $('[data-pp="koppval"]');
+    if (val) val.innerHTML = kopplingar.map(function (k) {
+      var s = k.status[S.tjanst];
+      return '<li><label><input type="checkbox" data-kopp="' + esc(k.slug) + '"' + (S.kopp.indexOf(k.slug) !== -1 ? ' checked' : '') + '> <span><b>' + esc(k.namn) + '</b><small>' + esc(k.gor) + '</small></span><span class="pp-badge ' + statusKlass(s) + '">' + esc(statusText(s, t.namn)) + '</span></label></li>';
     }).join('');
     var datum = kopplingar.map(function (k) { return k.datum; }).filter(Boolean).map(function (d) { var x = new Date(d); return isNaN(x) ? null : x; }).filter(Boolean);
     var aldst = datum.length ? new Date(Math.min.apply(null, datum)) : null;
@@ -629,6 +682,13 @@
   }
 
   function ritaFiler() {
+    var lista = $('[data-pp="fillista"]');
+    if (lista) {
+      var med = P.filer.map(function (x, i) { return { x: x, i: i }; }).filter(function (o) { return S.utanFiler.indexOf(o.i) === -1; });
+      lista.innerHTML = med.length ? med.map(function (o) {
+        return '<li><button type="button" class="pp-fil" data-fil="' + o.i + '" aria-pressed="false"><i aria-hidden="true"></i><span><b>' + esc(o.x.namn) + '</b>' + (o.x.varfor ? '<span>' + esc(o.x.varfor) + '</span>' : '') + '</span></button></li>';
+      }).join('') : '<li class="pp-inga">Du har inte valt några filer i steg 2. Det går bra, men AI:n får då bara det du skriver i chatten.</li>';
+    }
     [].forEach.call(root.querySelectorAll('[data-fil]'), function (b) {
       var klar = S.filer.indexOf(+b.getAttribute('data-fil')) !== -1;
       b.setAttribute('aria-pressed', klar ? 'true' : 'false');
@@ -655,13 +715,17 @@
       ritaTjanst(); ritaInstr();
       track('paket_tjanst', {});
     } else if (b.getAttribute('data-pp') === 'kopiera') {
-      kopiera(instruktioner(), b, 'Kopierad ✓', 'Kopiera instruktionerna');
-      $('[data-pp="nasta"]').classList.add('is-synlig');
+      S.kopierad = instruktioner();
+      spara('aim_paket_kopierad_' + P.slug, S.kopierad);
+      kopiera(S.kopierad, b, 'Kopierad ✓', 'Kopiera instruktionerna');
       markera('valt'); markera('kopierat');
+      ritaInstr();
+      $('[data-pp="nasta"]').classList.add('is-synlig');
       track('paket_kopiera', {
         egna_falt: ['foretag', 'gor', 'malgrupp'].filter(function (k) { return S.du[k]; }).length,
         regler_av: S.av.length,
-        kopplingar: S.kopp.length
+        kopplingar: S.kopp.length,
+        filer: P.filer.length - S.utanFiler.length
       });
     } else if (b.getAttribute('data-pp') === 'inklistrat') {
       if (S.steg.inklistrat) { delete S.steg.inklistrat; spara(STEG_KEY, S.steg); ritaForlopp(); }
@@ -678,14 +742,18 @@
       kopiera(P.start[n].prompt, b, 'Kopierad ✓', 'Kopiera');
       markera('testat');
       track('paket_startprompt', { nr: n + 1 });
-    } else if (b.hasAttribute('data-kopp')) {
-      var slug = b.getAttribute('data-kopp');
-      var k = S.kopp.indexOf(slug);
-      if (k === -1) S.kopp.push(slug); else S.kopp.splice(k, 1);
-      spara('aim_paket_kopp_' + P.slug, S.kopp);
-      ritaKopplingar(); ritaInstr();
-      track('paket_koppling', { koppling: slug, vald: k === -1 ? 1 : 0 });
     }
+  });
+  root.addEventListener('change', function (e) {
+    var cb = e.target;
+    if (!cb.hasAttribute || !cb.hasAttribute('data-kopp')) return;
+    var slug = cb.getAttribute('data-kopp');
+    var k = S.kopp.indexOf(slug);
+    if (cb.checked && k === -1) S.kopp.push(slug);
+    if (!cb.checked && k !== -1) S.kopp.splice(k, 1);
+    spara('aim_paket_kopp_' + P.slug, S.kopp);
+    ritaKopplingar(); ritaInstr();
+    track('paket_koppling', { koppling: slug, vald: cb.checked ? 1 : 0 });
   });
 
   ritaTjanst();
