@@ -186,6 +186,8 @@
   /* Samlingssidor (pillar-typ Samlingssida) har delar i stället för faser */
   var SAMLING = { 'Småföretagare': 'Din AI-avdelning' };
   function enhet(roll) { return SAMLING[roll] ? 'del' : 'fas'; }
+  /* Mallar som en samlingssida lånar från en annan roll (huvudrollen är en annan, så de finns inte i listan) */
+  var LANADE = { smaforetagare: [{ fas: 3, namn: 'Kundkartläggaren', slug: 'kundkartlaggaren' }] };
   /* Delar upp en rich text i sektioner per H2: [{h, nodes}] */
   function sections(root) {
     var out = [], cur = { h: null, nodes: [] };
@@ -299,6 +301,9 @@
       function v(k) { var e = it.querySelector('[data-resa="' + k + '"]'); return e && !e.classList.contains('w-dyn-bind-empty') ? e.textContent.trim() : ''; }
       return { namn: v('namn'), slug: v('slug'), fas: parseInt(v('fas'), 10) || 0, roll: v('roll') };
     }).filter(function (m) { return m.roll === rollSlug && m.fas > 0 && m.namn; });
+    (LANADE[rollSlug] || []).forEach(function (l) {
+      if (!items.some(function (m) { return m.fas === l.fas; })) items.push({ namn: l.namn, slug: l.slug, fas: l.fas, roll: rollSlug });
+    });
     if (items.length < 2) return null;
     var faser = {};
     items.forEach(function (m) { (faser[m.fas] = faser[m.fas] || []).push(m); });
