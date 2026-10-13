@@ -172,15 +172,15 @@
     '.pp-valrubrik{margin:0 0 4px!important;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#005042}',
     '.pp-valingress{margin:0 0 12px!important;font-size:14px;line-height:1.5;color:#4a5668}',
     '.pp-reglerlista small{display:block;font-size:13px;color:#4a5668}',
-    '.pp-reglerlista .pp-badge{margin-left:auto;flex-shrink:0;font-size:12px;padding:3px 8px}',
-    '.pp-reglerlista label>span{flex:1}',
+    '.pp-reglerlista .pp-badge{flex:0 0 auto;align-self:flex-start;margin-left:auto;font-size:12px;padding:3px 8px;white-space:nowrap}',
+    '.pp-reglerlista label>span:not(.pp-badge){flex:1 1 0;min-width:0}',
     '.pp-pil{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-size:15px;font-weight:600;color:#0b1f3b}',
     '.pp-pil:before{content:"↓";display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#00c9a7;color:#0b1f3b;font-weight:700}',
     '.pp-andrat{display:none;margin-top:12px;background:#fff4cc;border:1.5px solid #f2d66b;color:#4d3b00;border-radius:14px;padding:12px 16px;font-size:15px}',
     '.pp-andrat.is-synlig{display:block}',
     '.pp-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
     '.pp-koppstatus.is-av{color:#5b6573;font-weight:500}',
-    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
+    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista label>span:not(.pp-badge){flex-basis:calc(100% - 28px)}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
   ].join('\n');
   var st = document.createElement('style');
   st.textContent = CSS;
