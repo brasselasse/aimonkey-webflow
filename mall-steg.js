@@ -240,19 +240,20 @@
           kort.appendChild(p);
           grid.appendChild(kort);
         });
-      } else if (/^n[äa]sta (fas|steg)/.test(t)) {
+      } else if (/^n[äa]sta (fas|steg|del)/.test(t)) {
         var link = null;
         s.nodes.some(function (n) { link = n.querySelector && n.querySelector('a[href]'); return !!link; });
         if (!link) return;
         /* "Nästa steg" (t.ex. sista fasen) får rubriken som etikett, inte fas + 1 */
-        var arFas = fas && /^n[äa]sta fas/.test(t);
+        var arFas = fas && /^n[äa]sta (fas|del)/.test(t);
+        var ord = /^n[äa]sta del/.test(t) ? 'del' : 'fas';
         var card = document.createElement('div');
         card.className = 'mall-nastafas';
         var txt = document.createElement('div');
         txt.className = 'mall-nastafas-text';
         var label = document.createElement('p');
         label.className = 'mall-nastafas-label';
-        label.textContent = arFas ? 'Nästa fas · ' + (fas + 1) : s.h.textContent.trim().replace(/[:.]\s*$/, '');
+        label.textContent = arFas ? 'Nästa ' + ord + ' · ' + (fas + 1) : s.h.textContent.trim().replace(/[:.]\s*$/, '');
         var titel = document.createElement('p');
         titel.className = 'mall-nastafas-titel';
         titel.textContent = link.textContent.replace(/[→>\s]+$/, '').trim();
@@ -262,7 +263,7 @@
         var btn = document.createElement('a');
         btn.className = 'mall-nastafas-btn';
         btn.href = link.getAttribute('href');
-        btn.textContent = (arFas ? 'Fortsätt till fas ' + (fas + 1) : 'Fortsätt') + ' →';
+        btn.textContent = (arFas ? 'Fortsätt till ' + ord + ' ' + (fas + 1) : 'Fortsätt') + ' →';
         s.h.parentNode.insertBefore(card, s.h);
         s.h.parentNode.removeChild(s.h);
         card.appendChild(txt);
