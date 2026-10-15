@@ -18,15 +18,15 @@
       ★ Spara (aimonkey_fav_prompts) och Senaste prompter.
    5. Efter kopiering: "Nästa: Steg N" om prompten ingår i en mall.
 
-   Visas bara på testdomänen (*.webflow.io) tills den släpps:
-   sätt LIVE = true, eller localStorage aim_promptsida = '1'
-   för att se den på aimonkey.se.
+   Live sedan 2026-10-15 (LIVE = true). localStorage
+   aim_promptsida = '0' stänger av den i den egna webbläsaren.
    ============================================================ */
 (function () {
   'use strict';
-  var LIVE = false;
+  var LIVE = true;
   var visa = LIVE || /\.webflow\.io$/.test(location.hostname);
   try { if (localStorage.getItem('aim_promptsida') === '1') visa = true; if (localStorage.getItem('aim_promptsida') === '0') visa = false; } catch (e) {}
+  if (!/^\/ai-prompter\/[^/]+/.test(location.pathname)) return;
   if (!visa || window.__aimPromptSida) return;
   window.__aimPromptSida = true;
 
