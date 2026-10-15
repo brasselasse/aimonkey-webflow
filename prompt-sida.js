@@ -81,6 +81,14 @@
     '.ps2-klarruta p{margin:0!important;flex:1 1 220px;font-size:15px!important;line-height:1.5!important;color:#f5f6fa!important}',
     '.ps2-klarruta a{color:#0b1f3b!important;background:#ffd23f;font-size:14px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:10px}',
     '.ps2-meddelande{font-size:14px;font-weight:600;color:#9a3412;margin:0}',
+    '.ps2-lik-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}',
+    '.ps2-lik{display:flex;flex-direction:column;gap:6px;background:#fff;border:1.5px solid #e1e7ee;border-radius:18px;padding:18px 20px;text-decoration:none!important;color:#0b1f3b!important;transition:border-color .15s,box-shadow .15s}',
+    '.ps2-lik:hover{border-color:#9fe3d6;box-shadow:0 10px 26px rgba(11,31,59,.07)}',
+    '.ps2-lik strong{font-size:18px;line-height:1.3}',
+    '.ps2-lik span{font-size:14px;line-height:1.5;color:#4a5668}',
+    '.ps2-lik em{font-style:normal;font-size:12px;font-weight:600;color:#005042;background:#e5f9f6;border-radius:999px;padding:3px 9px;align-self:flex-start}',
+    '.ps2-lik em.is-gul{color:#6b4d00;background:#fff1bf}',
+    '@media (max-width:767px){.ps2-lik-grid{grid-template-columns:1fr}.ps2-lik{padding:16px}}',
     '@media (max-width:767px){.ps2-grid{grid-template-columns:1fr}.ps2-fyll{padding:18px}.ps2-kopiera{flex:1 1 100%}}'
   ].join('\n');
 
@@ -374,7 +382,95 @@
     }
 
     uppdatera();
+    try { liknande({ namn: namn }); } catch (e) {}
     track('ps_visa', { falt: falt.length, forifyllda: Object.keys(fran).length });
+  }
+
+
+  /* ── Liknande prompter (ersätter "Se fler prompter om <kategori>") ──
+     Webflow-listan (samma kategori) ligger kvar i HTML:en för länkarnas
+     skull men döljs. Urvalet görs från /prompt-data: ord i titel och
+     beskrivning först, sedan samma kategori. Steg som bygger på ett
+     tidigare steg ("från steg N") visas inte, de funkar inte fristående. */
+  var STOPP = /^(och|eller|för|med|som|utan|till|från|inte|över|under|efter|innan|din|ditt|dina|ett|en|den|det|de|att|på|av|om|hur|vad|när|alla|mer|mest|varje|både|kort|enkel|bättre|text|ai|chatgpt|prompt|prompter|skriv|skapa|gör|få|befintlig|befintliga|egen|eget|egna|nytt|nya|specifik|specifikt|olika|bra)$/;
+  function ord(t) {
+    return (t || '').toLowerCase().split(/[^a-zåäöé0-9]+/).filter(function (w) { return w.length >= 4 && !STOPP.test(w); })
+      .map(function (w) { return w.length > 6 ? w.slice(0, 6) : w; });
+  }
+  function beroende(p) { return /fr[åa]n (steg|fas) ?\d/i.test(p || ''); }
+
+  function liknande(nu) {
+    var sek = document.querySelector('.filters5_component');
+    var lista = sek && sek.querySelector('.w-dyn-list');
+    if (!sek || !lista) return;
+    var h2 = sek.querySelectorAll('.div-block-2 h2');
+    var webflow = [].slice.call(lista.querySelectorAll('.w-dyn-item')).map(function (it) {
+      var a = it.querySelector('a[data-ps2-lik]'), href = a ? a.getAttribute('href') || '' : '';
+      return {
+        slug: /^\/ai-prompter\//.test(href) ? href.split('/').pop() : '',
+        namn: ((it.querySelector('.article-title-prompt') || {}).textContent || '').trim(),
+        desc: ((it.querySelector('.article-desc-prompt') || {}).textContent || '').trim(),
+        prompt: ((it.querySelector('.prompt-copy-text.prompt-copy') || {}).getAttribute ? (it.querySelector('.prompt-copy-text.prompt-copy').getAttribute('data-pm-raw') || it.querySelector('.prompt-copy-text.prompt-copy').textContent) : '')
+      };
+    }).filter(function (x) { return x.slug && x.namn; });
+
+    function rita(urval) {
+      if (!urval.length) return;
+      if (h2[0]) h2[0].textContent = 'Liknande prompter';
+      if (h2[1]) h2[1].style.display = 'none';
+      var grid = make('div', 'ps2-lik-grid');
+      grid.setAttribute('aria-label', 'Liknande prompter');
+      urval.forEach(function (p, i) {
+        var n = F.parse(p.prompt || '').length;
+        var a = make('a', 'ps2-lik',
+          '<strong>' + esc(p.namn) + '</strong>' + (p.desc ? '<span>' + esc(p.desc) + '</span>' : '') +
+          '<em' + (n ? ' class="is-gul"' : '') + '>' + (n ? n + ' fält att fylla i' : 'Klar att kopiera') + '</em>');
+        a.href = '/ai-prompter/' + p.slug;
+        a.addEventListener('click', function () { track('ps_liknande', { till: p.slug, plats: i + 1 }); });
+        grid.appendChild(a);
+      });
+      lista.style.display = 'none';
+      lista.parentNode.insertBefore(grid, lista);
+    }
+
+    var klar = false;
+    function reserv() { if (klar) return; klar = true; rita(webflow.filter(function (x) { return x.slug !== slug && !beroende(x.prompt); }).slice(0, 6)); }
+    var tid = setTimeout(reserv, 5000);
+    try {
+      fetch(location.origin + '/prompt-data', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+        if (klar) return;
+        if (!html) return reserv();
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var alla = [].slice.call(doc.querySelectorAll('.pg-data-item')).map(function (el) {
+          function t(c) { return ((el.querySelector(c) || {}).textContent || '').trim(); }
+          return { namn: t('.pg-d-name'), desc: t('.pg-d-desc'), kat: t('.pg-d-cat'), slug: t('.pg-d-slug'), prompt: t('.pg-d-prompt') };
+        }).filter(function (p) { return p.slug && p.namn; });
+        var jag = alla.filter(function (p) { return p.slug === slug; })[0] || { namn: nu.namn, desc: '', kat: '' };
+        var mina = {};
+        ord(jag.namn).forEach(function (w) { mina[w] = 3; });
+        ord(jag.desc).forEach(function (w) { if (!mina[w]) mina[w] = 1; });
+        var sedda = {};
+        var kand = alla.filter(function (p) {
+          if (p.slug === slug || sedda[p.slug] || beroende(p.prompt)) return false;
+          sedda[p.slug] = true; return true;
+        }).map(function (p) {
+          var tit = {}, bes = {}, pt = 0;
+          ord(p.namn).forEach(function (w) { tit[w] = 1; });
+          ord(p.desc).forEach(function (w) { bes[w] = 1; });
+          for (var w in mina) { if (tit[w]) pt += 2 * mina[w]; else if (bes[w]) pt += mina[w]; }
+          if (jag.kat && p.kat === jag.kat) pt += 1;
+          return { p: p, pt: pt };
+        });
+        kand.sort(function (a, b) { return b.pt - a.pt; });
+        var urval = kand.filter(function (x) { return x.pt >= 4; }).slice(0, 6).map(function (x) { return x.p; });
+        var har = {}; urval.forEach(function (p) { har[p.slug] = 1; });
+        kand.filter(function (x) { return !har[x.p.slug] && jag.kat && x.p.kat === jag.kat; }).forEach(function (x) {
+          if (urval.length < 6) { urval.push(x.p); har[x.p.slug] = 1; }
+        });
+        clearTimeout(tid); klar = true;
+        rita(urval.length ? urval : webflow.filter(function (x) { return x.slug !== slug; }).slice(0, 6));
+      })['catch'](reserv);
+    } catch (e) { reserv(); }
   }
 
   /* Körs efter prompt-steg.js (som alltid sätter body.promptsteg-on/-off)
