@@ -10,12 +10,12 @@
    kategorier, filter, sortering och kort med etiketter, utdrag,
    Fyll i och kopiera, Kopiera (med hakparenteser), ★ och Kopiera länk.
 
-   Körs bara på sidorna i SIDOR. Filter och sök sparas i adressen
+   Körs bara på sidorna i SIDOR (live på /promptbiblioteket sedan 2026-10-15). Filter och sök sparas i adressen
    (?q=&kat=&flode=&flik=&bara=&sort=) så att en vy går att länka till.
    ============================================================ */
 (function () {
   'use strict';
-  var SIDOR = ['/promptbiblioteket-ny'];
+  var SIDOR = ['/promptbiblioteket', '/promptbiblioteket-ny'];
   var vag = location.pathname.replace(/\/$/, '');
   if (SIDOR.indexOf(vag) === -1 || window.__aimBibliotek) return;
   window.__aimBibliotek = true;
@@ -178,6 +178,21 @@
     var next = document.querySelector('.w-pagination-next');
     var url = next ? next.getAttribute('href') : '';
     var varv = 0;
+    if (!url) {
+      /* Finsweet (gamla sidan) kan ha tagit bort pagineringen och laddar
+         själv in resten: vänta tills antalet kort slutat växa (max 6 s). */
+      var forra = -1, lika = 0, start = Date.now();
+      (function vanta() {
+        var n = document.querySelectorAll('[data-pb-slug]').length;
+        lika = n === forra ? lika + 1 : 0; forra = n;
+        if (lika >= 6 || Date.now() - start > 6000) {
+          lasKort(document).forEach(function (p) { if (!sedda[p.slug]) { sedda[p.slug] = 1; alla.push(p); } });
+          return cb(alla);
+        }
+        setTimeout(vanta, 100);
+      })();
+      return;
+    }
     (function steg() {
       if (!url || ++varv > 10) return cb(alla);
       fetch(location.pathname + url, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
