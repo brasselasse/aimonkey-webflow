@@ -1,6 +1,8 @@
 /* ============================================================
    AIMonkey — prompt-sida.js (Prompters Template, /ai-prompter/<slug>)
-   Kräver pg-fyll.js (window.AimFyll). Laddas efter prompt-steg.js.
+   Kräver pg-fyll.js (window.AimFyll). Registrerade sidskript i
+   Prompters Template (PgFyll, PromptSida). init väntar tills
+   prompt-steg.js och sidans egen kod har kört.
 
    Promptsidan blir en plats där man gör prompten till sin:
    1. "Fyll i det som är ditt": ett fält per [PLATSHÅLLARE] (samma
@@ -28,8 +30,7 @@
   if (!visa || window.__aimPromptSida) return;
   window.__aimPromptSida = true;
 
-  var F = window.AimFyll;
-  if (!F) return;
+  var F;
 
   var CSS = [
     'body.ps2-on .kopiera-prompt{display:none!important}',
@@ -113,6 +114,8 @@
   function sparaSess(v) { try { sessionStorage.setItem(SESS, JSON.stringify(v)); } catch (e) {} }
 
   function init() {
+    F = window.AimFyll;
+    if (!F) return;
     var card = document.querySelector('.prompt-container.prompt-large');
     var promptEl = card && card.querySelector('.prompt-copy-text.prompt-copy');
     var code = card && card.querySelector('.code-container');
@@ -374,6 +377,16 @@
     track('ps_visa', { falt: falt.length, forifyllda: Object.keys(fran).length });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  /* Körs efter prompt-steg.js (som alltid sätter body.promptsteg-on/-off)
+     oavsett laddordning. Utan prompt-steg körs init efter 3 s ändå. */
+  function start() {
+    var n = 0;
+    (function vanta() {
+      var cl = document.body && document.body.classList;
+      if ((cl && (cl.contains('promptsteg-on') || cl.contains('promptsteg-off'))) || ++n > 60) return setTimeout(init, 0);
+      setTimeout(vanta, 50);
+    })();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
