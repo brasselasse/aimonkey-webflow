@@ -35,6 +35,8 @@
     '.pb-sok input{width:100%;box-sizing:border-box;min-height:66px;margin:0;padding:0 22px 0 60px;border:2px solid #d3dbe4;border-radius:20px;background:#fff;font:inherit;font-size:19px;color:#0b1f3b;box-shadow:0 12px 32px rgba(11,31,59,.06)}',
     '.pb-sok input:focus{outline:none;border-color:#00c9a7;box-shadow:0 0 0 6px rgba(0,201,167,.18)}',
     '.pb-rad{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
+    '.pb-malwrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}',
+    '.pb-radlabel{flex:none;white-space:nowrap}',
     '.pb-radlabel{font-size:15px;font-weight:600;color:#3d4a5c;margin-right:4px}',
     '.pb-chip{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:999px;cursor:pointer;border:1.5px solid #c9d3de;background:#fff;color:#0b1f3b;white-space:nowrap}',
     '.pb-chip:hover{border-color:#00c9a7}',
@@ -113,7 +115,7 @@
     '.pb-toast strong{display:block;font-size:16px}',
     '.pb-toast span{font-size:14px;color:#ced2d7;overflow-wrap:anywhere}',
     '.pb-toast a{color:#4cd9c1!important;font-size:15px;font-weight:600}',
-    '@media (max-width:767px){.pb-mal{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.pb-mal::-webkit-scrollbar{display:none}.pb-app{padding:28px 0 80px}.pb-wrap{gap:32px;padding:0 16px}.pb-kort{padding:18px}.pb-h2{font-size:24px!important}.pb-sok input{font-size:17px;min-height:58px}}'
+    '@media (max-width:767px){.pb-malwrap{flex-direction:column;align-items:stretch;gap:10px}.pb-mal{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 2px}.pb-mal::-webkit-scrollbar{display:none}.pb-mal .pb-chip{flex:none}.pb-h2rad{flex-direction:column;align-items:flex-start;gap:4px}.pb-floden{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 16px;scrollbar-width:none;margin:0 -16px;padding:2px 16px 6px;gap:12px}.pb-floden::-webkit-scrollbar{display:none}.pb-flode{flex:0 0 82%;scroll-snap-align:start}.pb-flode:hover{transform:none}.pb-kat .pb-chip,.pb-bara .pb-chip{flex:none}.pb-bara{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:12px 18px 2px}.pb-bara::-webkit-scrollbar{display:none}.pb-verktyg-topp{flex-direction:column;align-items:stretch}.pb-flikar{align-self:stretch}.pb-flik{flex:1 1 0;white-space:nowrap;padding:0 8px}.pb-app{padding:28px 0 80px}.pb-wrap{gap:32px;padding:0 16px}.pb-kort{padding:18px}.pb-h2{font-size:24px!important}.pb-sok input{font-size:17px;min-height:58px}}'
   ].join('\n');
 
   var TYPER = { 'skriva-text': 'Text', 'sammanfatta': 'Sammanfatta', 'analysera': 'Analysera', 'brainstorma': 'Brainstorma', 'förklara': 'Förklara', 'forklara': 'Förklara', 'bild': 'Bild', 'video': 'Video', 'kod': 'Kod' };
@@ -293,14 +295,15 @@
 
   function ritaFloden() {
     var visaAlla = el.flodenHost.getAttribute('data-alla') === '1';
-    var lista = visaAlla ? FLODEN : FLODEN.slice(0, 6);
+    var mobil = window.matchMedia && matchMedia('(max-width:767px)').matches;
+    var lista = visaAlla || mobil ? FLODEN : FLODEN.slice(0, 6);
     el.flodenHost.innerHTML = lista.map(function (f) {
       var steg = f.steg.slice(0, 4).map(function (p) { return '<li><i>' + p.steg + '</i>' + esc(p.stegrubrik || p.titel) + '</li>'; }).join('') +
         (f.steg.length > 4 ? '<li class="pb-fler">+ ' + (f.steg.length - 4) + ' steg till</li>' : '');
       return '<button type="button" class="pb-flode" data-flode="' + esc(f.slug) + '" aria-pressed="' + (S.flode === f.slug) + '">' +
         '<small>Flöde · ' + f.steg.length + ' steg</small><strong>' + esc(kortNamn(f.namn)) + '</strong><ol>' + steg + '</ol></button>';
     }).join('');
-    el.flodenAlla.hidden = FLODEN.length <= 6;
+    el.flodenAlla.hidden = FLODEN.length <= 6 || mobil;
     el.flodenAlla.textContent = visaAlla ? 'Visa färre' : 'Visa alla ' + FLODEN.length + ' flöden';
     var filtrerat = S.q || S.kat || S.flik === 'mina' || Object.keys(S.bara).some(function (k) { return S.bara[k]; });
     el.flodenSek.hidden = !FLODEN.length || (filtrerat && !S.flode);
@@ -316,7 +319,7 @@
     el.sort.innerHTML = '<span class="pb-radlabel">Sortera</span>' + SORT.map(function (s) { return '<button type="button" class="pb-sort" data-sort="' + s.k + '" aria-pressed="' + (S.sort === s.k) + '">' + s.text + '</button>'; }).join('');
     el.kat.innerHTML = chip('Alla kategorier', !S.kat, 'data-kat=""') + KATS.map(function (k) { return chip(k, S.kat === k, 'data-kat="' + esc(k) + '"'); }).join('');
     el.bara.innerHTML = '<span class="pb-radlabel">Visa bara</span>' + BARA.map(function (b) { return chip(b.text, S.bara[b.k], 'data-bara="' + b.k + '"'); }).join('');
-    el.mal.innerHTML = '<span class="pb-radlabel">Vad vill du göra?</span>' + MAL.map(function (m, i) {
+    el.mal.innerHTML = MAL.map(function (m, i) {
       var tr = m.q ? S.q === m.q : !!S.bara[m.bara] && !S.q;
       return chip(m.text, tr, 'data-mal="' + i + '"');
     }).join('');
@@ -373,7 +376,7 @@
         '<div class="pb-sok"><label for="pb-sok" style="position:absolute;left:-9999px">Sök bland prompterna</label>' +
           '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#3d4a5c" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#3d4a5c" stroke-width="2" stroke-linecap="round"/></svg>' +
           '<input id="pb-sok" type="search" autocomplete="off" placeholder="Sök: mejl, offert, recension, LinkedIn …"></div>' +
-        '<div class="pb-rad pb-mal" data-el="mal"></div>' +
+        '<div class="pb-malwrap"><span class="pb-radlabel">Vad vill du göra?</span><div class="pb-rad pb-mal" data-el="mal"></div></div>' +
         '<section class="pb-sek-floden" data-el="flodenSek" aria-labelledby="pb-flodrubrik" style="display:flex;flex-direction:column;gap:14px">' +
           '<div class="pb-h2rad"><h2 class="pb-h2" id="pb-flodrubrik">Färdiga flöden, steg för steg</h2><a class="pb-lank" href="/ai-mallar">Alla mallar →</a></div>' +
           '<p class="pb-text">Prompter som hänger ihop. Svaret från ett steg tar du med till nästa, och dina uppgifter fylls i automatiskt.</p>' +
