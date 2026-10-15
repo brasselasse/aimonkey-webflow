@@ -141,6 +141,7 @@
   function arHelPrompt(c) { return c.length > 150 && c.indexOf('\n') !== -1; }
 
   function byggPrompt(S) {
+    if (S.raw) return S.raw;
     var t = S.typ, x = S.svar, text = (S.text || '').trim();
     var isBild = t === 'bild', isVideo = t === 'video', isKod = t === 'kod', isMedia = isBild || isVideo;
     var hel = !isMedia && !!text && arHelPrompt(text);
@@ -227,6 +228,29 @@
     spara(KEDJA, k);
   }
 
+  /* ── Senaste prompter (samma lista som gamla generatorn) ── */
+  var RECENT_KEY = 'aimonkey_recent_prompts', RECENT_MAX = 10;
+  var TYP_ETIKETT = { 'skriva': 'Skriva text', 'skriva-text': 'Skriva text', 'skriva text': 'Skriva text', 'sammanfatta': 'Sammanfatta', 'analysera': 'Analysera', 'brainstorma': 'Brainstorma', 'forklara': 'Förklara', 'förklara': 'Förklara', 'bild': 'Bild', 'bildprompta': 'Bild', 'video': 'Video', 'kod': 'Kod' };
+  function lasSenaste() { var l = las(RECENT_KEY, []); return Array.isArray(l) ? l.filter(function (p) { return p && p.text; }) : []; }
+  function sparaSenaste(text, typ, namn) {
+    if (!text || text.length < 10) return;
+    var l = lasSenaste().filter(function (p) { return p.text !== text; });
+    var m = /##\s*Uppgift\s*\n([^\n]+)/.exec(text);
+    var forhand = namn ? namn : (m ? m[1] : text.split('\n').filter(function (r) { return r.trim() && !/^#/.test(r); })[0] || text);
+    forhand = forhand.replace(/\s+/g, ' ').trim();
+    l.unshift({ id: Date.now(), text: text, preview: forhand.length > 90 ? forhand.slice(0, 90) + '…' : forhand, tasktype: typ || '', created: new Date().toISOString() });
+    spara(RECENT_KEY, l.slice(0, RECENT_MAX));
+  }
+  function relTid(iso) {
+    var d = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (isNaN(d)) return '';
+    if (d < 60) return 'just nu';
+    if (d < 3600) return Math.floor(d / 60) + ' min sedan';
+    if (d < 86400) return Math.floor(d / 3600) + ' h sedan';
+    if (d < 172800) return 'igår';
+    return Math.floor(d / 86400) + ' dagar sedan';
+  }
+
   function track(event, extra) {
     window.dataLayer = window.dataLayer || [];
     var o = { event: event, typ: S.typ || '', kalla: S.kalla || 'scratch' };
@@ -235,7 +259,7 @@
   }
 
   /* ── Tillstånd ── */
-  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {} };
+  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {}, raw: '', senAlla: false, senVisa: -1, senRensa: false, senOppen: false };
   (function () {
     var f = kedjaFyll();
     if (f[FYLL.foretag]) S.svar.foretag = f[FYLL.foretag];
@@ -397,6 +421,21 @@
     '.pgn-bar-spar i{display:block;height:5px;border-radius:5px;background:var(--pg-teal);transition:width .4s}',
     '.pgn-bar-hint{font-size:15px;font-weight:600;opacity:.85;white-space:nowrap}',
     '.pgn-sr{position:absolute;left:-9999px}',
+    '.pgn-sen{display:flex;flex-direction:column;gap:10px;border-top:1.5px solid #dbe2ea;padding-top:22px}',
+    '.pgn-sen-topp{display:flex;justify-content:space-between;align-items:center;gap:10px}',
+    '.pgn-sen-topp h2{margin:0;font-size:15px!important;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5b6573;line-height:1.3}',
+    '.pgn-sen-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}',
+    '.pgn-sen-lista li{background:#fff;border:1.5px solid #e1e7ee;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}',
+    '.pgn-sen-rad{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
+    '.pgn-sen-text{flex:1 1 260px;min-width:0;font-size:15px;line-height:1.45;color:var(--pg-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.pgn-sen-meta{display:flex;gap:8px;align-items:center;font-size:13px;color:#5b6573;white-space:nowrap}',
+    '.pgn-sen-meta em{font-style:normal;background:var(--pg-mint);color:#005042;border-radius:999px;padding:2px 8px;font-weight:600}',
+    '.pgn-sen-knappar{display:flex;gap:6px}',
+    '.pgn-sen-knappar button,.pgn-sen-mer,.pgn-sen-rensa{font:inherit;font-size:14px;font-weight:600;padding:6px 12px;min-height:36px;border-radius:10px;border:1.5px solid #c9d3de;background:#fff;color:var(--pg-navy);cursor:pointer}',
+    '.pgn-sen-knappar button:hover,.pgn-sen-mer:hover{border-color:var(--pg-teal);background:var(--pg-mint)}',
+    '.pgn-sen-rensa{border:0;background:none;color:#5b6573;text-decoration:underline;padding:6px 0}',
+    '.pgn-sen-rensa.is-saker{color:#b42318}',
+    '.pgn-sen-full{margin:0;white-space:pre-wrap;word-wrap:break-word;font:inherit;font-size:14px;line-height:1.55;color:var(--pg-gra);background:#f6f8fa;border-radius:10px;padding:10px 12px;max-height:260px;overflow:auto}',
     '@keyframes pgn-puls{0%,100%{opacity:.3}50%{opacity:1}}',
     '@keyframes pgn-inn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}',
     '@keyframes pgn-glow{0%,100%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 0 rgba(0,201,167,.55)}50%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 12px rgba(0,201,167,0)}}',
@@ -443,6 +482,25 @@
     }).join('') + '</ol>';
   }
 
+  function senasteHtml() {
+    var l = lasSenaste();
+    if (!l.length) return '';
+    var visa = S.senAlla ? l : l.slice(0, 3);
+    return '<section class="pgn-sen" aria-labelledby="pgn-sen-rubrik"><div class="pgn-sen-topp"><h2 id="pgn-sen-rubrik">Senaste prompter</h2>' +
+      '<button type="button" class="pgn-sen-rensa' + (S.senRensa ? ' is-saker' : '') + '" data-senrensa>' + (S.senRensa ? 'Säker? Klicka igen för att rensa' : 'Rensa') + '</button></div>' +
+      '<ul class="pgn-sen-lista">' + visa.map(function (p, i) {
+        var etikett = TYP_ETIKETT[p.tasktype] || '';
+        return '<li><div class="pgn-sen-rad"><span class="pgn-sen-text" title="' + esc(p.preview || '') + '">' + esc(p.preview || p.text.slice(0, 90)) + '</span>' +
+          '<span class="pgn-sen-meta">' + (etikett ? '<em>' + esc(etikett) + '</em>' : '') + esc(relTid(p.created)) + '</span>' +
+          '<span class="pgn-sen-knappar"><button type="button" data-senvisa="' + i + '" aria-expanded="' + (S.senVisa === i) + '">' + (S.senVisa === i ? 'Dölj' : 'Visa') + '</button>' +
+          '<button type="button" data-senoppna="' + i + '">Använd igen</button>' +
+          '<button type="button" data-senkopiera="' + i + '">Kopiera</button></span></div>' +
+          (S.senVisa === i ? '<pre class="pgn-sen-full">' + esc(p.text) + '</pre>' : '') + '</li>';
+      }).join('') + '</ul>' +
+      (l.length > 3 ? '<div><button type="button" class="pgn-sen-mer" data-senalla>' + (S.senAlla ? 'Visa färre' : 'Visa alla ' + l.length) + '</button></div>' : '') +
+    '</section>';
+  }
+
   function vyStart() {
     return '<section class="pgn-sek">' +
       '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Vad vill du ha hjälp med?</h1>' +
@@ -455,6 +513,7 @@
       '</div></div>' +
       '<div class="pgn-rad"><button type="button" class="pgn-gul" data-bygg>Bygg min prompt →</button>' +
       '<span class="pgn-not">Gratis, ingen inloggning. Allt efter det här är valfritt.</span></div>' +
+      senasteHtml() +
     '</section>';
   }
 
@@ -528,7 +587,7 @@
     var prompt = byggPrompt(S), L = lista(), pk = foreslagetPaket();
     var h = '<section class="pgn-sek">';
     h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Din prompt är klar!</h1><p class="pgn-ingress">Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.</p></div>';
-    h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span>' + prompt.length + ' tecken</span></div><pre data-prompt>' + esc(prompt) + '</pre></div>';
+    h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.raw ? 'Från dina senaste prompter' : S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span>' + prompt.length + ' tecken</span></div><pre data-prompt>' + esc(prompt) + '</pre></div>';
     h += '<div class="pgn-rad"><button type="button" class="pgn-gul" data-kopiera>' + (S.kopierad ? 'Kopierad ✓' : 'Kopiera prompt') + '</button>' +
       '<button type="button" class="pgn-ram" data-borjaom>Gör en ny</button></div>';
     var kort = prompt.length <= 6000;
@@ -541,8 +600,9 @@
       '<p class="pgn-p-text">Spara ditt företag, din ton och dina regler som ett projekt i din AI-tjänst. Då slipper du skriva det varje gång.</p>' +
       (pk ? '' : '<div class="pgn-p-val">' + PAKET.map(function (p) { return '<a href="/projektpaket/' + p.slug + '?source=generator" data-projekt="' + p.slug + '">' + esc(p.namn) + '</a>'; }).join('') + '</div>') +
       '</div>' + (pk ? '<a class="pgn-p-knapp" href="/projektpaket/' + pk.slug + '?source=generator" data-projekt="' + pk.slug + '">Projektmall: ' + esc(pk.namn) + ' →</a>' : '') + '</div>';
-    h += '<div class="pgn-drag"><button type="button" data-vaxla="fin" aria-expanded="' + S.fin + '"><span>Finjustera (valfritt)</span><span>' + (S.fin ? '−' : '+') + '</span></button>';
-    if (S.fin) h += '<div class="pgn-drag-inne"><span>Klicka på det du vill ändra. Prompten byggs om direkt.</span><div class="pgn-chips">' +
+    h += '<div class="pgn-drag">';
+    if (!S.raw) h += '<button type="button" data-vaxla="fin" aria-expanded="' + S.fin + '"><span>Finjustera (valfritt)</span><span>' + (S.fin ? '−' : '+') + '</span></button>';
+    if (S.fin && !S.raw) h += '<div class="pgn-drag-inne"><span>Klicka på det du vill ändra. Prompten byggs om direkt.</span><div class="pgn-chips">' +
       '<button type="button" class="pgn-chip" data-fintyp><strong>Typ:</strong> ' + esc(typNamn()) + '</button>' +
       L.map(function (o, i) { return '<button type="button" class="pgn-chip" data-gaopt="' + i + '"><strong>' + esc(o.kort) + ':</strong> ' + esc(sammanfatta(o) || 'Inte valt') + '</button>'; }).join('') + '</div></div>';
     h += '<button type="button" data-vaxla="sa" aria-expanded="' + S.sa + '"><span>Så funkar prompten</span><span>' + (S.sa ? '−' : '+') + '</span></button>';
@@ -551,6 +611,11 @@
       '<li><strong>Uppgift och läsare:</strong> ju tydligare vem det är till, desto bättre träffar texten.</li>' +
       '<li><strong>Underlag:</strong> fakta, siffror eller en gammal text. Det är där svaret blir ditt.</li>' +
       '<li><strong>Svarsformat:</strong> format, längd och regler gör att du slipper skriva om svaret.</li></ul></div>';
+    var antalSen = lasSenaste().length;
+    if (antalSen) {
+      h += '<button type="button" data-vaxla="senOppen" aria-expanded="' + S.senOppen + '"><span>Senaste prompter (' + antalSen + ')</span><span>' + (S.senOppen ? '−' : '+') + '</span></button>';
+      if (S.senOppen) h += '<div class="pgn-drag-inne">' + senasteHtml() + '</div>';
+    }
     h += '</div>';
     h += '<div class="pgn-apan"><b>Apan tycker:</b><span>' + (/\[[A-ZÅÄÖ]/.test(prompt) ? 'Byt ut texten inom hakparentes innan du skickar. Det tar tio sekunder och gör svaret dubbelt så bra.' : 'Blev svaret nästan rätt? Svara AI:n med vad som ska ändras i stället för att börja om. Andra försöket är ofta det bästa.') + '</span></div>';
     return h + '</section>';
@@ -619,7 +684,8 @@
     }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(klart, function () { fallback(); klart(); });
     else { fallback(); klart(); }
-    track('pgny_copy', { tecken: text.length, steg_ifyllda: lista().filter(stegGjort).length });
+    if (!S.raw) sparaSenaste(text, S.typ, S.mallNamn);
+    track('pgny_copy', { tecken: text.length, steg_ifyllda: lista().filter(stegGjort).length, fran_senaste: S.raw ? 1 : 0 });
   }
 
   /* ── Händelser ── */
@@ -653,6 +719,7 @@
       ritaTraffar(); return;
     }
     if (b.hasAttribute('data-bygg')) {
+      S.raw = '';
       if (!S.text.trim()) { var t2 = root.querySelector('[data-text]'); if (t2) { t2.focus(); t2.setAttribute('placeholder', 'Skriv först vad du vill ha hjälp med, t.ex. ett mejl till en kund …'); } return; }
       S.typ = S.typ || gissaTyp(S.text); S.steg = 'opt'; S.optIdx = 0; S.besokt = {};
       track('pgny_bygg', { tecken: S.text.length });
@@ -666,7 +733,7 @@
     }
     if (b.hasAttribute('data-typvaxla')) { S.typOppen = !S.typOppen; rita(); return; }
     if (b.hasAttribute('data-typ')) { S.typ = b.getAttribute('data-typ'); S.optIdx = 0; S.typOppen = false; track('pgny_andra', { vad: 'typ' }); rita(); return; }
-    if (b.hasAttribute('data-tillstart')) { S.steg = 'start'; rita(); var t3 = root.querySelector('[data-text]'); if (t3) t3.focus(); return; }
+    if (b.hasAttribute('data-tillstart')) { S.steg = 'start'; S.raw = ''; rita(); var t3 = root.querySelector('[data-text]'); if (t3) t3.focus(); return; }
     if (b.hasAttribute('data-gaopt')) { if (S.steg === 'klar') track('pgny_andra', { vad: 'steg' }); S.steg = 'opt'; S.optIdx = +b.getAttribute('data-gaopt'); S.typOppen = false; rita(); return; }
     if (b.hasAttribute('data-fintyp')) { S.steg = 'opt'; S.optIdx = 0; S.typOppen = true; rita(); return; }
     if (b.hasAttribute('data-val')) {
@@ -685,12 +752,33 @@
       var i = arr.indexOf(v2); if (i === -1) arr.push(v2); else arr.splice(i, 1);
       S.svar[k2] = arr; rita(); return;
     }
+    if (b.hasAttribute('data-senvisa')) { var iv = +b.getAttribute('data-senvisa'); S.senVisa = S.senVisa === iv ? -1 : iv; rita(); return; }
+    if (b.hasAttribute('data-senalla')) { S.senAlla = !S.senAlla; S.senVisa = -1; rita(); return; }
+    if (b.hasAttribute('data-senrensa')) {
+      if (!S.senRensa) { S.senRensa = true; rita(); setTimeout(function () { if (S.senRensa) { S.senRensa = false; rita(); } }, 4000); return; }
+      try { localStorage.removeItem(RECENT_KEY); } catch (er) {}
+      S.senRensa = false; S.senVisa = -1; S.senOppen = false; track('pgny_senaste', { vad: 'rensa' }); rita(); return;
+    }
+    if (b.hasAttribute('data-senkopiera')) {
+      var pk2 = lasSenaste()[+b.getAttribute('data-senkopiera')]; if (!pk2) return;
+      var txt = pk2.text;
+      var lyckat = function () { b.textContent = 'Kopierad ✓'; setTimeout(function () { b.textContent = 'Kopiera'; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(lyckat, lyckat); else lyckat();
+      track('pgny_senaste', { vad: 'kopiera' }); return;
+    }
+    if (b.hasAttribute('data-senoppna')) {
+      var pk3 = lasSenaste()[+b.getAttribute('data-senoppna')]; if (!pk3) return;
+      clearTimeout(timer); timer = null;
+      S.raw = pk3.text; S.typ = TYP_ALIAS[pk3.tasktype] || pk3.tasktype || 'skriva'; if (!TYP_ETIKETT[S.typ]) S.typ = 'skriva';
+      S.steg = 'klar'; S.kopierad = false; S.fin = false; S.senOppen = false; S.senVisa = -1; S.mallNamn = '';
+      track('pgny_senaste', { vad: 'anvand' }); rita(); return;
+    }
     if (b.hasAttribute('data-nasta')) { nastaFran(S.optIdx, false); return; }
     if (b.hasAttribute('data-hoppa')) { nastaFran(S.optIdx, true); return; }
     if (b.hasAttribute('data-kopiera')) { kopiera(); return; }
     if (b.hasAttribute('data-borjaom')) {
       var bevara = { foretag: S.svar.foretag, produkt: S.svar.produkt };
-      S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = false; S.fin = false; S.sa = false; S.kalla = 'scratch';
+      S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = false; S.fin = false; S.sa = false; S.kalla = 'scratch'; S.raw = ''; S.senVisa = -1; S.senRensa = false; S.senOppen = false;
       if (bevara.foretag) S.svar.foretag = bevara.foretag; if (bevara.produkt) S.svar.produkt = bevara.produkt;
       track('pgny_ny', {}); rita(); var t4 = root.querySelector('[data-text]'); if (t4) t4.focus(); return;
     }
