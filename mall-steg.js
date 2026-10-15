@@ -33,6 +33,8 @@
     '[data-stegkort="meta"]{display:none!important}',
     '[data-mall-meta]{display:none!important}',
     '[data-mall-resa]{display:none!important}',
+    '.mall-projektpuff{margin:32px 0}',
+    '.mall-projektpuff .paket-puff-rubrik{margin-top:0}',
     '.mall-resa{background:#0b1f3b;color:#f5f6fa;border-radius:16px;padding:20px;margin-top:20px}',
     '.mall-resa-label{margin:0 0 12px!important;font-size:12px!important;letter-spacing:.04em;text-transform:uppercase;color:#4cd9c1!important;font-weight:600}',
     '.mall-resa ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}',
@@ -125,6 +127,29 @@
     '.mall-resa li > *{min-width:0}',
     '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
+
+  /* ── Puff för projektmallen (AI-Mallar.projektmall → Projektpaket) ── */
+  function projektPuff(efter) {
+    var namn = metaText('pm-namn'), slug = metaText('pm-slug'), forvem = metaText('pm-forvem');
+    if (!namn || !slug || !efter || !efter.parentNode || document.querySelector('[data-mall-projektpuff]')) return;
+    var box = document.createElement('div');
+    box.className = 'paket-puff mall-projektpuff';
+    box.setAttribute('data-mall-projektpuff', slug);
+    var url = '/projektpaket/' + encodeURIComponent(slug) + '?source=mall&mall=' + encodeURIComponent(mallSlug);
+    box.innerHTML = '<div class="paket-puff-text">' +
+      '<div class="paket-puff-tagg">Projektmall · steg för steg</div>' +
+      '<p class="paket-puff-rubrik"></p>' +
+      '<p class="paket-puff-p"></p></div>' +
+      '<a class="paket-puff-btn"></a>';
+    box.querySelector('.paket-puff-rubrik').textContent = 'Gör du det här ofta? Gör det till ett eget AI-projekt';
+    box.querySelector('.paket-puff-p').textContent = 'Med projektmallen ' + namn + ' klistrar du in instruktionerna en gång i ChatGPT, Claude, Gemini eller Copilot. Sen vet AI:n vem du är i varje chatt, och prompterna här blir kortare. ' + (forvem ? forvem + ' ' : '') + 'Tar ungefär tio minuter.';
+    var a = box.querySelector('.paket-puff-btn');
+    a.href = url;
+    a.textContent = 'Visa projektmallen →';
+    a.addEventListener('click', function () { track('paket_puff_klick', { paket: slug, kalla: 'mall' }); });
+    efter.parentNode.insertBefore(box, efter.nextSibling);
+    track('paket_puff_visa', { paket: slug, kalla: 'mall' });
+  }
 
   function track(event, params) {
     window.dataLayer = window.dataLayer || [];
@@ -384,7 +409,11 @@
       } else { var item = c.closest('.w-dyn-item') || c; item.parentNode.removeChild(item); }
       return keep;
     });
-    if (!cards.length) { document.body.classList.add('mall-v2-off'); return; }
+    if (!cards.length) {
+      document.body.classList.add('mall-v2-off');
+      try { projektPuff(document.querySelector('[fs-toc-element="contents"]')); } catch (err) {}
+      return;
+    }
     document.body.classList.add('mall-v2-on');
 
     cards.sort(function (a, b) { return (+a.getAttribute('data-steg') || 0) - (+b.getAttribute('data-steg') || 0); });
@@ -407,6 +436,7 @@
     klartBox.textContent = 'Snyggt jobbat! Alla steg är klara.';
     klartBox.style.display = 'none';
     list.parentNode.insertBefore(klartBox, list.nextSibling);
+    try { projektPuff(klartBox); } catch (err) {}
 
     /* Sidonavigering i stället för Finsweet-TOC */
     var nav = null;

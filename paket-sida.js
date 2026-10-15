@@ -759,5 +759,7 @@
   ritaTjanst();
   ritaInstr();
   ritaFiler();
-  track('paket_visa', { kopplingar_finns: kopplingar.length, faq: schema.length });
+  var kalla = '';
+  try { kalla = new URLSearchParams(location.search).get('source') || ''; } catch (e) {}
+  track('paket_visa', { kopplingar_finns: kopplingar.length, faq: schema.length, kalla: kalla || (document.referrer.indexOf(location.host) !== -1 ? 'intern' : 'extern') });
 })();
