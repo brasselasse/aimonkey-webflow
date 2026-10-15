@@ -128,6 +128,16 @@
     if (/^(en|ett|erfaren) /i.test(r)) return 'Du är ' + r.replace(/^erfaren /i, 'en erfaren ') + '.';
     return 'Du är en erfaren ' + r + '.';
   }
+  /* "Ett mejl till …" → "Skriv ett mejl till …"; börjar texten redan med ett
+     verb ("Sammanfatta …", "Hjälp mig …") används den som den är. */
+  var VERB = /^(skriv|gör|ta fram|sammanfatta|analysera|förklara|brainstorma|hjälp|ge|lista|jämför|översätt|föreslå|planera|skapa|formulera|svara|granska|rätta|förbättra|kom på|hitta)\b/i;
+  function uppgiftsMening(t, text) {
+    var f = text.charAt(0).toLowerCase() + text.slice(1);
+    if (VERB.test(text)) return text.charAt(0).toUpperCase() + text.slice(1);
+    if (t === 'skriva' && /^(ett|en|några|tre|fem|\d+) /i.test(text)) return 'Skriv ' + f;
+    if (t === 'brainstorma' && /^(idéer|förslag)\b/i.test(text)) return 'Ge mig ' + f;
+    return (TASK[t] || '') + text;
+  }
   function arHelPrompt(c) { return c.length > 150 && c.indexOf('\n') !== -1; }
 
   function byggPrompt(S) {
@@ -142,7 +152,7 @@
     else if (!egenRoll) sys.push(rollMening(x.rollEgen || x.roll || STD_ROLL[t] || STD_ROLL.skriva));
     if (TONE[x.ton] && !isMedia && !isKod) (egenRoll ? out : sys).push(TONE[x.ton]);
 
-    var uppgift = text ? (hel ? text : (TASK[t] || '') + text) : '[BESKRIV VAD DU VILL HA HJÄLP MED]';
+    var uppgift = text ? (hel ? text : uppgiftsMening(t, text)) : '[BESKRIV VAD DU VILL HA HJÄLP MED]';
 
     /* Läsare och underlag hör bara till textuppgifter (inte bild/video/kod) */
     var arText = !isMedia && !isKod;
