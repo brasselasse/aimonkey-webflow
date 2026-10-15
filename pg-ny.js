@@ -591,6 +591,21 @@
     '</section>';
   }
 
+  /* ── Sparade prompter (★ i biblioteket och på promptsidan, aimonkey_fav_prompts) ── */
+  function lasFavoriter() { var l = las('aimonkey_fav_prompts', []); return Array.isArray(l) ? l.filter(function (f) { return f && f.slug; }) : []; }
+  function sparadeHtml() {
+    var l = lasFavoriter();
+    if (!l.length) return '';
+    var visa = S.favAlla ? l : l.slice(0, 6);
+    return '<section class="pgn-sen" aria-labelledby="pgn-fav-rubrik"><div class="pgn-sen-topp"><h2 id="pgn-fav-rubrik">Dina sparade prompter</h2>' +
+      '<a class="pgn-lank" href="/promptbiblioteket?flik=mina">Mina prompter i biblioteket →</a></div>' +
+      '<div class="pgn-chips">' + visa.map(function (f) {
+        return '<button type="button" class="pgn-chip" data-favoppna="' + esc(f.slug) + '"><span aria-hidden="true" style="color:#e0b100">★</span> ' + esc(f.namn || f.slug) + '</button>';
+      }).join('') + '</div>' +
+      (l.length > 6 ? '<div><button type="button" class="pgn-sen-mer" data-favalla>' + (S.favAlla ? 'Visa färre' : 'Visa alla ' + l.length) + '</button></div>' : '') +
+    '</section>';
+  }
+
   function vyStart() {
     return '<section class="pgn-sek">' +
       '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Vad vill du ha hjälp med?</h1>' +
@@ -603,7 +618,7 @@
       '</div></div>' +
       '<div class="pgn-rad"><button type="button" class="pgn-gul" data-bygg>Bygg min prompt →</button>' +
       '<span class="pgn-not">Gratis, ingen inloggning. Allt efter det här är valfritt.</span></div>' +
-      senasteHtml() +
+      sparadeHtml() + senasteHtml() +
     '</section>';
   }
 
@@ -925,6 +940,18 @@
       forifyll();
       if (ofyllda().length) { tillFyll('opt'); return; }
       S.steg = 'opt'; rita(); return;
+    }
+    if (b.hasAttribute('data-favalla')) { S.favAlla = !S.favAlla; rita(); return; }
+    if (b.hasAttribute('data-favoppna')) {
+      var fslug = b.getAttribute('data-favoppna');
+      track('pgny_sparad', { prompt: fslug });
+      laddaBibliotek(function (lista) {
+        var fp = lista.filter(function (x) { return x.slug === fslug; })[0];
+        if (!fp) { location.href = '/ai-prompter/' + encodeURIComponent(fslug); return; }
+        S.text = fp.prompt; S.mallNamn = fp.namn; S.typ = fp.typ; S.kalla = 'sparad';
+        tillBygg();
+      });
+      return;
     }
     if (b.hasAttribute('data-mall')) {
       var p = senasteTraffar[+b.getAttribute('data-mall')]; if (!p) return;
