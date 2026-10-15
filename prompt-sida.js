@@ -415,6 +415,9 @@
     }).filter(function (x) { return x.slug && x.namn; });
 
     function rita(urval) {
+      /* Steg i samma mall står redan i sidokolumnen (prompt-steg.js) */
+      var iMall = {}; (window.__psSteps || []).forEach(function (x) { if (x.slug) iMall[x.slug] = 1; });
+      urval = urval.filter(function (p) { return !iMall[p.slug]; }).slice(0, 6);
       if (!urval.length) return;
       if (h2[0]) h2[0].textContent = 'Liknande prompter';
       if (h2[1]) h2[1].style.display = 'none';
@@ -434,8 +437,8 @@
     }
 
     var klar = false;
-    function reserv() { if (klar) return; klar = true; rita(webflow.filter(function (x) { return x.slug !== slug && !beroende(x.prompt); }).slice(0, 6)); }
-    var tid = setTimeout(reserv, 5000);
+    function reserv() { if (klar) return; klar = true; rita(webflow.filter(function (x) { return x.slug !== slug && !beroende(x.prompt); })); }
+    var tid = setTimeout(reserv, 5000), vantaMall = Date.now() + 2500;
     try {
       fetch(location.origin + '/prompt-data', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
         if (klar) return;
@@ -462,13 +465,13 @@
           return { p: p, pt: pt };
         });
         kand.sort(function (a, b) { return b.pt - a.pt; });
-        var urval = kand.filter(function (x) { return x.pt >= 4; }).slice(0, 6).map(function (x) { return x.p; });
+        var urval = kand.filter(function (x) { return x.pt >= 4; }).slice(0, 10).map(function (x) { return x.p; });
         var har = {}; urval.forEach(function (p) { har[p.slug] = 1; });
         kand.filter(function (x) { return !har[x.p.slug] && jag.kat && x.p.kat === jag.kat; }).forEach(function (x) {
-          if (urval.length < 6) { urval.push(x.p); har[x.p.slug] = 1; }
+          if (urval.length < 10) { urval.push(x.p); har[x.p.slug] = 1; }
         });
         clearTimeout(tid); klar = true;
-        rita(urval.length ? urval : webflow.filter(function (x) { return x.slug !== slug; }).slice(0, 6));
+        (function vanta() { if (!window.__psSteps && !document.body.classList.contains('promptsteg-off') && Date.now() < vantaMall) return setTimeout(vanta, 100); rita(urval.length ? urval : webflow.filter(function (x) { return x.slug !== slug; })); })();
       })['catch'](reserv);
     } catch (e) { reserv(); }
   }
