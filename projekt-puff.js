@@ -53,7 +53,15 @@
     '.projektpuff-val span{font-size:14px;color:#c9d3de;margin-right:2px}',
     '.projektpuff-val a{display:inline-flex;align-items:center;font-size:14px;font-weight:600;color:#fff;text-decoration:none;border:1.5px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 12px;line-height:1.2}',
     '.projektpuff-val a:hover{border-color:#ffd43b;color:#ffd43b}',
-    '.projektpuff-val a.is-rek{border-color:#4cd9c1;color:#4cd9c1}'
+    '.projektpuff-val a.is-rek{border-color:#4cd9c1;color:#4cd9c1}',
+    '.projektpuff.is-kompakt{display:block;text-align:left;padding:18px 20px;margin:16px 0 0;border-radius:16px}',
+    '.projektpuff.is-kompakt .paket-puff-text{text-align:left}',
+    '.projektpuff.is-kompakt .paket-puff-rubrik{font-size:19px!important;line-height:1.3!important;margin-bottom:6px!important;text-align:left}',
+    '.projektpuff.is-kompakt .paket-puff-p{font-size:14px!important;line-height:1.5!important;text-align:left}',
+    '.projektpuff.is-kompakt .paket-puff-tagg{text-align:left}',
+    '.projektpuff.is-kompakt .projektpuff-val{margin-top:10px;gap:6px}',
+    '.projektpuff.is-kompakt .projektpuff-val a{font-size:13px;padding:5px 10px}',
+    '.projektpuff.is-kompakt .paket-puff-btn{display:inline-flex;margin-top:12px;font-size:15px;padding:10px 16px}'
   ].join('');
 
   var sidaTyp = /^\/promptgeneratorn/.test(location.pathname) ? 'generator'
@@ -75,7 +83,7 @@
     return '/projektpaket/' + slug + '?source=' + sidaTyp + '&sida=' + encodeURIComponent(sidaSlug);
   }
 
-  function bygg(rek, rubrik, text) {
+  function bygg(rek, rubrik, text, kompakt) {
     if (!document.getElementById('projektpuff-css')) {
       var st = document.createElement('style');
       st.id = 'projektpuff-css';
@@ -83,7 +91,7 @@
       document.head.appendChild(st);
     }
     var box = document.createElement('div');
-    box.className = 'paket-puff projektpuff';
+    box.className = 'paket-puff projektpuff' + (kompakt ? ' is-kompakt' : '');
     box.setAttribute('data-projektpuff', rek ? rek.slug : 'val');
     var inner = document.createElement('div');
     inner.className = 'paket-puff-text';
@@ -140,8 +148,8 @@
         var roll = r ? String(r.value).trim().toLowerCase() : '';
         var rek = hitta(ROLL[roll] || '');
         var box = bygg(rek,
-          'Använder du sådana här prompter ofta? Gör ett eget AI-projekt',
-          'Med en projektmall klistrar du in instruktionerna en gång i ChatGPT, Claude, Gemini eller Copilot. Sen vet AI:n vem du är och hur du vill ha det i varje chatt, så dina prompter kan bli mycket kortare. Gratis, klart på 10 minuter.');
+          'Använder du sådana här prompter ofta?',
+          'Gör ett eget AI-projekt i ChatGPT, Claude, Gemini eller Copilot, så slipper du förklara vem du är varje gång. Gratis, klart på 10 minuter.', true);
         var links = document.querySelector('.ai-tool-links');
         var anchor = links || copy;
         anchor.parentNode.insertBefore(box, anchor.nextSibling);
