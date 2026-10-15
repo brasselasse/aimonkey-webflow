@@ -12,6 +12,10 @@
         Kod: Språk → Hjälp
      3. Bygget (apan bockar av rader) → 4. Klar.
      Fast knapp längst ned: "Prompten genereras … Visa →" / "Kopiera prompt".
+     Fyll i: har uppgiften/mallen [PLATSHÅLLARE] visas ett eget steg med ett
+        fält per platshållare. Prompten blir inte klar förrän alla är ifyllda
+        (ingen hoppa över). Värden sparas i pg_kedja.fyll och förifylls nästa
+        gång (FÖRETAG/PRODUKT kopplas till Underlag-fälten).
 
    URL-kontraktet stöds: ?brief=&tasktype=&roll=&ton=&malgrupp=&namn=&source=
    (samt sessionStorage pg_imported_* för långa mallar). Med brief hoppar
@@ -23,7 +27,8 @@
 
    dataLayer (egna namn så att testet inte blandas med gamla generatorn):
    pgny_open, pgny_mall, pgny_bygg, pgny_steg, pgny_visa, pgny_klar,
-   pgny_copy, pgny_ai, pgny_projekt, pgny_ny, pgny_andra.
+   pgny_copy, pgny_ai, pgny_projekt, pgny_ny, pgny_andra,
+   pgny_fyll_visa (antal, kvar), pgny_fyll (antal, forifyllda).
 ============================================================ */
 (function () {
   'use strict';
@@ -142,7 +147,7 @@
 
   function byggPrompt(S) {
     if (S.raw) return S.raw;
-    var t = S.typ, x = S.svar, text = (S.text || '').trim();
+    var t = S.typ, x = S.svar, text = applyFills(S.text || '').trim();
     var isBild = t === 'bild', isVideo = t === 'video', isKod = t === 'kod', isMedia = isBild || isVideo;
     var hel = !isMedia && !!text && arHelPrompt(text);
     var egenRoll = hel && /^\s*(du är|agera som|tänk dig att du är|act as|you are)\b/i.test(text);
@@ -159,8 +164,8 @@
     var arText = !isMedia && !isKod;
     var lasare = arText ? [x.malgrupp, x.malgruppEgen].filter(Boolean).join(', ') : '';
     if (lasare) kontext.push('- Läsare: ' + lasare);
-    if (arText && x.foretag) kontext.push('- Företag: ' + x.foretag);
-    if (arText && x.produkt) kontext.push('- Produkt/tjänst: ' + x.produkt);
+    if (arText && x.foretag && text.indexOf(x.foretag) === -1) kontext.push('- Företag: ' + x.foretag);
+    if (arText && x.produkt && text.indexOf(x.produkt) === -1) kontext.push('- Produkt/tjänst: ' + x.produkt);
     if (arText && x.mottagare) kontext.push('- Mottagare: ' + x.mottagare);
     if (arText && x.nyckelord) kontext.push('- Nyckelord: ' + x.nyckelord);
     var material = arText && x.material ? '"""\n' + x.material.trim() + '\n"""' : '';
@@ -228,6 +233,71 @@
     spara(KEDJA, k);
   }
 
+  /* ── Platshållare [SÅ HÄR] → Fyll i-steget ── */
+  var PH_SRC = '\\[([^\\[\\]\\n]{2,160})\\](?!\\()';   // [text] men inte [länk](url)
+  var RE_FORETAG = /^(ditt |vårt |ert )?företag(et|snamn|ets namn)?$/i;
+  var RE_EGEN = /^(ditt|din|dina|ert|er|era|vårt|vår|våra|mitt|min|mina) /i;
+  var RE_PRODUKT = /^(din |er |vår )?(produkt|tjänst|produkt ?\/ ?tjänst)(en)?$/i;
+  function phSentence(s) {
+    s = s.trim();
+    var bokst = s.replace(/[^A-Za-zÅÄÖåäö]/g, '');
+    if (bokst && bokst === bokst.toUpperCase()) s = s.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  /* Platshållarna i ordning, en per unik text. Etikett = texten före på
+     samma rad ("Mål: [..]" → "Mål"), annars platshållaren själv. */
+  function phParse(text) {
+    if (!text || S.raw) return [];
+    var out = [], sedd = {}, antal = {}, kod = S.typ === 'kod';
+    (text.match(new RegExp(PH_SRC, 'g')) || []).forEach(function (m) { var k = m.slice(1, -1); antal[k] = (antal[k] || 0) + 1; });
+    text.split('\n').forEach(function (rad) {
+      var re = new RegExp(PH_SRC, 'g'), m;
+      while ((m = re.exec(rad))) {
+        var k = m[1], bokst = k.replace(/[^A-Za-zÅÄÖåäö]/g, '');
+        if (sedd[k] || !bokst || (kod && bokst !== bokst.toUpperCase())) continue;
+        sedd[k] = true;
+        var exempel = /^\s*(t\.?\s?ex\.?|ex\.|e\.g\.)/i.test(k);
+        var fore = rad.slice(0, m.index).replace(/\*\*|__|`/g, '').replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim();
+        var etikett = '';
+        if (antal[k] === 1 && /:$/.test(fore)) { etikett = fore.replace(/:$/, '').trim(); if (etikett.length < 2 || etikett.length > 48 || /[\[\]]/.test(etikett)) etikett = ''; }
+        if (!etikett) etikett = exempel ? 'Ditt val' : phSentence(k);
+        if (etikett.length > 70) etikett = etikett.slice(0, 67) + '…';
+        out.push({ key: k, label: etikett, hint: exempel ? k : etikett !== phSentence(k) ? phSentence(k) : 'Skriv här …',
+          multi: rad.trim() === m[0] || k.length > 40 || /klistra|text|mejl|recension|anteckning|material|beskriv/i.test(k) });
+      }
+    });
+    return out;
+  }
+  function fylltVarde(k) { return ((S.fyll && S.fyll[k]) || '').trim(); }
+  function applyFills(text) {
+    if (!text || S.raw) return text;
+    return text.replace(new RegExp(PH_SRC, 'g'), function (m, k) { return fylltVarde(k) || m; });
+  }
+  function ofyllda() { return phParse(S.text).filter(function (t) { return !fylltVarde(t.key); }); }
+  /* Förifyll från det som sparats tidigare (pg_kedja) och Underlag-fälten */
+  function forifyll() {
+    var f = kedjaFyll();
+    phParse(S.text).forEach(function (t) {
+      if (fylltVarde(t.key)) return;
+      var v = f['[' + t.key + ']'] || '';
+      if (!v && RE_FORETAG.test(t.key)) v = S.svar.foretag || f[FYLL.foretag] || '';
+      if (!v && RE_PRODUKT.test(t.key)) v = S.svar.produkt || f[FYLL.produkt] || '';
+      if (!v && /^(ton|tonen|tonläge)$/i.test(t.key) && S.svar.ton) v = S.svar.ton.toLowerCase();
+      if (v) { S.fyll[t.key] = v; S.forifyllt[t.key] = true; }
+    });
+  }
+  function sparaFyll(t, val) {
+    /* Sparas bara: korta värden om dig själv ([DITT FÖRETAG], [DIN BRANSCH] …).
+       Mottagare, ton, mål och inklistrade texter är olika varje gång. */
+    if (t.multi || val.length > 120 || /\n/.test(val)) return;
+    if (!RE_EGEN.test(t.key) && !RE_FORETAG.test(t.key) && !RE_PRODUKT.test(t.key)) return;
+    var k = las(KEDJA, {}) || {}; k.fyll = k.fyll || {}; k.mallar = k.mallar || {};
+    if (val) k.fyll['[' + t.key + ']'] = val; else delete k.fyll['[' + t.key + ']'];
+    spara(KEDJA, k);
+    if (RE_FORETAG.test(t.key)) { S.svar.foretag = val; sparaKedja('foretag', val); }
+    if (RE_PRODUKT.test(t.key)) { S.svar.produkt = val; sparaKedja('produkt', val); }
+  }
+
   /* ── Senaste prompter (samma lista som gamla generatorn) ── */
   var RECENT_KEY = 'aimonkey_recent_prompts', RECENT_MAX = 10;
   var TYP_ETIKETT = { 'skriva': 'Skriva text', 'skriva-text': 'Skriva text', 'skriva text': 'Skriva text', 'sammanfatta': 'Sammanfatta', 'analysera': 'Analysera', 'brainstorma': 'Brainstorma', 'forklara': 'Förklara', 'förklara': 'Förklara', 'bild': 'Bild', 'bildprompta': 'Bild', 'video': 'Video', 'kod': 'Kod' };
@@ -259,7 +329,7 @@
   }
 
   /* ── Tillstånd ── */
-  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {}, raw: '', senAlla: false, senVisa: -1, senRensa: false, senOppen: false };
+  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {}, raw: '', senAlla: false, senVisa: -1, senRensa: false, senOppen: false, fyll: {}, forifyllt: {}, efterFyll: 'bygger', fyllVisaFel: false };
   (function () {
     var f = kedjaFyll();
     if (f[FYLL.foretag]) S.svar.foretag = f[FYLL.foretag];
@@ -295,6 +365,8 @@
       S.text = brief; S.mallNamn = namn;
       if (!S.typ) S.typ = gissaTyp(brief);
       S.steg = 'bygger';
+      forifyll();
+      if (ofyllda().length) { S.steg = 'fyll'; S.efterFyll = 'bygger'; }
     }
   })();
 
@@ -436,6 +508,22 @@
     '.pgn-sen-rensa{border:0;background:none;color:#5b6573;text-decoration:underline;padding:6px 0}',
     '.pgn-sen-rensa.is-saker{color:#b42318}',
     '.pgn-sen-full{margin:0;white-space:pre-wrap;word-wrap:break-word;font:inherit;font-size:14px;line-height:1.55;color:var(--pg-gra);background:#f6f8fa;border-radius:10px;padding:10px 12px;max-height:260px;overflow:auto}',
+    '.pgn-gul[aria-disabled="true"]{background:#e6eaef;color:#5b6573;box-shadow:none;cursor:not-allowed}',
+    '.pgn-fyll-rakna{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--pg-teal-d);background:var(--pg-mint);border-radius:999px;padding:6px 14px;align-self:flex-start}',
+    '.pgn-fyll-rakna.is-klar{background:var(--pg-teal);color:var(--pg-navy)}',
+    '.pgn-fyll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}',
+    '.pgn-fyll-falt{display:flex;flex-direction:column;gap:8px;min-width:0}.pgn-fyll-falt.is-full{grid-column:1/-1}',
+    '.pgn-fyll-falt label{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:var(--pg-navy)}',
+    '.pgn-fyll-falt label i{font-style:normal;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;border:1.5px solid #c9d3de;color:transparent;flex-shrink:0}',
+    '.pgn-fyll-falt.is-ifylld label i{background:var(--pg-teal);border-color:var(--pg-teal);color:var(--pg-navy)}',
+    '.pgn-fyll-falt.is-fel .pgn-in{border-color:#e0a100;box-shadow:0 0 0 4px rgba(255,210,63,.35)}',
+    '.pgn-fyll-falt small{font-size:13px;color:#5b6573}',
+    '.pgn-fyll-prev{display:flex;flex-direction:column;gap:8px}',
+    '.pgn-fyll-prev>span{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5b6573}',
+    '.pgn-fyll-prev pre{margin:0;white-space:pre-wrap;word-wrap:break-word;font:inherit;font-size:15px;line-height:1.6;color:var(--pg-gra);background:#fff;border:1.5px solid #e1e7ee;border-radius:16px;padding:16px 18px;max-height:320px;overflow:auto}',
+    '.pgn-fyll-prev mark{background:#fff1bf;color:var(--pg-navy);border-radius:4px;padding:0 3px;font-weight:700}',
+    '.pgn-fyll-prev mark.is-ifylld{background:var(--pg-mint);color:#005042}',
+    '.pgn-fyll-kvar{font-size:15px;font-weight:600;color:var(--pg-gra)}',
     '@keyframes pgn-puls{0%,100%{opacity:.3}50%{opacity:1}}',
     '@keyframes pgn-inn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}',
     '@keyframes pgn-glow{0%,100%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 0 rgba(0,201,167,.55)}50%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 12px rgba(0,201,167,0)}}',
@@ -475,8 +563,10 @@
 
   /* ── Rendering ── */
   function stegrad() {
-    var idx = { start: 0, opt: 1, bygger: 2, klar: 2 }[S.steg];
-    return '<ol class="pgn-stegrad" aria-label="Var du är">' + ['Uppgift', 'Finjustera · valfritt', 'Din prompt'].map(function (n, i) {
+    var medFyll = S.steg !== 'start' && phParse(S.text).length > 0;
+    var idx = medFyll ? { start: 0, fyll: 1, opt: 2, bygger: 3, klar: 3 }[S.steg] : { start: 0, opt: 1, bygger: 2, klar: 2 }[S.steg];
+    var namn = medFyll ? ['Uppgift', 'Fyll i', 'Finjustera · valfritt', 'Din prompt'] : ['Uppgift', 'Finjustera · valfritt', 'Din prompt'];
+    return '<ol class="pgn-stegrad" aria-label="Var du är">' + namn.map(function (n, i) {
       var cls = i === idx ? 'is-aktiv' : i < idx ? 'is-klar' : '';
       return '<li class="' + cls + '"' + (i === idx ? ' aria-current="step"' : '') + '><i>' + (i < idx ? '✓' : (i + 1)) + '</i><span>' + n + '</span></li>';
     }).join('') + '</ol>';
@@ -541,7 +631,7 @@
   function vyOpt() {
     var L = lista(), o = L[Math.min(S.optIdx, L.length - 1)], sista = S.optIdx >= L.length - 1;
     var h = '<section class="pgn-sek">';
-    h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>Din uppgift:</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
+    h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>Din uppgift:</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || applyFills(S.text)) + '</span>' +
       '<button type="button" class="pgn-typ" data-typvaxla aria-expanded="' + (S.typOppen ? 'true' : 'false') + '">Typ: ' + esc(typNamn()) + ' ▾</button>' +
       '<button type="button" class="pgn-andra" data-tillstart>Ändra</button></div>' +
       (S.typOppen ? '<div class="pgn-chips">' + TYPER.map(function (t) { return '<button type="button" class="pgn-chip" data-typ="' + t.id + '" aria-pressed="' + (t.id === S.typ) + '">' + t.namn + '</button>'; }).join('') + '</div>' : '') +
@@ -575,6 +665,63 @@
     return h + '</section>';
   }
 
+  function fyllPrevHtml(L) {
+    var keys = {}; L.forEach(function (t) { keys[t.key] = true; });
+    var text = S.text, re = new RegExp(PH_SRC, 'g'), m, ut = '', last = 0;
+    while ((m = re.exec(text))) {
+      ut += esc(text.slice(last, m.index));
+      var v = keys[m[1]] ? fylltVarde(m[1]) : '';
+      ut += keys[m[1]] ? (v ? '<mark class="is-ifylld">' + esc(v) + '</mark>' : '<mark>' + esc(m[0]) + '</mark>') : esc(m[0]);
+      last = re.lastIndex;
+    }
+    return ut + esc(text.slice(last));
+  }
+  function fyllStatus(L) {
+    var kvar = L.filter(function (t) { return !fylltVarde(t.key); }).length;
+    return { kvar: kvar, klar: L.length - kvar, alla: L.length };
+  }
+  function vyFyll() {
+    var L = phParse(S.text), st = fyllStatus(L), tillKlarVy = S.efterFyll === 'klar';
+    var h = '<section class="pgn-sek">';
+    h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.mallNamn ? 'Mall:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
+      '<button type="button" class="pgn-andra" data-tillstart>Ändra</button></div></div>';
+    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Fyll i det som är ditt</h1>' +
+      '<p class="pgn-ingress">Det är de här luckorna som gör prompten till din. Står det kvar [NAMN] i prompten blir svaret lika generiskt. Prompten blir klar när allt är ifyllt.</p>' +
+      '<span class="pgn-fyll-rakna' + (st.kvar ? '' : ' is-klar') + '" data-fyllrakna aria-live="polite">' + st.klar + ' av ' + st.alla + ' ifyllda</span></div>';
+    h += '<div class="pgn-fyll-grid">' + L.map(function (t, i) {
+      var id = 'pgn-ph-' + i, v = S.fyll[t.key] || '', ok = !!fylltVarde(t.key), fel = S.fyllVisaFel && !ok;
+      return '<div class="pgn-fyll-falt' + (t.multi ? ' is-full' : '') + (ok ? ' is-ifylld' : '') + (fel ? ' is-fel' : '') + '" data-phfalt="' + i + '">' +
+        '<label for="' + id + '"><i aria-hidden="true">✓</i>' + esc(t.label) + '</label>' +
+        (t.multi ? '<textarea id="' + id + '" class="pgn-in" data-ph="' + i + '" placeholder="' + esc(t.hint) + '" required>' + esc(v) + '</textarea>'
+                 : '<input id="' + id + '" class="pgn-in" data-ph="' + i + '" placeholder="' + esc(t.hint) + '" value="' + esc(v) + '" required>') +
+        (S.forifyllt[t.key] && ok ? '<small>Ifyllt från förra gången. Ändra om det behövs.</small>' : '') + '</div>';
+    }).join('') + '</div>';
+    h += '<div class="pgn-rad"><button type="button" class="pgn-gul" data-fyllklar aria-disabled="' + (st.kvar ? 'true' : 'false') + '">' + (tillKlarVy ? 'Uppdatera prompten →' : S.efterFyll === 'opt' ? 'Vidare →' : 'Bygg prompten →') + '</button>' +
+      '<span class="pgn-fyll-kvar" data-fyllkvar>' + (st.kvar ? 'Fyll i ' + st.kvar + ' fält till' : 'Allt ifyllt!') + '</span></div>';
+    h += '<div class="pgn-fyll-prev"><span>Så ser prompten ut</span><pre data-fyllprev>' + fyllPrevHtml(L) + '</pre></div>';
+    return h + '</section>';
+  }
+  /* Uppdatera räknare, förhandsvisning och knapp utan att rita om (fokus kvar) */
+  function uppdateraFyll() {
+    var L = phParse(S.text), st = fyllStatus(L);
+    var r = root.querySelector('[data-fyllrakna]'); if (r) { r.textContent = st.klar + ' av ' + st.alla + ' ifyllda'; r.classList.toggle('is-klar', !st.kvar); }
+    var k = root.querySelector('[data-fyllkvar]'); if (k) k.textContent = st.kvar ? 'Fyll i ' + st.kvar + ' fält till' : 'Allt ifyllt!';
+    var b = root.querySelector('[data-fyllklar]'); if (b) b.setAttribute('aria-disabled', st.kvar ? 'true' : 'false');
+    var p = root.querySelector('[data-fyllprev]'); if (p) p.innerHTML = fyllPrevHtml(L);
+    [].forEach.call(root.querySelectorAll('[data-phfalt]'), function (f) {
+      var t = L[+f.getAttribute('data-phfalt')]; if (!t) return;
+      var ok = !!fylltVarde(t.key); f.classList.toggle('is-ifylld', ok); if (ok) f.classList.remove('is-fel');
+    });
+    var bar = root.querySelector('[data-bar]');
+    if (bar) {
+      var s1 = bar.querySelector('.pgn-bar-mitt>span'); if (s1) s1.textContent = barFyllText(st);
+      var i1 = bar.querySelector('.pgn-bar-spar i'); if (i1) i1.style.width = barFyllPct(st) + '%';
+      var h1 = bar.querySelector('.pgn-bar-hint'); if (h1) h1.textContent = st.kvar ? 'Visa →' : 'Fortsätt →';
+    }
+  }
+  function barFyllText(st) { return st.kvar ? 'Fyll i ' + st.kvar + ' fält till …' : 'Allt ifyllt, fortsätt'; }
+  function barFyllPct(st) { return Math.round(10 + 50 * st.klar / Math.max(1, st.alla)); }
+
   var RADER = ['Apan läser din uppgift', 'Väljer rätt roll åt AI:n', 'Lägger till läsare, ton och underlag', 'Formar hur svaret ska se ut'];
   function vyBygger() {
     return '<section class="pgn-sek"><h1 tabindex="-1" data-fokus>Apan bygger din prompt …</h1><ul class="pgn-bygg" aria-live="polite">' +
@@ -603,6 +750,7 @@
     h += '<div class="pgn-drag">';
     if (!S.raw) h += '<button type="button" data-vaxla="fin" aria-expanded="' + S.fin + '"><span>Finjustera (valfritt)</span><span>' + (S.fin ? '−' : '+') + '</span></button>';
     if (S.fin && !S.raw) h += '<div class="pgn-drag-inne"><span>Klicka på det du vill ändra. Prompten byggs om direkt.</span><div class="pgn-chips">' +
+      (phParse(S.text).length ? '<button type="button" class="pgn-chip" data-tillfyll><strong>Ifyllt:</strong> ' + phParse(S.text).length + ' fält</button>' : '') +
       '<button type="button" class="pgn-chip" data-fintyp><strong>Typ:</strong> ' + esc(typNamn()) + '</button>' +
       L.map(function (o, i) { return '<button type="button" class="pgn-chip" data-gaopt="' + i + '"><strong>' + esc(o.kort) + ':</strong> ' + esc(sammanfatta(o) || 'Inte valt') + '</button>'; }).join('') + '</div></div>';
     h += '<button type="button" data-vaxla="sa" aria-expanded="' + S.sa + '"><span>Så funkar prompten</span><span>' + (S.sa ? '−' : '+') + '</span></button>';
@@ -624,6 +772,12 @@
   function barHtml() {
     if (S.steg === 'start') return '';
     var L = lista(), klar = S.steg === 'klar';
+    if (S.steg === 'fyll') {
+      var fs = fyllStatus(phParse(S.text));
+      return '<div class="pgn-bar-wrap"><button type="button" class="pgn-bar" data-bar>' + PRICKAR +
+        '<span class="pgn-bar-mitt"><span>' + barFyllText(fs) + '</span><span class="pgn-bar-spar"><i style="width:' + barFyllPct(fs) + '%"></i></span></span>' +
+        '<span class="pgn-bar-hint">' + (fs.kvar ? 'Visa →' : 'Fortsätt →') + '</span></button></div>';
+    }
     var pct = S.steg === 'opt' ? Math.round(20 + 55 * (S.optIdx + (stegGjort(L[S.optIdx] || { grupper: [] }) ? 1 : 0)) / L.length) : S.steg === 'bygger' ? 78 + S.rad * 5 : 100;
     var text = klar ? (S.kopierad ? 'Kopierad ✓' : 'Kopiera prompt') : (S.steg === 'bygger' && S.rad >= 3 ? 'Din prompt är nästan klar …' : 'Prompten genereras …');
     return '<div class="pgn-bar-wrap"><button type="button" class="pgn-bar' + (klar ? ' is-klar' : '') + '" data-bar>' +
@@ -634,12 +788,17 @@
 
   var forraSteg = null;
   function rita() {
-    var vy = S.steg === 'start' ? vyStart() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
+    var vy = S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
     root.innerHTML = '<div class="pgn"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + vy + '</div>' + barHtml();
     if (S.steg === 'start') { ritaTraffar(); }
     var nyckel = S.steg + ':' + S.optIdx;
     if (forraSteg !== null && forraSteg !== nyckel) {
       var f = root.querySelector('[data-fokus]');
+      /* Fyll i-steget: fokus i första tomma fältet (inte på mobil, där tangentbordet skymmer) */
+      if (S.steg === 'fyll' && window.matchMedia && window.matchMedia('(min-width: 768px)').matches) {
+        var tom = [].filter.call(root.querySelectorAll('[data-ph]'), function (x) { return !x.value.trim(); })[0];
+        if (tom) f = tom;
+      }
       if (f) { try { f.focus({ preventScroll: true }); } catch (e) {} }
       var top = root.getBoundingClientRect().top + window.pageYOffset - 90;
       if (window.pageYOffset > top) window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
@@ -661,7 +820,34 @@
       rita();
     }, snabb ? 150 : 600);
   }
-  function tillBygg() { S.steg = 'bygger'; S.rad = 0; S.kopierad = false; S.typOppen = false; rita(); }
+  function tillBygg() {
+    if (!S.raw) { forifyll(); if (ofyllda().length) { tillFyll('bygger'); return; } }
+    S.steg = 'bygger'; S.rad = 0; S.kopierad = false; S.typOppen = false; rita();
+  }
+  function tillFyll(efter) {
+    forifyll();
+    S.steg = 'fyll'; S.efterFyll = efter; S.fyllVisaFel = false; S.typOppen = false;
+    track('pgny_fyll_visa', { antal: phParse(S.text).length, kvar: ofyllda().length });
+    rita();
+  }
+  /* "Bygg prompten →" i Fyll i: går bara vidare när allt är ifyllt */
+  function fyllKlar() {
+    var kvar = ofyllda();
+    if (kvar.length) {
+      S.fyllVisaFel = true;
+      var L = phParse(S.text), idx = -1;
+      L.forEach(function (t, i) { if (idx === -1 && t.key === kvar[0].key) idx = i; });
+      [].forEach.call(root.querySelectorAll('[data-phfalt]'), function (f) { var t = L[+f.getAttribute('data-phfalt')]; if (t && !fylltVarde(t.key)) f.classList.add('is-fel'); });
+      var el = root.querySelector('[data-ph="' + idx + '"]');
+      if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } el.scrollIntoView({ block: 'center', behavior: snabb ? 'auto' : 'smooth' }); }
+      return;
+    }
+    var L2 = phParse(S.text);
+    track('pgny_fyll', { antal: L2.length, forifyllda: L2.filter(function (t) { return S.forifyllt[t.key]; }).length });
+    if (S.efterFyll === 'opt') { S.steg = 'opt'; S.optIdx = 0; rita(); }
+    else if (S.efterFyll === 'klar') { S.steg = 'klar'; S.kopierad = false; rita(); }
+    else tillBygg();
+  }
   function tillKlar() {
     clearTimeout(timer); timer = null;
     S.steg = 'klar'; S.rad = 0;
@@ -692,6 +878,12 @@
   root.addEventListener('input', function (e) {
     var el = e.target;
     if (el.hasAttribute('data-text')) { S.text = el.value; S.mallNamn = ''; if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
+    if (el.hasAttribute('data-ph')) {
+      var t5 = phParse(S.text)[+el.getAttribute('data-ph')]; if (!t5) return;
+      S.fyll[t5.key] = el.value; delete S.forifyllt[t5.key];
+      sparaFyll(t5, el.value.trim());
+      uppdateraFyll(); return;
+    }
     if (el.hasAttribute('data-falt')) {
       var k = el.getAttribute('data-falt');
       S.svar[k] = el.value;
@@ -702,6 +894,13 @@
   });
   root.addEventListener('focusin', function (e) { if (e.target.hasAttribute && e.target.hasAttribute('data-text')) laddaBibliotek(function () {}); });
   root.addEventListener('keydown', function (e) {
+    /* Enter i ett Fyll i-fält: nästa tomma fält, eller vidare när allt är ifyllt */
+    if (e.target.hasAttribute && e.target.hasAttribute('data-ph') && e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      var falt = [].slice.call(root.querySelectorAll('[data-ph]')), nasta = falt.slice(falt.indexOf(e.target) + 1).concat(falt).filter(function (x) { return !x.value.trim(); })[0];
+      if (nasta) nasta.focus(); else fyllKlar();
+      return;
+    }
     if (e.target.hasAttribute && e.target.hasAttribute('data-text') && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); root.querySelector('[data-bygg]').click(); }
   });
   root.addEventListener('click', function (e) {
@@ -721,9 +920,11 @@
     if (b.hasAttribute('data-bygg')) {
       S.raw = '';
       if (!S.text.trim()) { var t2 = root.querySelector('[data-text]'); if (t2) { t2.focus(); t2.setAttribute('placeholder', 'Skriv först vad du vill ha hjälp med, t.ex. ett mejl till en kund …'); } return; }
-      S.typ = S.typ || gissaTyp(S.text); S.steg = 'opt'; S.optIdx = 0; S.besokt = {};
+      S.typ = S.typ || gissaTyp(S.text); S.optIdx = 0; S.besokt = {};
       track('pgny_bygg', { tecken: S.text.length });
-      rita(); return;
+      forifyll();
+      if (ofyllda().length) { tillFyll('opt'); return; }
+      S.steg = 'opt'; rita(); return;
     }
     if (b.hasAttribute('data-mall')) {
       var p = senasteTraffar[+b.getAttribute('data-mall')]; if (!p) return;
@@ -731,6 +932,8 @@
       track('pgny_mall', { mall: p.slug || p.namn });
       tillBygg(); return;
     }
+    if (b.hasAttribute('data-fyllklar')) { fyllKlar(); return; }
+    if (b.hasAttribute('data-tillfyll')) { track('pgny_andra', { vad: 'fyll' }); tillFyll('klar'); return; }
     if (b.hasAttribute('data-typvaxla')) { S.typOppen = !S.typOppen; rita(); return; }
     if (b.hasAttribute('data-typ')) { S.typ = b.getAttribute('data-typ'); S.optIdx = 0; S.typOppen = false; track('pgny_andra', { vad: 'typ' }); rita(); return; }
     if (b.hasAttribute('data-tillstart')) { S.steg = 'start'; S.raw = ''; rita(); var t3 = root.querySelector('[data-text]'); if (t3) t3.focus(); return; }
@@ -778,7 +981,7 @@
     if (b.hasAttribute('data-kopiera')) { kopiera(); return; }
     if (b.hasAttribute('data-borjaom')) {
       var bevara = { foretag: S.svar.foretag, produkt: S.svar.produkt };
-      S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = false; S.fin = false; S.sa = false; S.kalla = 'scratch'; S.raw = ''; S.senVisa = -1; S.senRensa = false; S.senOppen = false;
+      S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = false; S.fin = false; S.sa = false; S.kalla = 'scratch'; S.raw = ''; S.senVisa = -1; S.senRensa = false; S.senOppen = false; S.fyll = {}; S.forifyllt = {};
       if (bevara.foretag) S.svar.foretag = bevara.foretag; if (bevara.produkt) S.svar.produkt = bevara.produkt;
       track('pgny_ny', {}); rita(); var t4 = root.querySelector('[data-text]'); if (t4) t4.focus(); return;
     }
@@ -789,10 +992,11 @@
     var b = e.target.closest('[data-bar]');
     if (!b) return;
     if (S.steg === 'klar') kopiera();
+    else if (S.steg === 'fyll') fyllKlar();
     else if (S.steg === 'bygger') tillKlar();
     else { track('pgny_visa', { fran_steg: (lista()[S.optIdx] || {}).kort || '' }); tillBygg(); }
   });
 
-  track('pgny_open', { med_brief: S.steg === 'bygger' ? 1 : 0 });
+  track('pgny_open', { med_brief: S.text ? 1 : 0, platshallare: phParse(S.text).length });
   rita();
 })();
