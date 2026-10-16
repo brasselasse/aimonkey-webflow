@@ -422,11 +422,15 @@
   }
 
   function handelser() {
-    var sokTimer;
+    var sokTimer, matTimer, senastSok = '';
     el.sok.addEventListener('input', function () {
       S.q = el.sok.value.trim(); S.flode = ''; S.visa = PER_SIDA;
-      clearTimeout(sokTimer);
-      sokTimer = setTimeout(function () { ritaVerktyg(); ritaFloden(); ritaLista(); skrivAdress(); if (S.q) track('pb_sok', { q: S.q, traffar: urval().length }); }, 180);
+      clearTimeout(sokTimer); clearTimeout(matTimer);
+      sokTimer = setTimeout(function () { ritaVerktyg(); ritaFloden(); ritaLista(); skrivAdress(); }, 180);
+      /* Mät först när besökaren slutat skriva, så att "m", "me", "mej" inte blir tre sökningar */
+      matTimer = setTimeout(function () {
+        if (S.q.length >= 2 && S.q !== senastSok) { senastSok = S.q; track('pb_sok', { q: S.q.slice(0, 100), traffar: urval().length }); }
+      }, 1500);
     });
     root.addEventListener('click', function (e) {
       var t = e.target.closest('button, a');
