@@ -47,13 +47,18 @@
     '.st-toast div{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}',
     '.st-toast span{color:#ced2d7;font-size:14px}',
     '.st-toast a{color:#ffd23f;font-weight:600;text-decoration:none;white-space:nowrap}',
+    '.st-grid-vagar{grid-template-columns:repeat(3,minmax(0,1fr))!important}',
+    '@media (min-width:992px){.st-stats{max-width:470px}}',
     '@media (max-width:767px){',
+    '.st-knappar{flex-wrap:wrap}',
+    '.st-prim{flex:1 1 100%}',
+    '.st-sek{flex:1 1 auto}',
     '.st-sektion{padding:44px 0 8px}',
     '.st-wrap{padding:0 16px}',
     '.st-h2{font-size:28px!important}',
     '.st-ingress{font-size:16px}',
     '.st-grid-kort,.st-grid-floden{grid-template-columns:1fr}',
-    '.st-grid-vagar{grid-template-columns:1fr 1fr;gap:12px}',
+    '.st-grid-vagar{grid-template-columns:1fr 1fr!important;gap:12px}',
     '.st-vag{padding:16px}',
     '.st-vag-namn{font-size:17px}',
     '.st-kort,.st-flode{padding:18px}',
@@ -79,6 +84,7 @@
     { text: 'Bild och video', k: 'Bild' },
     { text: 'Plugg', k: 'Plugg' }
   ];
+  var KORT = { jan: 'jan', feb: 'feb', mar: 'mars', apr: 'apr', may: 'maj', jun: 'juni', jul: 'juli', aug: 'aug', sep: 'sep', oct: 'okt', nov: 'nov', dec: 'dec' };
   var MAN = { january: 'jan', february: 'feb', march: 'mars', april: 'apr', may: 'maj', june: 'juni', july: 'juli', august: 'aug', september: 'sep', october: 'okt', november: 'nov', december: 'dec' };
 
   var F, DATA = null, laddar = null, toastEl, toastTimer;
@@ -228,6 +234,13 @@
       var m = re.exec(el.textContent.trim()); if (!m) return;
       var ar = +m[3] === new Date().getFullYear() ? '' : ' ' + m[3];
       el.textContent = m[2] + ' ' + MAN[m[1].toLowerCase()] + ar;
+    });
+    /* Nyhetslistan visar "Oct 16" */
+    var kort = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})$/i;
+    [].forEach.call(document.querySelectorAll('main .text-style-tagline'), function (el) {
+      if (el.children.length) return;
+      var m = kort.exec(el.textContent.trim()); if (!m) return;
+      el.textContent = m[2] + ' ' + KORT[m[1].toLowerCase()];
     });
   }
 
