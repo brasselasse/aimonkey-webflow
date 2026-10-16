@@ -127,7 +127,7 @@
     { text: 'Sälja mer', q: 'sälj' },
     { text: 'Synas i sociala medier', q: 'inlägg' },
     { text: 'Planera och prioritera', q: 'planera' },
-    { text: 'Göra en bild', bara: 'bild' },
+    { text: 'Skapa en bild', bara: 'bild' },
     { text: 'Fixa kod', bara: 'kod' }
   ];
   var BARA = [

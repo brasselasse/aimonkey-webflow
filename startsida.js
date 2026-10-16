@@ -39,6 +39,21 @@
     '.st-ikon{flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1.5px solid #cfd6e0;background:#fff;cursor:pointer;padding:0}',
     '.st-ikon[aria-pressed="true"]{border-color:#e0b400;background:#fff3c4}',
     '.st-apan .apan-icon{width:72px!important;height:72px!important;max-width:none;flex:none;border-radius:16px;object-fit:cover}',
+    '.st-lar-gammal{display:none!important}',
+    '.st-lar .st-topp{align-items:center}',
+    '.st-lar-flikar{display:flex;gap:6px;padding:4px;border-radius:12px;background:#e7ebf1}',
+    '.st-lar-flik{font:inherit;font-size:15px;font-weight:600;min-height:40px;padding:0 16px;border-radius:9px;border:0;cursor:pointer;background:transparent;color:#0b1f3b}',
+    '.st-lar-flik[aria-selected="true"]{background:#fff;box-shadow:0 1px 3px rgba(11,31,59,.12)}',
+    '.st-lar-flik:focus-visible,.st-art:focus-visible{outline:3px solid #4cd9c1;outline-offset:2px}',
+    '.st-grid-art{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}',
+    '.st-art{display:flex;flex-direction:column;overflow:hidden;border-radius:20px;border:1px solid #e3e7ee;background:#fff;color:#0b1f3b;text-decoration:none;transition:border-color .15s,transform .15s}',
+    '.st-art:hover{border-color:#00c9a7;transform:translateY(-2px)}',
+    '.st-art-bild{aspect-ratio:16/9;background:#dfe9f2;overflow:hidden}',
+    '.st-art-bild img{width:100%;height:100%;object-fit:cover;display:block}',
+    '.st-art-text{display:flex;flex-direction:column;gap:8px;padding:18px 20px 22px}',
+    '.st-art-etikett{font-size:12px;font-weight:600;color:#005042}',
+    '.st-art-titel{font-size:19px;line-height:1.25;font-weight:700}',
+    '.st-lar-alla{display:inline-block;margin-top:16px}',
     '.st-faq-dold{display:none!important}',
     '.st-faq-mer{margin-top:16px;font-size:15px;color:#4a5a70}',
     '.st-faq-mer button{font:inherit;font-weight:600;color:#005042;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}',
@@ -74,6 +89,8 @@
     '.st-sok input{font-size:16px;padding:10px}',
     '.st-sok button{padding:0 16px}',
     '.st-apan{flex-direction:column;padding:22px}',
+    '.st-grid-art{grid-template-columns:1fr}',
+    '.st-lar .st-topp{align-items:flex-start}',
     '.st-hjalp{padding:22px}',
     '.st-stats{gap:8px 20px}',
     '.st-stat-tal{font-size:22px!important}',
@@ -247,6 +264,55 @@
     });
   }
 
+  /* ── Lär dig mer om AI: Guider/Nyheter i en sektion ──
+     Läser korten från Webflows två CMS-sektioner (som ligger kvar i
+     HTML:en men döljs) och ritar dem som skissen. */
+  function lasArtiklar(sek, nyhet) {
+    return [].slice.call(sek.querySelectorAll('.w-dyn-item a[href]')).map(function (a) {
+      var img = a.querySelector('img'), h = a.querySelector('h3'), tag = a.querySelector('.text-style-tag'), d = nyhet ? a.querySelector('.text-style-tagline:not(.text-style-tag)') : null;
+      var etikett = nyhet ? 'Nyhet' + (d && d.textContent.trim() ? ' · ' + d.textContent.trim() : '') : (tag ? tag.textContent.trim() : '');
+      return { href: a.getAttribute('href'), titel: h ? h.textContent.trim() : '', etikett: etikett,
+        src: img ? img.getAttribute('src') : '', srcset: img ? img.getAttribute('srcset') || '' : '', alt: img ? img.getAttribute('alt') || '' : '' };
+    }).filter(function (x) { return x.href && x.titel; }).slice(0, 3);
+  }
+  function lar() {
+    var gs = document.querySelector('main section.section_articles'), ns = document.querySelector('main section.section-start-articles');
+    if (!gs || !ns) return;
+    var G = lasArtiklar(gs, false), N = lasArtiklar(ns, true);
+    if (!G.length || !N.length) return;
+    var valt = 'guider';
+    var sek = document.createElement('section');
+    sek.className = 'st-sektion st-lar';
+    sek.innerHTML = '<div class="st-wrap"><div class="st-topp"><h2 class="st-h2">Lär dig mer om AI</h2>' +
+      '<div class="st-lar-flikar" role="tablist" aria-label="Visa">' +
+      '<button type="button" class="st-lar-flik" role="tab" id="st-lar-guider" aria-controls="st-lar-panel" data-k="guider">Guider</button>' +
+      '<button type="button" class="st-lar-flik" role="tab" id="st-lar-nyheter" aria-controls="st-lar-panel" data-k="nyheter">Nyheter</button></div></div>' +
+      '<div id="st-lar-panel" role="tabpanel"><div class="st-grid st-grid-art"></div></div>' +
+      '<a class="st-alla st-lar-alla" href="/ai-artiklar"></a></div>';
+    function rita() {
+      var l = valt === 'guider' ? G : N;
+      sek.querySelector('.st-grid-art').innerHTML = l.map(function (x) {
+        return '<a class="st-art" href="' + esc(x.href) + '"><div class="st-art-bild">' +
+          (x.src ? '<img loading="lazy" src="' + esc(x.src) + '"' + (x.srcset ? ' srcset="' + esc(x.srcset) + '" sizes="(max-width:767px) 100vw, 380px"' : '') + ' alt="' + esc(x.alt) + '">' : '') +
+          '</div><div class="st-art-text"><span class="st-art-etikett">' + esc(x.etikett) + '</span><strong class="st-art-titel">' + esc(x.titel) + '</strong></div></a>';
+      }).join('');
+      sek.querySelector('.st-lar-alla').textContent = (valt === 'guider' ? 'Alla guider' : 'Alla nyheter') + ' →';
+      [].forEach.call(sek.querySelectorAll('.st-lar-flik'), function (b) { var on = b.getAttribute('data-k') === valt; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+      sek.querySelector('[role=tabpanel]').setAttribute('aria-labelledby', 'st-lar-' + valt);
+    }
+    sek.addEventListener('click', function (e) {
+      var b = e.target.closest('.st-lar-flik');
+      if (b) { valt = b.getAttribute('data-k'); rita(); track('pb_start_lar', { varde: valt }); return; }
+      var a = e.target.closest('.st-art'); if (a) track('pb_start_artikel', { flik: valt, url: a.getAttribute('href') });
+    });
+    sek.addEventListener('keydown', function (e) {
+      if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && e.target.closest('.st-lar-flik')) { var n = sek.querySelector('.st-lar-flik[data-k="' + (valt === 'guider' ? 'nyheter' : 'guider') + '"]'); n.focus(); n.click(); }
+    });
+    gs.parentNode.insertBefore(sek, gs);
+    gs.classList.add('st-lar-gammal'); ns.classList.add('st-lar-gammal');
+    rita();
+  }
+
   /* ── FAQ: fyra frågor först ── */
   function faq() {
     var lista = document.querySelector('.section_faq .faq_list');
@@ -265,7 +331,7 @@
   function init() {
     F = window.AimFyll || null;
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
-    sok(); kort(); datum(); faq();
+    sok(); kort(); datum(); lar(); faq();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
