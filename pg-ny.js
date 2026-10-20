@@ -19,7 +19,14 @@
 
    URL-kontraktet stöds: ?brief=&tasktype=&roll=&ton=&malgrupp=&namn=&source=
    (samt sessionStorage pg_imported_* för långa mallar). Med brief hoppar
-   flödet direkt till bygget. Kedjeläget (mall/steg) finns INTE i testet.
+   flödet direkt till bygget (via Fyll i om det finns platshållare).
+
+   Kedjeläget ?mall=<slug>&steg=N (från stegmallarna och promptsidorna, samma
+   kontrakt som gamla generatorn): stegrad överst med prickar och föregående/
+   nästa, ruta "Har du fått svaret från AI:n?" under Kopiera. Stegen hämtas från
+   /ai-mallar/<slug> och byts utan sidladdning. [KLISTRA IN … FRÅN STEG N],
+   kundkortet och "från fas N" fylls med sparade svar (pg_kedja.mallar).
+   Kopierat steg markeras klart på mallsidan (aim_mall_klar_<slug>).
 
    Promptformatet följer det beslutade formatet (2026-10-02): rollen som
    mening, sedan ## Uppgift / ## Kontext / ## Material att utgå från /
@@ -28,7 +35,9 @@
    dataLayer (egna namn så att testet inte blandas med gamla generatorn):
    pgny_open, pgny_mall, pgny_bygg, pgny_steg, pgny_visa, pgny_klar,
    pgny_copy, pgny_ai, pgny_projekt, pgny_ny, pgny_andra,
-   pgny_fyll_visa (antal, kvar), pgny_fyll (antal, forifyllda).
+   pgny_fyll_visa (antal, kvar), pgny_fyll (antal, forifyllda),
+   pgny_kedja_steg, pgny_kedja_nasta, pgny_kedja_svar, pgny_kedja_autofyll, pgny_kedja_klar
+   (mall, steg, antal_steg).
 ============================================================ */
 (function () {
   'use strict';
@@ -263,7 +272,7 @@
         if (!etikett) etikett = exempel ? 'Ditt val' : phSentence(k);
         if (etikett.length > 70) etikett = etikett.slice(0, 67) + '…';
         out.push({ key: k, label: etikett, hint: exempel ? k : etikett !== phSentence(k) ? phSentence(k) : 'Skriv här …',
-          multi: rad.trim() === m[0] || k.length > 40 || /klistra|text|mejl|recension|anteckning|material|beskriv/i.test(k) });
+          multi: rad.trim() === m[0] || k.length > 40 || /klistra|text|mejl|recension|anteckning|material|beskriv|kundkort|fr[åa]n (steg|fas)/i.test(k) });
       }
     });
     return out;
@@ -275,18 +284,31 @@
   }
   function ofyllda() { return phParse(S.text).filter(function (t) { return !fylltVarde(t.key); }); }
   /* Förifyll från det som sparats tidigare (pg_kedja) och Underlag-fälten */
+  /* S.forifyllt[key] = varifrån värdet kom: 'svar' (AI-svar från tidigare steg),
+     'mall' (ifyllt i ett tidigare steg i samma mall), 'tidigare' (förra gången) */
   function forifyll() {
-    var f = kedjaFyll();
+    var f = kedjaFyll(), antal = 0;
+    var mf = K ? (kMin().fyll || {}) : {};
     phParse(S.text).forEach(function (t) {
       if (fylltVarde(t.key)) return;
-      var v = f['[' + t.key + ']'] || '';
+      var v = '', fran = 'tidigare';
+      if (K) { v = kSvarFor(t.key); if (v) fran = 'svar'; else if (!arSvarNyckel(t.key) && mf[t.key]) { v = mf[t.key]; fran = 'mall'; } }
+      if (!v) v = f['[' + t.key + ']'] || '';
       if (!v && RE_FORETAG.test(t.key)) v = S.svar.foretag || f[FYLL.foretag] || '';
       if (!v && RE_PRODUKT.test(t.key)) v = S.svar.produkt || f[FYLL.produkt] || '';
       if (!v && /^(ton|tonen|tonläge)$/i.test(t.key) && S.svar.ton) v = S.svar.ton.toLowerCase();
-      if (v) { S.fyll[t.key] = v; S.forifyllt[t.key] = true; }
+      if (v) { S.fyll[t.key] = v; S.forifyllt[t.key] = fran; if (fran !== 'tidigare') antal++; }
     });
+    return antal;
   }
   function sparaFyll(t, val) {
+    /* I kedjeläget följer allt man fyller i med till nästa steg i samma mall
+       (utom AI-svaren från tidigare steg, som hämtas från rutan "Har du fått svaret") */
+    if (K && !arSvarNyckel(t.key) && val.length <= 4000) {
+      var st = kLas(), m = kMin(st);
+      if (val) m.fyll[t.key] = val; else delete m.fyll[t.key];
+      spara(KEDJA, st);
+    }
     /* Sparas bara: korta värden om dig själv ([DITT FÖRETAG], [DIN BRANSCH] …).
        Mottagare, ton, mål och inklistrade texter är olika varje gång. */
     if (t.multi || val.length > 120 || /\n/.test(val)) return;
@@ -336,6 +358,73 @@
     if (f[FYLL.produkt]) S.svar.produkt = f[FYLL.produkt];
   })();
 
+  /* ── Kedjeläget (?mall=<slug>&steg=N) ── */
+  var K = null, KUNDKORT_MALL = 'kundkartlaggaren';
+  (function () {
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var slug = (q.get('mall') || '').trim().toLowerCase(), n = parseInt(q.get('steg'), 10) || 0;
+    if (!/^[a-z0-9-]{2,120}$/.test(slug) || n < 1) return;
+    var ch = null; try { ch = JSON.parse(sessionStorage.getItem('pg_chain') || 'null'); } catch (e) {}
+    var egen = ch && ch.mall === slug;
+    K = { mall: slug, steg: n, mallNamn: egen ? (ch.mallNamn || '') : '', laddad: false,
+      steps: egen && ch.steps ? ch.steps.map(function (x) { return { n: +x.steg, titel: x.titel || '' }; }) : [] };
+  })();
+  function kLas() { var st = las(KEDJA, {}) || {}; st.fyll = st.fyll || {}; st.mallar = st.mallar || {}; return st; }
+  function kMin(st) { st = st || kLas(); var m = st.mallar[K.mall] = st.mallar[K.mall] || {}; m.svar = m.svar || {}; m.fyll = m.fyll || {}; return m; }
+  function kIdx(n) { for (var i = 0; i < K.steps.length; i++) if (K.steps[i].n === n) return i; return -1; }
+  function kKlara() { try { return JSON.parse(localStorage.getItem('aim_mall_klar_' + K.mall) || '[]') || []; } catch (e) { return []; } }
+  function kMarkera(n) { var d = kKlara(); if (d.indexOf(n) === -1) { d.push(n); try { localStorage.setItem('aim_mall_klar_' + K.mall, JSON.stringify(d)); } catch (e) {} } }
+  function kTrack(ev, extra) { var o = { mall: K.mall, steg: K.steg, antal_steg: K.steps.length }; for (var k in extra) o[k] = extra[k]; track(ev, o); }
+  function arSvarNyckel(k) { return /fr[åa]n (steg|fas)\s*\d/i.test(k) || /kundkort/i.test(k); }
+  /* AI-svar från tidigare steg ("[KLISTRA IN … FRÅN STEG 1–2]"), kundkortet
+     från Kundkartläggaren och "[… FRÅN FAS 2]" från en annan mall i den fasen */
+  function kSvarFor(k) {
+    if (!K) return '';
+    var st = kLas(), mine = kMin(st);
+    var m = /fr[åa]n steg\s*(\d+(?:\s*(?:[–-]|,|och)\s*\d+)*)/i.exec(k);
+    if (m) {
+      var nums = [];
+      m[1].split(/\s*(?:,|och)\s*/i).forEach(function (del) {
+        var r = /^(\d+)\s*[–-]\s*(\d+)$/.exec(del);
+        if (r) { for (var x = +r[1]; x <= +r[2]; x++) nums.push(x); } else nums.push(parseInt(del, 10));
+      });
+      return nums.filter(function (x) { return x < K.steg && mine.svar[x]; }).map(function (x) { return mine.svar[x]; }).join('\n\n');
+    }
+    if (/kundkort/i.test(k) && K.mall !== KUNDKORT_MALL) {
+      var kk = (st.mallar[KUNDKORT_MALL] || {}).svar || {};
+      var sist = Object.keys(kk).map(Number).sort(function (a, b) { return b - a; })[0];
+      return sist ? kk[sist] : '';
+    }
+    var f = /fr[åa]n fas (\d+)/i.exec(k);
+    return f ? kFasSvar(st, +f[1], k) : '';
+  }
+  var SYNONYMER = { roi: 'nytta räkna', kalkyl: 'nytta räkna', affärsnytta: 'nytta', värdeproposition: 'värde', värdeerbjudande: 'värde', kundkort: 'kundkort', pitch: 'pitch', invändning: 'invänd' };
+  function kFasSvar(st, fas, k) {
+    var best = '', bestPt = -1, bestT = '';
+    var BORT = ['klistra', 'eller', 'svaret', 'svar', 'det', 'den', 'dem', 'från', 'och', 'som', 'din', 'ditt', 'dina'];
+    var stammar = [];
+    k.toLowerCase().replace(/fr[åa]n fas \d+.*$/, '').split(/[^a-zåäö]+/).filter(function (w) { return w.length >= 3 && BORT.indexOf(w) === -1; }).forEach(function (w) {
+      stammar.push(w.slice(0, 5));
+      Object.keys(SYNONYMER).forEach(function (x) { if (w.indexOf(x) === 0) stammar = stammar.concat(SYNONYMER[x].split(' ')); });
+    });
+    Object.keys(st.mallar).forEach(function (slug) {
+      var m = st.mallar[slug];
+      if (slug === K.mall || +m.fas !== fas || !m.svar) return;
+      Object.keys(m.svar).map(Number).forEach(function (n) {
+        var titel = ((m.titlar || {})[n] || '').toLowerCase();
+        var pt = stammar.filter(function (x) { return titel.indexOf(x) > -1; }).length * 100 + n;
+        if (pt > bestPt || (pt === bestPt && (m.t || '') > bestT)) { bestPt = pt; best = m.svar[n]; bestT = m.t || ''; }
+      });
+    });
+    return best;
+  }
+  function sattRoll(roll) {
+    if (!roll) return;
+    var alla = STEG.text[2].grupper[0].val.map(function (o) { return o.text; });
+    var hit = alla.filter(function (r) { return r.toLowerCase() === roll.toLowerCase(); })[0];
+    if (hit) S.svar.roll = hit; else S.svar.rollEgen = roll;
+  }
+
   /* URL-kontraktet */
   (function () {
     var p; try { p = new URLSearchParams(location.search); } catch (e) { return; }
@@ -353,11 +442,7 @@
       }
     } catch (e) {}
     if (tasktype) S.typ = TYP_ALIAS[tasktype] || tasktype;
-    if (roll) {
-      var alla = STEG.text[2].grupper[0].val.map(function (o) { return o.text; });
-      var hit = alla.filter(function (r) { return r.toLowerCase() === roll.toLowerCase(); })[0];
-      if (hit) S.svar.roll = hit; else S.svar.rollEgen = roll;
-    }
+    sattRoll(roll);
     if (ton) { var tk = Object.keys(TONE).filter(function (k) { return k.toLowerCase() === ton.toLowerCase(); })[0]; if (tk) S.svar.ton = tk; }
     if (malgrupp) S.svar.malgruppEgen = malgrupp;
     if (source) S.kalla = /^(biblioteket|mallar|artiklar)$/.test(source) ? source : 'lank';
@@ -365,9 +450,12 @@
       S.text = brief; S.mallNamn = namn;
       if (!S.typ) S.typ = gissaTyp(brief);
       S.steg = 'bygger';
-      forifyll();
-      if (ofyllda().length) { S.steg = 'fyll'; S.efterFyll = 'bygger'; }
+      var auto = forifyll();
+      if (K && auto) kTrack('pgny_kedja_autofyll', { antal: auto });
+      if (ofyllda().length || (K && phParse(S.text).length)) { S.steg = 'fyll'; S.efterFyll = 'bygger'; }
     }
+    /* Kedjeläget utan prompt i länken: hämta steget från mallsidan först */
+    if (K && !S.text) { S.steg = 'laddar'; S.kalla = 'mallar'; }
   })();
 
   /* ── Mallbiblioteket (/prompt-data) ── */
@@ -524,11 +612,30 @@
     '.pgn-fyll-prev mark{background:#fff1bf;color:var(--pg-navy);border-radius:4px;padding:0 3px;font-weight:700}',
     '.pgn-fyll-prev mark.is-ifylld{background:var(--pg-mint);color:#005042}',
     '.pgn-fyll-kvar{font-size:15px;font-weight:600;color:var(--pg-gra)}',
+    '.pgn h1[data-fokus]:focus,.pgn h2[data-fokus]:focus{outline:none}',
+    '.pgn-kedja{display:flex;flex-direction:column;gap:12px;background:var(--pg-navy);color:#fff;border-radius:22px;padding:18px 22px}',
+    '.pgn-kedja-topp{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}',
+    '.pgn-kedja-topp a{color:#4cd9c1;font-weight:600;font-size:15px;text-decoration:none}.pgn-kedja-topp a:hover{text-decoration:underline}',
+    '.pgn-kedja-topp span{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pg-gul)}',
+    '.pgn-kedja p.pgn-kedja-titel{margin:0;font-size:22px;line-height:1.25;font-weight:700;color:#fff}',
+    '.pgn-kedja-prickar{list-style:none;display:flex;gap:6px;margin:0;padding:0;flex-wrap:wrap}',
+    '.pgn-kedja-prickar button{width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}',
+    '.pgn-kedja-prickar button:hover{border-color:#4cd9c1}.pgn-kedja-prickar button.is-klar{background:#4cd9c1;border-color:#4cd9c1;color:var(--pg-navy)}',
+    '.pgn-kedja-prickar button[aria-current="step"]{background:var(--pg-gul);border-color:var(--pg-gul);color:var(--pg-navy);cursor:default}',
+    '.pgn-kedja-nav{display:flex;gap:10px;flex-wrap:wrap}',
+    '.pgn-kedja-nav button,.pgn-kedja-nav a{font:inherit;font-size:15px;font-weight:600;border-radius:12px;padding:10px 16px;min-height:44px;cursor:pointer;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;text-align:left;text-decoration:none;display:inline-flex;align-items:center;max-width:100%}',
+    '.pgn-kedja-nav button:hover{border-color:#4cd9c1}.pgn-kedja-nav .is-primar{background:var(--pg-gul);border-color:var(--pg-gul);color:var(--pg-navy)}',
+    '.pgn-kedja button:disabled{opacity:.5;cursor:wait}',
+    '.pgn-svar{display:flex;flex-direction:column;gap:10px;background:#fff;border:2px solid var(--pg-teal);border-radius:20px;padding:20px 22px}',
+    '.pgn-svar p{margin:0}.pgn-svar .pgn-svar-rubrik{font-size:20px;font-weight:700}.pgn-svar .pgn-svar-hjalp{font-size:15px;line-height:1.5;color:var(--pg-gra)}',
+    '.pgn-svar-sparat{font-size:14px;font-weight:600;color:var(--pg-teal-d);min-height:1.2em}',
+    '.pgn-svar .pgn-mork{align-self:flex-start;text-decoration:none;display:inline-flex;align-items:center}',
+    '.pgn-fyll-falt small.is-svar{color:var(--pg-teal-d);font-weight:600}',
     '@keyframes pgn-puls{0%,100%{opacity:.3}50%{opacity:1}}',
     '@keyframes pgn-inn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}',
     '@keyframes pgn-glow{0%,100%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 0 rgba(0,201,167,.55)}50%{box-shadow:0 10px 30px rgba(11,31,59,.25),0 0 0 12px rgba(0,201,167,0)}}',
     '@media (prefers-reduced-motion:reduce){[data-pgny] *{animation:none!important;transition:none!important}}',
-    '@media (max-width:767px){.pgn{gap:24px}.pgn-ta{font-size:18px;min-height:170px;padding:18px}.pgn-ingress{font-size:17px}.pgn-gul{width:100%;font-size:19px}.pgn-kortgrid{grid-template-columns:1fr 1fr}.pgn-kort{min-height:76px;padding:14px}.pgn-kort b{font-size:17px}.pgn-stegrad li span{display:none}.pgn-stegrad li{padding:6px}.pgn-bar{font-size:16px;padding:12px 18px;gap:12px}.pgn-bar-spar{width:120px}.pgn-prompt{padding:18px}.pgn-prompt pre{font-size:15px}.pgn-apan{flex-direction:column;gap:6px}}'
+    '@media (max-width:767px){.pgn-kedja{padding:16px;border-radius:18px}.pgn-kedja p.pgn-kedja-titel{font-size:19px}.pgn-kedja-nav>*{flex:1 1 100%;justify-content:center}.pgn{gap:24px}.pgn-ta{font-size:18px;min-height:170px;padding:18px}.pgn-ingress{font-size:17px}.pgn-gul{width:100%;font-size:19px}.pgn-kortgrid{grid-template-columns:1fr 1fr}.pgn-kort{min-height:76px;padding:14px}.pgn-kort b{font-size:17px}.pgn-stegrad li span{display:none}.pgn-stegrad li{padding:6px}.pgn-bar{font-size:16px;padding:12px 18px;gap:12px}.pgn-bar-spar{width:120px}.pgn-prompt{padding:18px}.pgn-prompt pre{font-size:15px}.pgn-apan{flex-direction:column;gap:6px}}'
   ].join('\n');
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
 
@@ -563,6 +670,7 @@
 
   /* ── Rendering ── */
   function stegrad() {
+    if (S.steg === 'laddar') return '';
     var medFyll = S.steg !== 'start' && phParse(S.text).length > 0;
     var idx = medFyll ? { start: 0, fyll: 1, opt: 2, bygger: 3, klar: 3 }[S.steg] : { start: 0, opt: 1, bygger: 2, klar: 2 }[S.steg];
     var namn = medFyll ? ['Uppgift', 'Fyll i', 'Finjustera · valfritt', 'Din prompt'] : ['Uppgift', 'Finjustera · valfritt', 'Din prompt'];
@@ -698,7 +806,8 @@
   function vyFyll() {
     var L = phParse(S.text), st = fyllStatus(L), tillKlarVy = S.efterFyll === 'klar';
     var h = '<section class="pgn-sek">';
-    h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.mallNamn ? 'Mall:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
+    /* I kedjeläget visar stegraden redan vilket steg det är */
+    if (!K) h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.mallNamn ? 'Mall:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
       '<button type="button" class="pgn-andra" data-tillstart>Ändra</button></div></div>';
     h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Fyll i det som är ditt</h1>' +
       '<p class="pgn-ingress">Det är de här luckorna som gör prompten till din. Står det kvar [NAMN] i prompten blir svaret lika generiskt. Prompten blir klar när allt är ifyllt.</p>' +
@@ -709,7 +818,10 @@
         '<label for="' + id + '"><i aria-hidden="true">✓</i>' + esc(t.label) + '</label>' +
         (t.multi ? '<textarea id="' + id + '" class="pgn-in" data-ph="' + i + '" placeholder="' + esc(t.hint) + '" required>' + esc(v) + '</textarea>'
                  : '<input id="' + id + '" class="pgn-in" data-ph="' + i + '" placeholder="' + esc(t.hint) + '" value="' + esc(v) + '" required>') +
-        (S.forifyllt[t.key] && ok ? '<small>Ifyllt från förra gången. Ändra om det behövs.</small>' : '') + '</div>';
+        (ok && S.forifyllt[t.key] === 'svar' ? '<small class="is-svar">✓ Hämtat från ditt sparade svar. Kolla gärna att det stämmer.</small>'
+          : ok && S.forifyllt[t.key] === 'mall' ? '<small>Ifyllt i ett tidigare steg. Ändra om det behövs.</small>'
+          : ok && S.forifyllt[t.key] ? '<small>Ifyllt från förra gången. Ändra om det behövs.</small>'
+          : !ok && K && arSvarNyckel(t.key) ? '<small>Klistra in AI:ns svar här. Tips: spara svaret i rutan under prompten i förra steget, så fylls det i av sig självt.</small>' : '') + '</div>';
     }).join('') + '</div>';
     h += '<div class="pgn-rad"><button type="button" class="pgn-gul" data-fyllklar aria-disabled="' + (st.kvar ? 'true' : 'false') + '">' + (tillKlarVy ? 'Uppdatera prompten →' : S.efterFyll === 'opt' ? 'Vidare →' : 'Bygg prompten →') + '</button>' +
       '<span class="pgn-fyll-kvar" data-fyllkvar>' + (st.kvar ? 'Fyll i ' + st.kvar + ' fält till' : 'Allt ifyllt!') + '</span></div>';
@@ -737,6 +849,107 @@
   function barFyllText(st) { return st.kvar ? 'Fyll i ' + st.kvar + ' fält till …' : 'Allt ifyllt, fortsätt'; }
   function barFyllPct(st) { return Math.round(10 + 50 * st.klar / Math.max(1, st.alla)); }
 
+  /* ── Kedjeläget: stegrad, svarsruta, laddning ── */
+  function kBarHtml() {
+    if (!K) return '';
+    var i = kIdx(K.steg), tot = K.steps.length, har = K.steps[i] || { titel: S.mallNamn || '' };
+    var fore = i > 0 ? K.steps[i - 1] : null, nasta = i > -1 && i < tot - 1 ? K.steps[i + 1] : null, klara = kKlara(), av = K.laddad ? '' : ' disabled';
+    var href = '/ai-mallar/' + encodeURIComponent(K.mall);
+    var h = '<nav class="pgn-kedja" aria-label="Steg i mallen" data-kedjabar><div class="pgn-kedja-topp"><a href="' + href + '">← ' + esc(K.mallNamn || 'Tillbaka till mallen') + '</a>' +
+      (tot ? '<span>Steg ' + K.steg + ' av ' + tot + '</span>' : '') + '</div>' +
+      '<p class="pgn-kedja-titel">' + esc(har.titel || 'Steg ' + K.steg) + '</p>';
+    if (tot > 1) h += '<ol class="pgn-kedja-prickar">' + K.steps.map(function (x) {
+      var ar = x.n === K.steg, kl = klara.indexOf(x.n) > -1;
+      return '<li><button type="button" data-kga="' + x.n + '" title="Steg ' + x.n + ': ' + esc(x.titel) + '"' + (ar ? ' aria-current="step"' : av) + ' class="' + (kl && !ar ? 'is-klar' : '') + '">' + (kl && !ar ? '✓' : x.n) + '</button></li>';
+    }).join('') + '</ol>';
+    if (fore || nasta || tot) {
+      h += '<div class="pgn-kedja-nav">' + (fore ? '<button type="button" data-kga="' + fore.n + '"' + av + '>← Steg ' + fore.n + '</button>' : '') +
+        (nasta ? '<button type="button" class="is-primar" data-kga="' + nasta.n + '"' + av + '>Nästa: ' + esc(nasta.titel) + ' →</button>'
+          : tot ? '<a class="is-primar" href="' + href + '">Klart! Tillbaka till mallen →</a>' : '') + '</div>';
+    }
+    return h + '</nav>';
+  }
+  function kSvarHtml() {
+    var i = kIdx(K.steg), nasta = i > -1 && i < K.steps.length - 1 ? K.steps[i + 1] : null, sparat = kMin().svar[K.steg] || '';
+    return '<div class="pgn-svar"><p class="pgn-svar-rubrik">Har du fått svaret från AI:n?</p>' +
+      '<p class="pgn-svar-hjalp">' + (nasta ? 'Klistra in det här. Nästa steg som behöver svaret från steg ' + K.steg + ' fylls då i av sig självt.' : 'Klistra in det här, så fylls det i av sig självt i nästa mall som behöver det.') + '</p>' +
+      '<label for="pgn-kedjasvar" class="pgn-sr">AI:ns svar i steg ' + K.steg + '</label>' +
+      '<textarea id="pgn-kedjasvar" class="pgn-in" data-kedjasvar placeholder="Klistra in AI:ns svar …">' + esc(sparat) + '</textarea>' +
+      '<span class="pgn-svar-sparat" data-kedjasparat aria-live="polite">' + (sparat ? '✓ Sparat' : '') + '</span>' +
+      (nasta ? '<button type="button" class="pgn-mork" data-kga="' + nasta.n + '"' + (K.laddad ? '' : ' disabled') + '>Nästa steg: ' + esc(nasta.titel) + ' →</button>'
+        : K.steps.length ? '<a class="pgn-mork" href="/ai-mallar/' + encodeURIComponent(K.mall) + '">Klart! Tillbaka till mallen →</a>' : '') + '</div>';
+  }
+  function vyLaddar() {
+    return '<section class="pgn-sek"><h1 tabindex="-1" data-fokus>Hämtar steg ' + K.steg + ' i mallen …</h1><ul class="pgn-bygg" aria-live="polite"><li>' + PRICKAR + '<span>Apan letar fram prompten</span></li></ul></section>';
+  }
+  /* Byt till steg n utan sidladdning */
+  function kVisaSteg(n, forsta) {
+    var x = K.steps[kIdx(n)];
+    if (!x || !x.prompt) return;
+    clearTimeout(timer); timer = null;
+    if (!forsta) kTrack('pgny_kedja_nasta', { till: n });
+    K.steg = n;
+    try { history.replaceState(null, '', location.pathname + '?source=mallar&mall=' + encodeURIComponent(K.mall) + '&steg=' + n); } catch (e) {}
+    try { sessionStorage.setItem('pg_chain', JSON.stringify({ mall: K.mall, mallNamn: K.mallNamn, steg: n, total: K.steps.length, steps: K.steps.map(function (y) { return { steg: y.n, titel: y.titel }; }) })); } catch (e) {}
+    S.text = x.prompt; S.mallNamn = x.titel; S.typ = 'skriva'; S.raw = ''; S.kalla = 'mallar';
+    S.fyll = {}; S.forifyllt = {}; S.kopierad = false; S.fin = false; S.optIdx = 0;
+    delete S.svar.roll; delete S.svar.rollEgen; delete S.svar.malgruppEgen;
+    sattRoll(x.roll); if (x.malgrupp) S.svar.malgruppEgen = x.malgrupp;
+    kTrack('pgny_kedja_steg', {});
+    var auto = forifyll();
+    if (auto) kTrack('pgny_kedja_autofyll', { antal: auto });
+    /* Har steget luckor visas Fyll i alltid, även när allt redan fyllts i
+       från tidigare steg, så att man ser och kan kolla det som hämtats */
+    if (phParse(S.text).length) tillFyll('bygger'); else tillBygg();
+  }
+  /* Hämta mallsidan: stegens titel, prompt, roll och målgrupp */
+  function kHamta() {
+    fetch(location.origin + '/ai-mallar/' + encodeURIComponent(K.mall), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (html) {
+        if (!html) return;
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        function t(el, sel) { var e = el.querySelector(sel); return e && !e.classList.contains('w-dyn-bind-empty') ? e.textContent.trim() : ''; }
+        var sedd = {};
+        var steps = [].slice.call(doc.querySelectorAll('[data-mall-v2="steg"] .stegkort')).map(function (c) {
+          var pe = c.querySelector('.stegkort-prompt');
+          return { n: parseInt(t(c, '.stegkort-num'), 10) || 0, titel: t(c, '.stegkort-titel'),
+            prompt: pe && !pe.classList.contains('w-dyn-bind-empty') ? pe.textContent.replace(/^\s+|\s+$/g, '') : '',
+            roll: t(c, '[data-stegkort="roll"]'), malgrupp: t(c, '[data-stegkort="malgrupp"]') };
+        }).filter(function (x) { if (!(x.n > 0 && x.titel) || sedd[x.n]) return false; return (sedd[x.n] = true); })
+          .sort(function (a, b) { return a.n - b.n; });
+        if (!steps.length) return;
+        /* Fas + stegrubriker sparas så att senare mallar hittar rätt svar ("från fas 2") */
+        var st = kLas(), mine = kMin(st), fasEl = doc.querySelector('[data-mall-meta="fas"]'), fas = fasEl ? parseInt(fasEl.textContent, 10) || 0 : 0;
+        if (fas) mine.fas = fas;
+        mine.titlar = {}; steps.forEach(function (x) { mine.titlar[x.n] = x.titel; });
+        spara(KEDJA, st);
+        var h1 = doc.querySelector('h1'), namn = h1 ? h1.textContent.trim() : '';
+        K.mallNamn = (namn.split(/\s*[:—–]\s+|\s+-\s+/)[0] || namn || K.mallNamn).trim();
+        K.steps = steps;
+      })
+      .catch(function () {})
+      .then(function () {
+        K.laddad = K.steps.some(function (x) { return x.prompt; });
+        if (!K.laddad) {
+          /* Okänd mall: vanlig generator (med prompten från länken om den finns) */
+          K = null;
+          if (S.steg === 'laddar') S.steg = 'start';
+          rita(); return;
+        }
+        if (S.steg === 'laddar') {
+          var x = K.steps[kIdx(K.steg)];
+          if (x && x.prompt) kVisaSteg(K.steg, true); else { K.steg = K.steps[0].n; kVisaSteg(K.steg, true); }
+          return;
+        }
+        /* Rita bara om stegraden (och svarsrutan) så att fokus i fälten finns kvar */
+        var bar = root.querySelector('[data-kedjabar]');
+        if (bar) bar.outerHTML = kBarHtml();
+        var sv = root.querySelector('.pgn-svar');
+        if (sv && !(document.activeElement && document.activeElement.hasAttribute && document.activeElement.hasAttribute('data-kedjasvar'))) sv.outerHTML = kSvarHtml();
+      });
+  }
+
   var RADER = ['Apan läser din uppgift', 'Väljer rätt roll åt AI:n', 'Lägger till läsare, ton och underlag', 'Formar hur svaret ska se ut'];
   function vyBygger() {
     return '<section class="pgn-sek"><h1 tabindex="-1" data-fokus>Apan bygger din prompt …</h1><ul class="pgn-bygg" aria-live="polite">' +
@@ -751,14 +964,15 @@
     h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Din prompt är klar!</h1><p class="pgn-ingress">Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.</p></div>';
     h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.raw ? 'Från dina senaste prompter' : S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span>' + prompt.length + ' tecken</span></div><pre data-prompt>' + esc(prompt) + '</pre></div>';
     h += '<div class="pgn-rad"><button type="button" class="pgn-gul" data-kopiera>' + (S.kopierad ? 'Kopierad ✓' : 'Kopiera prompt') + '</button>' +
-      '<button type="button" class="pgn-ram" data-borjaom>Gör en ny</button></div>';
+      '<button type="button" class="pgn-ram" data-borjaom>' + (K ? 'Lämna mallen' : 'Gör en ny') + '</button></div>';
+    if (K) h += kSvarHtml();
     var kort = prompt.length <= 6000;
     h += '<div class="pgn-ai"><span>Öppna direkt i:</span>' +
       '<a href="https://chatgpt.com/' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="chatgpt">ChatGPT ↗</a>' +
       '<a href="https://claude.ai/new' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="claude">Claude ↗</a>' +
       '<a href="https://gemini.google.com/app" target="_blank" rel="noopener" data-ai="gemini">Gemini ↗</a>' +
       '<a href="https://m365.cloud.microsoft/chat" target="_blank" rel="noopener" data-ai="copilot">Copilot ↗</a></div>';
-    h += '<div class="pgn-projekt"><div><p class="pgn-p-rubrik">Gör du sånt här ofta?</p>' +
+    if (!K) h += '<div class="pgn-projekt"><div><p class="pgn-p-rubrik">Gör du sånt här ofta?</p>' +
       '<p class="pgn-p-text">Spara ditt företag, din ton och dina regler som ett projekt i din AI-tjänst. Då slipper du skriva det varje gång.</p>' +
       (pk ? '' : '<div class="pgn-p-val">' + PAKET.map(function (p) { return '<a href="/projektpaket/' + p.slug + '?source=generator" data-projekt="' + p.slug + '">' + esc(p.namn) + '</a>'; }).join('') + '</div>') +
       '</div>' + (pk ? '<a class="pgn-p-knapp" href="/projektpaket/' + pk.slug + '?source=generator" data-projekt="' + pk.slug + '">Projektmall: ' + esc(pk.namn) + ' →</a>' : '') + '</div>';
@@ -785,7 +999,7 @@
   }
 
   function barHtml() {
-    if (S.steg === 'start') return '';
+    if (S.steg === 'start' || S.steg === 'laddar') return '';
     var L = lista(), klar = S.steg === 'klar';
     if (S.steg === 'fyll') {
       var fs = fyllStatus(phParse(S.text));
@@ -803,8 +1017,8 @@
 
   var forraSteg = null;
   function rita() {
-    var vy = S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
-    root.innerHTML = '<div class="pgn"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + vy + '</div>' + barHtml();
+    var vy = S.steg === 'laddar' ? vyLaddar() : S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
+    root.innerHTML = '<div class="pgn"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + kBarHtml() + vy + '</div>' + barHtml();
     if (S.steg === 'start') { ritaTraffar(); }
     var nyckel = S.steg + ':' + S.optIdx;
     if (forraSteg !== null && forraSteg !== nyckel) {
@@ -886,13 +1100,31 @@
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(klart, function () { fallback(); klart(); });
     else { fallback(); klart(); }
     if (!S.raw) sparaSenaste(text, S.typ, S.mallNamn);
+    if (K && !S.raw) {
+      kMarkera(K.steg);
+      if (K.steps.length && kIdx(K.steg) === K.steps.length - 1) kTrack('pgny_kedja_klar', {});
+    }
     track('pgny_copy', { tecken: text.length, steg_ifyllda: lista().filter(stegGjort).length, fran_senaste: S.raw ? 1 : 0 });
   }
 
   /* ── Händelser ── */
+  var svarTimer = null, kSvarTrackat = {};
   root.addEventListener('input', function (e) {
     var el = e.target;
     if (el.hasAttribute('data-text')) { S.text = el.value; S.mallNamn = ''; if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
+    if (el.hasAttribute('data-kedjasvar') && K) {
+      clearTimeout(svarTimer);
+      var lab = root.querySelector('[data-kedjasparat]'); if (lab) lab.textContent = '';
+      svarTimer = setTimeout(function () {
+        var v = el.value.trim(), st = kLas(), mine = kMin(st);
+        if (v) mine.svar[K.steg] = v; else delete mine.svar[K.steg];
+        mine.t = new Date().toISOString();
+        spara(KEDJA, st);
+        if (lab) lab.textContent = v ? '✓ Sparat' : '';
+        if (v && !kSvarTrackat[K.steg]) { kSvarTrackat[K.steg] = true; kTrack('pgny_kedja_svar', {}); }
+      }, 400);
+      return;
+    }
     if (el.hasAttribute('data-ph')) {
       var t5 = phParse(S.text)[+el.getAttribute('data-ph')]; if (!t5) return;
       S.fyll[t5.key] = el.value; delete S.forifyllt[t5.key];
@@ -959,6 +1191,12 @@
       track('pgny_mall', { mall: p.slug || p.namn });
       tillBygg(); return;
     }
+    if (b.hasAttribute('data-kga') && K) {
+      /* Spara svaret direkt om man klickar vidare inom 400 ms */
+      var tsv = root.querySelector('[data-kedjasvar]');
+      if (tsv) { clearTimeout(svarTimer); var st2 = kLas(), mi2 = kMin(st2), vv = tsv.value.trim(); if (vv) mi2.svar[K.steg] = vv; else delete mi2.svar[K.steg]; mi2.t = new Date().toISOString(); spara(KEDJA, st2); }
+      kVisaSteg(+b.getAttribute('data-kga')); return;
+    }
     if (b.hasAttribute('data-fyllklar')) { fyllKlar(); return; }
     if (b.hasAttribute('data-tillfyll')) { track('pgny_andra', { vad: 'fyll' }); tillFyll('klar'); return; }
     if (b.hasAttribute('data-typvaxla')) { S.typOppen = !S.typOppen; rita(); return; }
@@ -1010,6 +1248,7 @@
       var bevara = { foretag: S.svar.foretag, produkt: S.svar.produkt };
       S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = false; S.fin = false; S.sa = false; S.kalla = 'scratch'; S.raw = ''; S.senVisa = -1; S.senRensa = false; S.senOppen = false; S.fyll = {}; S.forifyllt = {};
       if (bevara.foretag) S.svar.foretag = bevara.foretag; if (bevara.produkt) S.svar.produkt = bevara.produkt;
+      if (K) { K = null; try { history.replaceState(null, '', location.pathname); sessionStorage.removeItem('pg_chain'); } catch (e2) {} }
       track('pgny_ny', {}); rita(); var t4 = root.querySelector('[data-text]'); if (t4) t4.focus(); return;
     }
     if (b.hasAttribute('data-vaxla')) { var w = b.getAttribute('data-vaxla'); S[w] = !S[w]; rita(); return; }
@@ -1024,6 +1263,7 @@
     else { track('pgny_visa', { fran_steg: (lista()[S.optIdx] || {}).kort || '' }); tillBygg(); }
   });
 
-  track('pgny_open', { med_brief: S.text ? 1 : 0, platshallare: phParse(S.text).length });
+  track('pgny_open', { med_brief: S.text ? 1 : 0, platshallare: phParse(S.text).length, kedja: K ? 1 : 0 });
   rita();
+  if (K) { if (S.text) kTrack('pgny_kedja_steg', { forsta: 1 }); kHamta(); }
 })();
