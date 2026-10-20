@@ -240,7 +240,8 @@
   /* Mallar som en samlingssida lånar från en annan roll (huvudrollen är en annan, så de finns inte i listan) */
   var LANADE = {
     smaforetagare: [{ fas: 3, namn: 'Kundkartläggaren', slug: 'kundkartlaggaren' }],
-    nyborjare: [{ fas: 4, namn: 'Brand Voice-byggaren', slug: 'brand-voice-byggaren' }]
+    nyborjare: [{ fas: 4, namn: 'Brand Voice-byggaren', slug: 'brand-voice-byggaren' }],
+    marknadsforare: [{ fas: 1, namn: 'Brand Voice-byggaren', slug: 'brand-voice-byggaren' }]
   };
   /* Delar upp en rich text i sektioner per H2: [{h, nodes}] */
   function sections(root) {
