@@ -227,15 +227,19 @@
     saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
     marknadsforare: '/ai-for-marknadsforing-sociala-medier',
-    nyborjare: '/ai-for-nyborjare'
+    nyborjare: '/ai-for-nyborjare',
+    chef: '/ai-for-chefer'
   };
   function resanNamn(roll) {
     if (!roll) return '';
     if (SAMLING[roll]) return SAMLING[roll];
+    if (RESA[roll]) return RESA[roll];
     return (roll.slice(-1) === 'e' ? roll.slice(0, -1) : roll) + 'resan';
   }
   /* Samlingssidor (pillar-typ Samlingssida) har delar i stället för faser */
   var SAMLING = { 'Småföretagare': 'Din AI-avdelning' };
+  /* Resor vars namn inte kan härledas ur rollnamnet */
+  var RESA = { 'Chef och teamledare': 'Chefsresan' };
   function enhet(roll) { return SAMLING[roll] ? 'del' : 'fas'; }
   /* Mallar som en samlingssida lånar från en annan roll (huvudrollen är en annan, så de finns inte i listan) */
   var LANADE = {
