@@ -264,10 +264,10 @@
       filnot: ''
     },
     gemini: {
-      namn: 'Gemini', term: 'Gem', ditt: 'din Gem', var: 'Gemini Gem', url: 'https://gemini.google.com/',
-      termText: 'I Gemini heter det Gem. Gems är gratis för alla.',
-      steg: ['Öppna Gemini och gå till Gems i sidomenyn.', 'Klicka på Ny Gem och ge den ett namn, t.ex. ”' + NAMN + '”.', 'Klistra in instruktionerna i fältet Instruktioner.', 'Spara. Sedan startar du din Gem från sidomenyn varje gång.'],
-      tips: 'Filerna lägger du till som kunskap i din Gem.',
+      namn: 'Gemini', term: 'skill', ditt: 'din skill', var: 'Gemini-skill', url: 'https://gemini.google.com/',
+      termText: 'I Gemini heter det skill. Gems blir skills i november 2026. Det kräver ett personligt Google-konto och att du är över 18.',
+      steg: ['Öppna gemini.google.com och gå till Inställningar och Skills.', 'Klicka på Skapa manuellt och ge skillen ett namn med små bokstäver och bindestreck, t.ex. ”' + (P.slug || 'mitt-projekt') + '”.', 'Skriv en kort beskrivning av när den ska användas, t.ex. ”' + NAMN + '”, och klistra in instruktionerna.', 'Klicka på Skapa. Sedan startar du den genom att skriva / i chatten och välja skillen.'],
+      tips: 'Filerna lägger du till så här: ladda ner skillen som zip under Skill-åtgärder, lägg filerna i mappen och välj Ersätt skill. Det funkar på webben och i Mac-appen.',
       filnot: ''
     },
     copilot: {
@@ -629,7 +629,7 @@
     $('[data-pp="kortrubrik"]').textContent = 'Instruktioner för ' + t.ditt + ' i ' + t.namn;
     var pil = $('.pp-pil');
     if (pil) pil.textContent = 'Det här klistrar du in i ' + t.ditt + ' i ' + t.namn;
-    $('[data-pp="s3titel"]').textContent = 'Skapa ' + (t.term === 'projekt' ? 'projektet' : t.term === 'Gem' ? 'din Gem' : 'agenten') + ' i ' + t.namn + ' och klistra in';
+    $('[data-pp="s3titel"]').textContent = 'Skapa ' + (t.term === 'projekt' ? 'projektet' : t.term === 'skill' ? 'din skill' : 'agenten') + ' i ' + t.namn + ' och klistra in';
     $('[data-pp="s3text"]').textContent = 'Öppna ' + t.namn + ' i en ny flik och följ stegen. Kom tillbaka hit när du är klar.';
     $('[data-pp="guide"]').innerHTML = t.steg.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
     $('[data-pp="tips"]').textContent = 'Bra att veta: ' + t.tips;
