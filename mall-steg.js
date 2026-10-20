@@ -35,6 +35,9 @@
     '[data-mall-resa]{display:none!important}',
     '.mall-projektpuff{margin:32px 0}',
     '.mall-projektpuff .paket-puff-rubrik{margin-top:0}',
+    '.mall-puff-knappar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex-shrink:0}',
+    '.mall-projektpuff .paket-puff-btn.is-ljus{background:transparent!important;color:inherit!important;box-shadow:inset 0 0 0 2px currentColor}',
+    '@media (max-width:767px){.mall-puff-knappar{width:100%}.mall-puff-knappar .paket-puff-btn{flex:1 1 100%;text-align:center}}',
     '.mall-resa{background:#0b1f3b;color:#f5f6fa;border-radius:16px;padding:20px;margin-top:20px}',
     '.mall-resa-label{margin:0 0 12px!important;font-size:12px!important;letter-spacing:.04em;text-transform:uppercase;color:#4cd9c1!important;font-weight:600}',
     '.mall-resa ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}',
@@ -128,27 +131,49 @@
     '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
 
-  /* ── Puff för projektmallen (AI-Mallar.projektmall → Projektpaket) ── */
+  /* ── Puff "Nästa steg": AI-skill (AI-Mallar.ai-skill → AI-skills) och/eller
+        projektmall (AI-Mallar.projektmall → Projektpaket). Bara en ruta per sida;
+        finns båda blir det två val i samma ruta. ── */
   function projektPuff(efter) {
     var namn = metaText('pm-namn'), slug = metaText('pm-slug'), forvem = metaText('pm-forvem');
-    if (!namn || !slug || !efter || !efter.parentNode || document.querySelector('[data-mall-projektpuff]')) return;
+    var skNamn = metaText('sk-namn'), skSlug = metaText('sk-slug');
+    var harPaket = !!(namn && slug), harSkill = !!(skNamn && skSlug);
+    if ((!harPaket && !harSkill) || !efter || !efter.parentNode || document.querySelector('[data-mall-projektpuff]')) return;
     var box = document.createElement('div');
-    box.className = 'paket-puff mall-projektpuff';
-    box.setAttribute('data-mall-projektpuff', slug);
-    var url = '/projektpaket/' + encodeURIComponent(slug) + '?source=mall&mall=' + encodeURIComponent(mallSlug);
+    box.className = 'paket-puff mall-projektpuff' + (harPaket && harSkill ? ' is-tva' : '');
+    box.setAttribute('data-mall-projektpuff', harPaket ? slug : skSlug);
     box.innerHTML = '<div class="paket-puff-text">' +
-      '<div class="paket-puff-tagg">Projektmall · steg för steg</div>' +
+      '<div class="paket-puff-tagg"></div>' +
       '<p class="paket-puff-rubrik"></p>' +
       '<p class="paket-puff-p"></p></div>' +
-      '<a class="paket-puff-btn"></a>';
-    box.querySelector('.paket-puff-rubrik').textContent = 'Gör du det här ofta? Gör det till ett eget AI-projekt';
-    box.querySelector('.paket-puff-p').textContent = 'Med projektmallen ' + namn + ' klistrar du in instruktionerna en gång i ChatGPT, Claude, Gemini eller Copilot. Sen vet AI:n vem du är i varje chatt, och prompterna här blir kortare. ' + (forvem ? forvem + ' ' : '') + 'Tar ungefär tio minuter.';
-    var a = box.querySelector('.paket-puff-btn');
-    a.href = url;
-    a.textContent = 'Visa projektmallen →';
-    a.addEventListener('click', function () { track('paket_puff_klick', { paket: slug, kalla: 'mall' }); });
+      '<div class="mall-puff-knappar"></div>';
+    var tagg = box.querySelector('.paket-puff-tagg'), rub = box.querySelector('.paket-puff-rubrik'), txt = box.querySelector('.paket-puff-p');
+    if (harSkill && harPaket) {
+      tagg.textContent = 'AI-skill eller projektmall · gratis';
+      rub.textContent = 'Gör du det här ofta? Låt AI:n komma ihåg hur';
+      txt.textContent = 'Spara metoden som AI-skillen ' + skNamn + ', så följer AI:n receptet själv i alla chattar. Vill du att den också ska känna till ditt företag och dina filer? Ta projektmallen ' + namn + '. ' + (forvem ? forvem + ' ' : '') + 'Båda funkar i ChatGPT, Claude, Gemini och Copilot.';
+    } else if (harSkill) {
+      tagg.textContent = 'AI-skill · klar på 5 minuter';
+      rub.textContent = 'Gör du det här ofta? Spara det som en AI-skill';
+      txt.textContent = 'Med AI-skillen ' + skNamn + ' slipper du klistra in samma regler varje gång. Du installerar den en gång i ChatGPT, Claude, Gemini eller Copilot, sedan följer AI:n receptet själv i alla chattar.';
+    } else {
+      tagg.textContent = 'Projektmall · steg för steg';
+      rub.textContent = 'Gör du det här ofta? Gör det till ett eget AI-projekt';
+      txt.textContent = 'Med projektmallen ' + namn + ' klistrar du in instruktionerna en gång i ChatGPT, Claude, Gemini eller Copilot. Sen vet AI:n vem du är i varje chatt, och prompterna här blir kortare. ' + (forvem ? forvem + ' ' : '') + 'Tar ungefär tio minuter.';
+    }
+    var knappar = box.querySelector('.mall-puff-knappar');
+    function knapp(href, text, ljus, onclick) {
+      var a = document.createElement('a');
+      a.className = 'paket-puff-btn' + (ljus ? ' is-ljus' : '');
+      a.href = href; a.textContent = text;
+      a.addEventListener('click', onclick);
+      knappar.appendChild(a);
+    }
+    if (harSkill) knapp('/ai-skills/' + encodeURIComponent(skSlug) + '?source=mall&mall=' + encodeURIComponent(mallSlug), 'Spara som AI-skill →', false, function () { track('skill_puff_klick', { skill: skSlug, kalla: 'mall' }); });
+    if (harPaket) knapp('/projektpaket/' + encodeURIComponent(slug) + '?source=mall&mall=' + encodeURIComponent(mallSlug), harSkill ? 'Visa projektmallen' : 'Visa projektmallen →', harSkill, function () { track('paket_puff_klick', { paket: slug, kalla: 'mall' }); });
     efter.parentNode.insertBefore(box, efter.nextSibling);
-    track('paket_puff_visa', { paket: slug, kalla: 'mall' });
+    if (harSkill) track('skill_puff_visa', { skill: skSlug, kalla: 'mall' });
+    if (harPaket) track('paket_puff_visa', { paket: slug, kalla: 'mall' });
   }
 
   function track(event, params) {
