@@ -1265,5 +1265,5 @@
 
   track('pgny_open', { med_brief: S.text ? 1 : 0, platshallare: phParse(S.text).length, kedja: K ? 1 : 0 });
   rita();
-  if (K) { if (S.text) kTrack('pgny_kedja_steg', { forsta: 1 }); kHamta(); }
+  if (K) { if (S.text) kTrack('pgny_kedja_steg', {}); kHamta(); }
 })();
