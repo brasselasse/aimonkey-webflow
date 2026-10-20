@@ -101,7 +101,8 @@
   var PILLAR_URL = {
     saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
-    marknadsforare: '/ai-for-marknadsforing-sociala-medier'
+    marknadsforare: '/ai-for-marknadsforing-sociala-medier',
+    nyborjare: '/ai-for-nyborjare'
   };
 
   var slug = location.pathname.split('/').filter(Boolean).pop() || '';

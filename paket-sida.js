@@ -279,7 +279,7 @@
     }
   };
   var ORDNING = ['chatgpt', 'claude', 'gemini', 'copilot'];
-  var PILLAR_URL = { saljare: '/ai-for-saljare', smaforetagare: '/ai-for-smaforetagare', marknadsforare: '/ai-for-marknadsforing-sociala-medier' };
+  var PILLAR_URL = { saljare: '/ai-for-saljare', smaforetagare: '/ai-for-smaforetagare', marknadsforare: '/ai-for-marknadsforing-sociala-medier', nyborjare: '/ai-for-nyborjare' };
   var TON = { 'Vänlig': 'varm och personlig', 'Professionell': 'saklig och förtroendeingivande', 'Direkt': 'kort och rakt på sak', 'Kreativ': 'lekfull, med glimt i ögat', 'Övertygande': 'får läsaren att vilja agera', 'Akademisk': 'noggrann och resonerande' };
   var GDPR_URL = '/artiklar/ai-och-gdpr-vad-du-maste-veta-som-foretagare';
   var VALJ_URL = '/artiklar/chatgpt-vs-claude-vs-gemini-2026';

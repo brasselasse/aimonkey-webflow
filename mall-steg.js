@@ -226,7 +226,8 @@
   var PILLAR_URL = {
     saljare: '/ai-for-saljare',
     smaforetagare: '/ai-for-smaforetagare',
-    marknadsforare: '/ai-for-marknadsforing-sociala-medier'
+    marknadsforare: '/ai-for-marknadsforing-sociala-medier',
+    nyborjare: '/ai-for-nyborjare'
   };
   function resanNamn(roll) {
     if (!roll) return '';
@@ -237,7 +238,10 @@
   var SAMLING = { 'Småföretagare': 'Din AI-avdelning' };
   function enhet(roll) { return SAMLING[roll] ? 'del' : 'fas'; }
   /* Mallar som en samlingssida lånar från en annan roll (huvudrollen är en annan, så de finns inte i listan) */
-  var LANADE = { smaforetagare: [{ fas: 3, namn: 'Kundkartläggaren', slug: 'kundkartlaggaren' }] };
+  var LANADE = {
+    smaforetagare: [{ fas: 3, namn: 'Kundkartläggaren', slug: 'kundkartlaggaren' }],
+    nyborjare: [{ fas: 4, namn: 'Brand Voice-byggaren', slug: 'brand-voice-byggaren' }]
+  };
   /* Delar upp en rich text i sektioner per H2: [{h, nodes}] */
   function sections(root) {
     var out = [], cur = { h: null, nodes: [] };
