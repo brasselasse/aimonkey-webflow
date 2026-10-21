@@ -43,6 +43,8 @@
     '.sk-etikett{display:inline-flex;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#005042;background:#e5f9f6;border-radius:999px;padding:6px 12px}',
     '.sk-pillar{font-size:14px;color:#00806b;text-decoration:none}',
     '.sk-pillar:hover{text-decoration:underline}',
+    '.sk-alla{font-size:14px;font-weight:600;color:#0b1f3b;text-decoration:none}',
+    '.sk-alla:hover{text-decoration:underline}',
     '[data-skill="namn"]{margin:0 0 12px}',
     '[data-skill="forvem"]{margin:0 0 16px;color:#3d4a5c;max-width:680px}',
     '.sk-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px;padding:0;list-style:none}',
@@ -434,7 +436,8 @@
 
   var topp = document.createElement('div');
   topp.className = 'sk-overst';
-  if (K.etikett) topp.innerHTML = '<span class="sk-etikett">' + esc(K.etikett) + '</span>';
+  topp.innerHTML = '<a class="sk-alla" href="/ai-skills">← Alla AI-skills</a>';
+  if (K.etikett) topp.innerHTML += '<span class="sk-etikett">' + esc(K.etikett) + '</span>';
   topp.innerHTML += '<a class="sk-pillar" href="' + ARTIKEL_URL + '">Vad är en AI-skill? →</a>';
   if (namnEl && !namnEl.querySelector('.sk-h1-typ')) {
     var typ = document.createElement('span');
@@ -443,6 +446,10 @@
     namnEl.insertBefore(typ, namnEl.firstChild);
   }
   namnEl.parentNode.insertBefore(topp, namnEl);
+  topp.addEventListener('click', function (e) {
+    var a = e.target.closest('a');
+    if (a && a.classList.contains('sk-alla')) track('skill_mer', { till: '/ai-skills', plats: 'topp' });
+  });
 
   var root = document.createElement('div');
   root.className = 'sk-root';
@@ -543,6 +550,7 @@
         (K.mallSlug ? '<a class="sk-merlank" data-mall="' + esc(K.mallSlug) + '" href="/ai-mallar/' + encodeURIComponent(K.mallSlug) + '"><strong>Gör det steg för steg först</strong><span>' + esc(kort(K.mallNamn) || 'Hela mallen') + ': stegflödet skillen bygger på →</span></a>' : '') +
         '<a class="sk-merlank" href="/projektpaket/smaforetagets-ai-avdelning?source=skill&amp;skill=' + encodeURIComponent(K.slug) + '"><strong>Samla det i ett projekt</strong><span>Projektmallar för ChatGPT, Claude, Gemini och Copilot →</span></a>' +
         '<a class="sk-merlank" href="' + ARTIKEL_URL + '"><strong>Prompt, skill eller projekt?</strong><span>Så väljer du rätt verktyg →</span></a>' +
+        '<a class="sk-merlank" href="/ai-skills"><strong>Fler färdiga AI-skills</strong><span>Se alla skills på svenska →</span></a>' +
       '</div>' +
     '</section>';
 
