@@ -468,6 +468,14 @@
   }
   var exIn = K.exIn ? K.exIn.split('\n')[0] : 'Kan du hjälpa mig med det här?';
   if (exIn.length > 140) exIn = exIn.slice(0, 137).replace(/\s+\S*$/, '') + ' …';
+  /* Utan skill: de första reglerna, som man annars skulle skriva varje gång */
+  var utanText = K.regler.map(function (r) {
+    var aldrig = /^aldrig\s*:/i.test(r);
+    var t = r.replace(/^(alltid|aldrig)\s*:\s*/i, '').replace(/[.]$/, '');
+    t = t.charAt(0).toLowerCase() + t.slice(1);
+    return aldrig ? 'aldrig ' + t : t;
+  }).filter(function (t) { return t.length <= 65; }).slice(0, 3).join(', ');
+  utanText = utanText ? utanText.charAt(0).toUpperCase() + utanText.slice(1) : 'Skriv kort, i vår ton, aldrig några löften';
 
   root.innerHTML =
     '<ul class="sk-chips"><li>Klar på 5 minuter</li><li>Gratis</li><li>Funkar i Claude, ChatGPT, Gemini och Copilot</li></ul>' +
@@ -477,7 +485,7 @@
       '<p>En <strong>AI-skill</strong> är ett sparat arbetssätt för en uppgift du gör ofta. Du installerar den en gång i din AI-tjänst, sedan finns den i alla chattar. AI:n märker själv när skillen behövs och följer receptet, så du slipper klistra in samma regler varje gång. Här anpassar du skillen, laddar ner den och installerar den.</p>' +
       '<div class="sk-jamfor">' +
         '<div class="sk-chatt is-utan"><span class="sk-chatt-rubrik">Utan skill</span>' +
-          '<div class="sk-bubbla">Skriv kort, i vår ton, aldrig några löften, max 80 ord, nämn något konkret … Och så här är det: ' + esc(exIn) + '</div>' +
+          '<div class="sk-bubbla">' + esc(utanText) + ' … Och så här är det: ' + esc(exIn) + '</div>' +
           '<small>Samma regler. Varje gång.</small></div>' +
         '<div class="sk-chatt is-med"><span class="sk-chatt-rubrik">Med skill</span>' +
           '<div class="sk-bubbla">' + esc(exIn) + '</div>' +
