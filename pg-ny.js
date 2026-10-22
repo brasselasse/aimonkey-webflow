@@ -691,8 +691,8 @@
     '.pgn-fyll-kvar{font-size:15px;font-weight:600;color:var(--pg-gra)}',
     '.pgn h1[data-fokus]:focus,.pgn h2[data-fokus]:focus{outline:none}',
     /* Live-preview och Justera (2026-10-22) */
-    '.pgn-rad{display:block;min-height:1.6em;padding:0 6px;margin:0 -6px;border-radius:6px;transition:background .6s,color .6s}',
-    '.pgn-rad.is-ny{background:#c9f3ea;color:var(--pg-navy)}',
+    '.pgn-pr{display:block;min-height:1.6em;padding:0 6px;margin:0 -6px;border-radius:6px;transition:background .6s,color .6s}',
+    '.pgn-pr.is-ny{background:#c9f3ea;color:var(--pg-navy)}',
     '@media (min-width:1100px){.pgn.is-bred{max-width:1240px}}',
     '.pgn-optgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start}',
     '.pgn-live{display:none}',
@@ -993,7 +993,7 @@
     clearTimeout(pulsTimer);
     pulsTimer = setTimeout(function () {
       S.nya = null; S.puls = 0;
-      [].forEach.call(root.querySelectorAll('.pgn-rad.is-ny'), function (e) { e.classList.remove('is-ny'); });
+      [].forEach.call(root.querySelectorAll('.pgn-pr.is-ny'), function (e) { e.classList.remove('is-ny'); });
       var pp = root.querySelector('[data-puls]'); if (pp) pp.parentNode.removeChild(pp);
     }, snabb ? 600 : 1600);
   }
@@ -1001,7 +1001,7 @@
     var nya = S.nya && Date.now() < S.nya.till ? S.nya.rader.slice() : [];
     return text.split('\n').map(function (l) {
       var i = l.trim() ? nya.indexOf(l) : -1; if (i > -1) nya.splice(i, 1);
-      return '<span class="pgn-rad' + (i > -1 ? ' is-ny' : '') + '">' + (l ? esc(l) : ' ') + '</span>';
+      return '<span class="pgn-pr' + (i > -1 ? ' is-ny' : '') + '">' + (l ? esc(l) : ' ') + '</span>';
     }).join('');
   }
   function liveHtml() {
