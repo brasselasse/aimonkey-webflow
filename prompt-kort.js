@@ -11,11 +11,12 @@
    ligger den gamla listan kvar.
 
    Kräver pg-fyll.js (window.AimFyll) för ★, fältantal och "senast kopierade".
+   Version 1.1: om sidan har inbyggda kort ([data-pk="lista"], riktiga
+   Webflow-element i en CMS-lista) används de i stället för att rita nya.
    Mätning: pb_pillar_oppna, pb_pillar_kopiera, pb_pillar_fav (GTM-triggern ^pb_).
    ============================================================ */
 (function () {
   'use strict';
-  if (window.__aimPk) return;
 
   var CSS = [
     '.pk-grid{width:100%;align-self:stretch;margin-bottom:8px;text-align:left;grid-template-columns:repeat(3,minmax(0,1fr))!important}',
@@ -133,7 +134,9 @@
         return;
       }
       var sida = '/ai-prompter/' + slug, p = null;
-      for (var key in DATA) if (DATA[key].slug === slug) { p = DATA[key]; break; }
+      var egen = k.querySelector('[data-pk="prompt"]');
+      if (egen && egen.textContent.trim()) p = { prompt: egen.textContent.replace(/\r\n?/g, '\n').trim() };
+      else for (var key in DATA) if (DATA[key].slug === slug) { p = DATA[key]; break; }
       if (!p) { location.href = sida; return; }
       var n = F && F.parse ? F.parse(p.prompt, {}).length : 1;
       tillKlipp(p.prompt, function () {
@@ -147,7 +150,40 @@
     });
   }
 
+  /* Inbyggda kort: Webflow-element i en CMS-lista ([data-pk="lista"]).
+     Korten ligger redan i HTML:en och syns i Designern. Skriptet lägger
+     bara till fältantal, ★ och Kopiera. Prompttexten läses från det dolda
+     elementet [data-pk="prompt"] i varje kort. */
+  function inbyggda() {
+    var listor = document.querySelectorAll('[data-pk="lista"]');
+    if (!listor.length) return false;
+    F = window.AimFyll || null;
+    var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    [].forEach.call(listor, function (lista) {
+      var grid = lista.querySelector('.st-grid') || lista;
+      grid.classList.add('pk-grid');
+      [].forEach.call(grid.querySelectorAll('.st-kort[data-st-slug]'), function (k) {
+        var slug = k.getAttribute('data-st-slug'), pr = k.querySelector('[data-pk="prompt"]');
+        var et = k.querySelector('.st-etiketter'), kat = k.querySelector('[data-pk="kat"]');
+        if (kat) { var kt = kortKat(kat.textContent); if (kt) kat.textContent = kt; else kat.parentNode.removeChild(kat); }
+        var falt = F && F.parse && pr ? F.parse(pr.textContent, {}).length : 0;
+        if (et && falt) { var e = document.createElement('span'); e.className = 'st-e st-e-falt'; e.textContent = falt + ' fält att fylla i'; et.appendChild(e); }
+        var kn = k.querySelector('.st-knappar');
+        if (kn && F && F.vaxlaFavorit && !kn.querySelector('[data-pk="fav"]')) {
+          var fav = F.arFavorit ? F.arFavorit(slug) : false, b = document.createElement('button');
+          b.type = 'button'; b.className = 'st-ikon'; b.setAttribute('data-pk', 'fav'); b.setAttribute('aria-pressed', fav);
+          b.setAttribute('aria-label', fav ? 'Ta bort från Mina prompter' : 'Spara i Mina prompter'); b.title = b.getAttribute('aria-label');
+          b.innerHTML = stjarna(fav); kn.appendChild(b);
+        }
+      });
+      koppla(grid);
+    });
+    return true;
+  }
+
   function init() {
+    if (window.__aimPk) return;
+    if (inbyggda()) { window.__aimPk = true; return; }
     var sek = document.querySelector('section#prompts');
     if (!sek) return;
     var wrap = sek.querySelector('.prompter-list-hidden');
