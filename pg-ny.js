@@ -200,7 +200,7 @@
     var sys = [], out = [], regler = [], kat = [], kontext = [];
     if (isBild) sys.push('Du är expert på att skriva prompter för AI-bildgeneratorer. Använd visuellt beskrivande språk.');
     else if (isVideo) sys.push('Du är expert på att skriva prompter för AI-videogeneratorer. Beskriv scen, rörelse, tempo, ljus och kamera tydligt.');
-    else if (isKod) sys.push('Du är en senior utvecklare som skriver tydlig och robust kod.');
+    else if (isKod) { if (!egenRoll) sys.push(x.rollEgen || x.roll ? rollMening(x.rollEgen || x.roll) + ' Du skriver tydlig och robust kod.' : 'Du är en senior utvecklare som skriver tydlig och robust kod.'); }
     else if (!egenRoll) sys.push(rollMening(x.rollEgen || x.roll || STD_ROLL[t] || STD_ROLL.skriva));
     if (TONE[x.ton] && !isMedia && !isKod) (egenRoll ? out : sys).push(TONE[x.ton]);
 
@@ -518,7 +518,9 @@
     if (source) S.kalla = /^(biblioteket|mallar|artiklar)$/.test(source) ? source : 'lank';
     if (brief) {
       S.text = brief; S.mallNamn = namn;
-      if (!S.typ) S.typ = gissaTyp(brief);
+      /* En hel mall (lång, flera rader) utan tasktype är en textprompt. Att gissa
+         på den ger fel: "script" eller "bild" någonstans i texten gjorde den till kod/bild */
+      if (!S.typ) S.typ = arHelPrompt(brief) ? 'skriva' : gissaTyp(brief);
       S.steg = 'bygger';
       var auto = forifyll();
       if (K && auto) kTrack('pgny_kedja_autofyll', { antal: auto });
