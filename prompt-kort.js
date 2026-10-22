@@ -164,6 +164,11 @@
       grid.classList.add('pk-grid');
       [].forEach.call(grid.querySelectorAll('.st-kort[data-st-slug]'), function (k) {
         var slug = k.getAttribute('data-st-slug'), pr = k.querySelector('[data-pk="prompt"]');
+        /* Reserv tills länken är satt till "Current Prompter" i Designern */
+        [].forEach.call(k.querySelectorAll('a.st-kort-lank, a.st-prim'), function (a) {
+          var h = a.getAttribute('href');
+          if (slug && (!h || h === '#' || h === 'ai-prompter')) a.setAttribute('href', '/ai-prompter/' + encodeURIComponent(slug));
+        });
         var et = k.querySelector('.st-etiketter'), kat = k.querySelector('[data-pk="kat"]');
         if (kat) { var kt = kortKat(kat.textContent); if (kt) kat.textContent = kt; else kat.parentNode.removeChild(kat); }
         var falt = F && F.parse && pr ? F.parse(pr.textContent, {}).length : 0;
