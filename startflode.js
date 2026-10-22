@@ -2,7 +2,9 @@
    AIMonkey — startflode.js
    Startsidan "välj yrke först" (designen "Startsidan – välj yrke först").
 
-   Steg 1 ligger som riktiga element i Webflow: H1, ingress och åtta
+   Två lägen. data-sf-lage="hybrid" på roten: yrkeschipsen ligger i den
+   befintliga heron och guiden (steg 2–3) visas först när ett yrke väljs.
+   Annars (helsida): steg 1 ligger som riktiga element i Webflow: H1, ingress och åtta
    yrkeslänkar <a data-sf-roll="…" href="/ai-for-…">. Utan JS leder
    länkarna till yrkets pillarsida. Med JS väljer de yrke i stället, och
    skriptet ritar steg 2 (tre vägar) och steg 3 (prompter, flöde eller
@@ -273,6 +275,11 @@
     '.sf a:focus-visible,.sf button:focus-visible{outline:3px solid #4cd9c1;outline-offset:2px}',
     '.sf-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;max-width:min(560px,calc(100vw - 32px));padding:14px 18px;border-radius:14px;background:#0b1f3b;color:#fff;box-shadow:0 12px 32px -8px rgba(0,0,0,.4);font-size:15px}',
     '.sf-toast[hidden]{display:none}',
+    '.sf-guide{display:none}',
+    '.sf-guide.is-open{display:block;background:#f5f6fa}',
+    '.sf-guide .sf-sek-steg{padding-top:48px}',
+    '.sf-yrken{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}',
+    '.sf-yrken .st-pop-chip[aria-checked="true"]{background:#0b1f3b;color:#fff;border-color:#0b1f3b}',
     '.sf-toast div{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}',
     '.sf-toast span{color:#ced2d7;font-size:14px}',
     '.sf-toast a{color:#ffd23f;font-weight:600;text-decoration:none;white-space:nowrap}',
@@ -300,6 +307,7 @@
   /* ---------- Hjälpare ---------- */
   var F = window.AimFyll || null, DATA = null, laddar = null, toastEl, toastTimer;
   var S = { roll: '', vag: '' };
+  var HYBRID = ROT.getAttribute('data-sf-lage') === 'hybrid';
   var el2 = ROT.querySelector('[data-sf="steg2"]'), el3 = ROT.querySelector('[data-sf="steg3"]');
   var apanP = ROT.querySelector('[data-sf="apan"]'), stegrad = ROT.querySelector('[data-sf="stegrad"]');
 
@@ -364,13 +372,14 @@
   }
 
   function ritaRoller() {
-    [].forEach.call(ROT.querySelectorAll('[data-sf-roll]'), function (a) {
+    [].forEach.call(document.querySelectorAll('[data-sf-roll]'), function (a) {
       a.setAttribute('aria-checked', a.getAttribute('data-sf-roll') === S.roll ? 'true' : 'false');
     });
   }
 
   function ritaSteg2() {
     var r = R[S.roll];
+    if (!r && HYBRID) { el2.innerHTML = ''; return; }
     if (!r) {
       el2.innerHTML = '<div class="sf-tom"><span class="sf-etikett">Steg 2</span><strong>Hur vill du jobba?</strong>' +
         '<p>Välj ett yrke ovanför, så dyker tre vägar upp här: prompta direkt, följ ett flöde eller sätt upp ditt AI-team.</p></div>';
@@ -457,6 +466,7 @@
   function ritaApan() { if (apanP) apanP.textContent = R[S.roll] ? R[S.roll].apan : APAN_START; }
 
   function rita(scrolla) {
+    if (HYBRID) ROT.classList.toggle('is-open', !!S.roll);
     ritaStegrad(); ritaRoller(); ritaSteg2(); ritaSteg3(); ritaApan();
     try {
       var u = new URL(location.href);
@@ -468,12 +478,12 @@
       var mal = scrolla === 3 ? el3 : el2;
       var red = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       var top = mal.getBoundingClientRect().top;
-      if (top > window.innerHeight * 0.6 || top < 0) mal.scrollIntoView({ behavior: red ? 'auto' : 'smooth', block: 'start' });
+      if (HYBRID || top > window.innerHeight * 0.6 || top < 0) mal.scrollIntoView({ behavior: red ? 'auto' : 'smooth', block: 'start' });
     }
   }
 
   /* ---------- Händelser ---------- */
-  ROT.addEventListener('click', function (e) {
+  document.addEventListener('click', function (e) {
     var roll = e.target.closest('[data-sf-roll]');
     if (roll && R[roll.getAttribute('data-sf-roll')]) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; /* ny flik: låt länken gå till pillarsidan */
@@ -495,8 +505,8 @@
     var gor = e.target.closest('[data-sf-gor]');
     if (gor && gor.getAttribute('data-sf-gor') === 'byt') {
       var forra = S.roll; S.roll = ''; S.vag = ''; rita(0);
-      var a = ROT.querySelector('[data-sf-roll="' + forra + '"]') || ROT.querySelector('[data-sf-roll]');
-      if (a) { a.scrollIntoView({ block: 'center' }); a.focus(); }
+      var a = document.querySelector('[data-sf-roll="' + forra + '"]') || document.querySelector('[data-sf-roll]');
+      if (a) { a.scrollIntoView({ block: 'center' }); a.focus({ preventScroll: true }); }
       return;
     }
     if (gor && gor.getAttribute('data-sf-gor') === 'kopiera') {
@@ -522,7 +532,7 @@
   });
 
   /* Pilar i yrkesgruppen och vägvalet (radiogrupp) */
-  ROT.addEventListener('keydown', function (e) {
+  document.addEventListener('keydown', function (e) {
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].indexOf(e.key) < 0) return;
     var grupp = e.target.closest('[role="radiogroup"]'); if (!grupp) return;
     var alla = [].slice.call(grupp.querySelectorAll('[role="radio"]')), i = alla.indexOf(e.target); if (i < 0) return;
@@ -553,8 +563,8 @@
   function init() {
     F = window.AimFyll || F;
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
-    [].forEach.call(ROT.querySelectorAll('[data-sf-roll]'), function (a) { a.setAttribute('role', 'radio'); a.setAttribute('aria-checked', 'false'); });
-    var g = ROT.querySelector('[data-sf="roller"]'); if (g) { g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', 'Välj yrke'); }
+    [].forEach.call(document.querySelectorAll('[data-sf-roll]'), function (a) { a.setAttribute('role', 'radio'); a.setAttribute('aria-checked', 'false'); });
+    var g = document.querySelector('[data-sf="roller"]'); if (g) { g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', 'Välj yrke'); }
     el3.setAttribute('id', 'steg-3'); el2.setAttribute('id', 'steg-2');
     try {
       var u = new URLSearchParams(location.search), y = u.get('yrke'), v = u.get('vag');

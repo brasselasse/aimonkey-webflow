@@ -15,7 +15,7 @@
    ============================================================ */
 (function () {
   'use strict';
-  var SIDOR = ['/startsida-ny', ''];
+  var SIDOR = ['/startsida-ny', '/startsida-hybrid', ''];
   var vag = location.pathname.replace(/\/$/, '');
   if (SIDOR.indexOf(vag) === -1 || window.__aimStart) return;
   if (!document.querySelector('[data-st="prompter"]')) return;
@@ -159,7 +159,7 @@
     if (!host) return;
     host.innerHTML = '<form class="st-sok" role="search" action="/promptbiblioteket" method="get">' +
       '<label class="st-sr" for="st-sok">Sök bland prompterna</label>' +
-      '<input id="st-sok" name="q" type="search" autocomplete="off" placeholder="Vad vill du göra? T.ex. svara på en recension">' +
+      '<input id="st-sok" name="q" type="search" autocomplete="off" placeholder="' + (host.getAttribute('data-placeholder') || 'Vad vill du göra? T.ex. svara på en recension').replace(/"/g, '&quot;') + '">' +
       '<button type="submit">Sök</button></form>';
     host.querySelector('form').addEventListener('submit', function (e) {
       var q = this.q.value.trim();
