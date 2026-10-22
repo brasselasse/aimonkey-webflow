@@ -12,6 +12,11 @@
         Kod: Språk → Hjälp
      3. Bygget (apan bockar av rader) → 4. Klar.
      Fast knapp längst ned: "Prompten genereras … Visa →" / "Kopiera prompt".
+     Live-preview (2026-10-22): på dator (≥1100 px) växer prompten i en spalt
+        till höger i Finjustera; på mindre skärmar visar knappen "+1 rad" och
+        öppnar prompten i en panel. Ändrade rader lyser grönt en stund.
+     Resultatet: Justera-knappar under prompten (Läsare/Ton/Roll/Längd/Format,
+        per typ) som ändrar prompten direkt, och "Apan föreslår" (högst två).
      Fyll i: har uppgiften/mallen [PLATSHÅLLARE] visas ett eget steg med ett
         fält per platshållare. Prompten blir inte klar förrän alla är ifyllda
         (ingen hoppa över). Värden sparas i pg_kedja.fyll och förifylls nästa
@@ -421,7 +426,7 @@
   }
 
   /* ── Tillstånd ── */
-  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {}, raw: '', senAlla: false, senVisa: -1, senRensa: false, senOppen: false, fyll: {}, forifyllt: {}, efterFyll: 'bygger', fyllVisaFel: false };
+  var S = { steg: 'start', text: '', typ: null, typOppen: false, optIdx: 0, svar: {}, rad: 0, kopierad: false, fin: false, sa: false, kalla: 'scratch', mallNamn: '', besokt: {}, raw: '', senAlla: false, senVisa: -1, senRensa: false, senOppen: false, fyll: {}, forifyllt: {}, efterFyll: 'bygger', fyllVisaFel: false, justera: '', ark: '', nya: null, puls: 0, _fore: null };
   (function () {
     var f = kedjaFyll();
     if (f[FYLL.foretag]) S.svar.foretag = f[FYLL.foretag];
@@ -685,6 +690,45 @@
     '.pgn-fyll-prev mark.is-ifylld{background:var(--pg-mint);color:#005042}',
     '.pgn-fyll-kvar{font-size:15px;font-weight:600;color:var(--pg-gra)}',
     '.pgn h1[data-fokus]:focus,.pgn h2[data-fokus]:focus{outline:none}',
+    /* Live-preview och Justera (2026-10-22) */
+    '.pgn-rad{display:block;min-height:1.6em;padding:0 6px;margin:0 -6px;border-radius:6px;transition:background .6s,color .6s}',
+    '.pgn-rad.is-ny{background:#c9f3ea;color:var(--pg-navy)}',
+    '@media (min-width:1100px){.pgn.is-bred{max-width:1240px}}',
+    '.pgn-optgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start}',
+    '.pgn-live{display:none}',
+    '@media (min-width:1100px){.pgn-optgrid{grid-template-columns:minmax(0,1fr) 360px}.pgn-live{display:flex;flex-direction:column;gap:10px;position:sticky;top:110px;background:#fff;border:1.5px solid #dbe2ea;border-radius:22px;padding:18px 20px;box-shadow:0 12px 30px rgba(11,31,59,.06);max-height:calc(100vh - 150px);overflow:auto}}',
+    '.pgn-live-topp{display:flex;justify-content:space-between;align-items:baseline;gap:8px}',
+    '.pgn-live-topp p{margin:0;font-weight:700;font-size:17px}.pgn-live-topp span{font-size:12px;color:#5b6573}',
+    '.pgn-live-pre{margin:0;white-space:pre-wrap;word-wrap:break-word;font:inherit;font-size:14px;line-height:1.6;color:var(--pg-gra)}',
+    '.pgn-live-not{margin:0;font-size:13px;line-height:1.5;color:var(--pg-teal-d);border-top:1px solid #e1e7ee;padding-top:10px}',
+    '.pgn-puls{font-size:13px;font-weight:700;background:var(--pg-teal);color:var(--pg-navy);border-radius:999px;padding:4px 10px;white-space:nowrap;animation:pgn-inn .3s ease-out}',
+    '.pgn-m{display:none}',
+    '@media (max-width:1099px){.pgn-d{display:none}.pgn-m{display:inline}}',
+    '.pgn-ark-bak,.pgn-meny-bak{position:fixed;inset:0;background:rgba(11,31,59,.45);border:0;z-index:950;cursor:pointer;padding:0}',
+    '.pgn-ark{position:fixed;left:0;right:0;bottom:0;z-index:960;background:#fff;border-radius:22px 22px 0 0;padding:10px 20px 24px;display:flex;flex-direction:column;gap:12px;max-height:82vh;box-shadow:0 -10px 40px rgba(11,31,59,.25);animation:pgn-upp .25s ease-out}',
+    '.pgn-ark-grepp{align-self:center;width:44px;height:5px;border-radius:5px;background:#c9d3de}',
+    '.pgn-ark-rubrik{margin:0;font-weight:700;font-size:20px}',
+    '.pgn-ark .pgn-live-pre{overflow:auto;background:#f6f8fa;border-radius:14px;padding:12px 14px;flex:1 1 auto;min-height:0}',
+    '.pgn-ark .pgn-gul,.pgn-ark .pgn-ram{width:100%}',
+    '@keyframes pgn-upp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}',
+    '.pgn-justera{display:flex;flex-direction:column;gap:12px}',
+    '.pgn-justera-rad{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
+    '.pgn-justera-lbl{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5b6573;margin-right:4px}',
+    '.pgn-jknapp{font:inherit;font-size:15px;font-weight:600;padding:9px 14px;min-height:44px;border-radius:999px;cursor:pointer;background:transparent;color:var(--pg-navy);border:1.5px dashed #c9d3de;white-space:nowrap}',
+    '.pgn-jknapp span{color:#5b6573;font-weight:500}',
+    '.pgn-jknapp.is-satt{background:#fff;border-style:solid}',
+    '.pgn-jknapp[aria-expanded="true"]{background:var(--pg-navy);border:1.5px solid var(--pg-navy);color:#fff}.pgn-jknapp[aria-expanded="true"] span{color:#cfe9e4}',
+    '.pgn-jknapp:hover{border-color:var(--pg-teal)}',
+    '.pgn-jmer{font:inherit;font-size:15px;font-weight:600;color:var(--pg-teal-d);background:none;border:0;cursor:pointer;min-height:44px;padding:0 6px}',
+    '.pgn-meny-bak{display:none}.pgn-meny-stang{display:none}',
+    '.pgn-meny{background:#fff;border:1.5px solid #dbe2ea;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 28px rgba(11,31,59,.08);animation:pgn-inn .2s ease-out}',
+    '.pgn-meny p{margin:0;font-size:15px;font-weight:600;color:var(--pg-gra)}',
+    '.pgn-forslag{background:var(--pg-mint);border:1.5px solid #bfeee5;border-radius:20px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}',
+    '.pgn-forslag-rubrik{margin:0;font-weight:700;font-size:18px;color:#005042}',
+    '.pgn-forslag-rad{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:#fff;border-radius:14px;padding:12px 14px}',
+    '.pgn-forslag-rad span{flex:1 1 300px;font-size:15px;line-height:1.5;color:#24433d}',
+    '.pgn-forslag-rad button{font:inherit;font-size:14px;font-weight:700;padding:10px 16px;min-height:44px;border-radius:12px;border:0;background:var(--pg-teal-d);color:#fff;cursor:pointer}',
+    '@media (max-width:767px){.pgn-justera-rad{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;max-width:100%}.pgn-justera{min-width:0}.pgn-jknapp{flex:0 0 auto;font-size:14px;padding:8px 12px}.pgn-meny-bak{display:block}.pgn-meny{position:fixed;left:0;right:0;bottom:0;z-index:960;border-radius:22px 22px 0 0;max-height:75vh;overflow:auto;padding:18px 20px 28px;box-shadow:0 -10px 40px rgba(11,31,59,.25);animation:pgn-upp .25s ease-out}.pgn-meny .pgn-chips{flex-direction:column}.pgn-meny .pgn-chip{width:100%;min-height:50px}.pgn-meny-stang{display:block;align-self:center}.pgn-forslag-2{display:none!important}}',
     '.pgn-egen{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) 44px;gap:8px;align-items:center}',
     '.pgn-egen-bort{font:inherit;font-size:16px;width:44px;height:44px;border-radius:12px;border:1.5px solid #c9d3de;background:#fff;color:var(--pg-gra);cursor:pointer}',
     '.pgn-egen-bort:hover{border-color:#b42318;color:#b42318}',
@@ -871,7 +915,7 @@
     }).join('') + '</div>';
     h += '<div class="pgn-rad"><button type="button" class="' + (sista ? 'pgn-gul' : 'pgn-mork') + '" data-nasta>' + (sista ? 'Bygg prompten →' : 'Nästa →') + '</button>' +
       '<button type="button" class="pgn-text-knapp" data-hoppa>' + (sista ? 'Hoppa över' : 'Hoppa över det här steget') + '</button></div>';
-    return h + '</section>';
+    return '<div class="pgn-optgrid">' + h + '</section>' + liveHtml() + '</div>';
   }
 
   function fyllPrevHtml(L) {
@@ -934,6 +978,114 @@
   }
   function barFyllText(st) { return st.kvar ? 'Fyll i ' + st.kvar + ' fält till …' : 'Allt ifyllt, fortsätt'; }
   function barFyllPct(st) { return Math.round(10 + 50 * st.klar / Math.max(1, st.alla)); }
+
+  /* ── Live-preview: rader som ändrats lyser grönt en stund ── */
+  var pulsTimer = null;
+  function snap() { if (S.steg === 'opt' || S.steg === 'klar') S._fore = byggPrompt(S); }
+  function efterAndring() {
+    if (S._fore == null) return;
+    var fore = S._fore.split('\n'), nu = byggPrompt(S).split('\n'), antal = {};
+    S._fore = null;
+    fore.forEach(function (l) { antal[l] = (antal[l] || 0) + 1; });
+    var nya = nu.filter(function (l) { if (!l.trim()) return false; if (antal[l]) { antal[l]--; return false; } return true; });
+    if (!nya.length) return;
+    S.nya = { rader: nya, till: Date.now() + 1600 }; S.puls = nya.length;
+    clearTimeout(pulsTimer);
+    pulsTimer = setTimeout(function () {
+      S.nya = null; S.puls = 0;
+      [].forEach.call(root.querySelectorAll('.pgn-rad.is-ny'), function (e) { e.classList.remove('is-ny'); });
+      var pp = root.querySelector('[data-puls]'); if (pp) pp.parentNode.removeChild(pp);
+    }, snabb ? 600 : 1600);
+  }
+  function radHtml(text) {
+    var nya = S.nya && Date.now() < S.nya.till ? S.nya.rader.slice() : [];
+    return text.split('\n').map(function (l) {
+      var i = l.trim() ? nya.indexOf(l) : -1; if (i > -1) nya.splice(i, 1);
+      return '<span class="pgn-rad' + (i > -1 ? ' is-ny' : '') + '">' + (l ? esc(l) : ' ') + '</span>';
+    }).join('');
+  }
+  function liveHtml() {
+    var pr = byggPrompt(S);
+    return '<aside class="pgn-live" aria-label="Din prompt just nu"><div class="pgn-live-topp"><p>Din prompt just nu</p><span data-livetecken>' + pr.length + ' tecken</span></div>' +
+      '<pre class="pgn-live-pre" data-live>' + radHtml(pr) + '</pre><p class="pgn-live-not">Grönt = det ditt senaste val lade till.</p></aside>';
+  }
+  /* Vid skrivande i fält: uppdatera bara spalten/panelen och knappen, så att fokus finns kvar */
+  function ritaLive() {
+    efterAndring();
+    var pr = byggPrompt(S);
+    [].forEach.call(root.querySelectorAll('[data-live]'), function (e) { e.innerHTML = radHtml(pr); });
+    var t = root.querySelector('[data-livetecken]'); if (t) t.textContent = pr.length + ' tecken';
+    var bar = root.querySelector('[data-bar]');
+    if (bar && S.puls && !bar.querySelector('[data-puls]')) { var sp = document.createElement('span'); sp.className = 'pgn-puls'; sp.setAttribute('data-puls', ''); sp.textContent = '+' + S.puls + (S.puls === 1 ? ' rad' : ' rader'); var h = bar.querySelector('.pgn-bar-hint'); bar.insertBefore(sp, h); }
+  }
+  function arkHtml() {
+    if (S.ark !== 'prompt' || S.steg !== 'opt') return '';
+    return '<button type="button" class="pgn-ark-bak" data-arkstang aria-label="Stäng"></button>' +
+      '<div class="pgn-ark" role="dialog" aria-label="Din prompt just nu"><span class="pgn-ark-grepp" aria-hidden="true"></span><p class="pgn-ark-rubrik">Din prompt just nu</p>' +
+      '<pre class="pgn-live-pre" data-live>' + radHtml(byggPrompt(S)) + '</pre>' +
+      '<button type="button" class="pgn-gul" data-arkklar>Klar, visa min prompt →</button><button type="button" class="pgn-ram" data-arkstang>Tillbaka till valen</button></div>';
+  }
+
+  /* ── Justera på resultatsidan ── */
+  var JLISTA = { text: ['malgrupp', 'ton', 'roll', 'langd', 'format'], bild: ['bstil', 'bformat', 'bljus'], video: ['vstil', 'vformat', 'vkamera'], kod: ['ksprak', 'khjalp', 'ksvar'] };
+  var JNAMN = { malgrupp: 'Läsare', ton: 'Ton', roll: 'Roll', langd: 'Längd', format: 'Format', bstil: 'Stil', bformat: 'Format', bljus: 'Ljus', vstil: 'Stil', vformat: 'Format', vkamera: 'Rörelse', ksprak: 'Språk', khjalp: 'Hjälp', ksvar: 'Svar' };
+  var JTOM = { roll: 'Standard', format: 'Text' };
+  var JRUBRIK = { langd: 'Hur långt ska svaret vara?', format: 'Hur ska svaret se ut?' };
+  function jListaFor() { var t = S.typ || 'skriva'; return JLISTA[t] || JLISTA.text; }
+  function jGrupp(key) { var r = null; stegFor(S.typ || 'skriva').forEach(function (o) { o.grupper.forEach(function (g) { if (g.key === key) r = { g: g, o: o }; }); }); return r; }
+  function jVarde(key) { if (key === 'roll') return S.svar.rollEgen || S.svar.roll || ''; if (key === 'malgrupp') return S.svar.malgrupp || S.svar.malgruppEgen || ''; return S.svar[key] || ''; }
+  function justeraHtml() {
+    var ph = phParse(S.text).length;
+    var h = '<div class="pgn-justera"><div class="pgn-justera-rad" role="group" aria-label="Justera prompten"><span class="pgn-justera-lbl">Justera</span>';
+    jListaFor().forEach(function (k) {
+      if (!jGrupp(k)) return;
+      var v = jVarde(k), oppen = S.justera === k;
+      h += '<button type="button" class="pgn-jknapp' + (v ? ' is-satt' : '') + '" data-justera="' + k + '" aria-expanded="' + oppen + '"><span>' + JNAMN[k] + ':</span> ' + esc(v ? (v.length > 22 ? v.slice(0, 22) + '…' : v) : (JTOM[k] || 'Välj')) + ' ▾</button>';
+    });
+    h += '<button type="button" class="pgn-jknapp is-satt" data-justera="typ" aria-expanded="' + (S.justera === 'typ') + '"><span>Typ:</span> ' + esc(typNamn()) + ' ▾</button>';
+    if (ph) h += '<button type="button" class="pgn-jknapp is-satt" data-tillfyll><span>Ifyllt:</span> ' + ph + ' fält</button>';
+    h += '<button type="button" class="pgn-jmer" data-fler>Fler val →</button></div>';
+    if (S.justera) {
+      var rubrik, alt;
+      if (S.justera === 'typ') {
+        rubrik = 'Vad ska prompten göra?';
+        alt = TYPER.map(function (t) { return '<button type="button" class="pgn-chip" data-jtyp="' + t.id + '" aria-pressed="' + (t.id === (S.typ || 'skriva')) + '">' + t.namn + '</button>'; }).join('');
+      } else {
+        var jg = jGrupp(S.justera), v0 = jVarde(S.justera);
+        rubrik = JRUBRIK[S.justera] || (jg ? jg.o.titel : '');
+        alt = jg ? jg.g.val.map(function (o) { var vald = v0 === o.text; return '<button type="button" class="pgn-chip" data-jval="' + esc(o.text) + '" aria-pressed="' + vald + '">' + (vald ? '✓ ' : '') + esc(o.text) + '</button>'; }).join('') : '';
+      }
+      h += '<button type="button" class="pgn-meny-bak" data-jstang aria-label="Stäng"></button><div class="pgn-meny" role="group" aria-label="' + esc(rubrik) + '"><p>' + esc(rubrik) + '</p><div class="pgn-chips">' + alt + '</div><button type="button" class="pgn-text-knapp pgn-meny-stang" data-jstang>Stäng</button></div>';
+    }
+    return h + '</div>';
+  }
+  function jSatt(key, v) {
+    var cur = jVarde(key), nytt = cur === v ? '' : v;
+    if (key === 'roll') { S.svar.rollEgen = ''; S.svar.roll = nytt; }
+    else if (key === 'malgrupp') { S.svar.malgruppEgen = ''; S.svar.malgrupp = nytt; }
+    else S.svar[key] = nytt;
+  }
+  /* "Apan föreslår": högst två saker som saknas, med ett klick */
+  function forslagLista() {
+    var t = S.typ || 'skriva', x = S.svar, rg = Array.isArray(x.regler) ? x.regler : [], f = [];
+    if (t === 'bild') { if (!x.bformat) f.push({ id: 'bformat', text: 'Välj format, så blir bilden rätt till där den ska användas.', knapp: 'Välj format' }); if (!x.bljus) f.push({ id: 'bljus', text: 'Ljuset gör mycket för känslan i bilden.', knapp: 'Välj ljus' }); }
+    else if (t === 'video') { if (!x.vformat) f.push({ id: 'vformat', text: 'Välj format, liggande eller stående.', knapp: 'Välj format' }); }
+    else if (t === 'kod') { if (!x.ksprak) f.push({ id: 'ksprak', text: 'Säg vilket språk koden ska vara i, så slipper AI:n gissa.', knapp: 'Välj språk' }); if (!x.ksvar) f.push({ id: 'ksvar', text: 'Vill du ha bara kod, eller kod med förklaring?', knapp: 'Välj svar' }); }
+    else {
+      if (!x.malgrupp && !x.malgruppEgen) f.push({ id: 'malgrupp', text: 'Du har inte sagt vem som ska läsa. Då vet AI:n vilka ord och vilken nivå som passar.', knapp: 'Välj läsare' });
+      if ((t === 'skriva' || t === 'brainstorma') && rg.indexOf('Ge tre alternativ') === -1) f.push({ id: 'tre', text: 'Be om tre varianter, så väljer du den som låter mest som du.', knapp: 'Lägg till' });
+      if (rg.indexOf('Ställ frågor om något är oklart') === -1) f.push({ id: 'fragor', text: 'Låt AI:n fråga om något är oklart i stället för att gissa.', knapp: 'Lägg till' });
+      if (!x.langd) f.push({ id: 'langd', text: 'Bestäm längden, så slipper du korta ned svaret efteråt.', knapp: 'Välj längd' });
+    }
+    return f.slice(0, 2);
+  }
+  function forslagHtml() {
+    var f = forslagLista();
+    if (!f.length) return '';
+    return '<div class="pgn-forslag"><p class="pgn-forslag-rubrik">Apan föreslår</p>' + f.map(function (x, i) {
+      return '<div class="pgn-forslag-rad' + (i ? ' pgn-forslag-2' : '') + '"><span>' + esc(x.text) + '</span><button type="button" data-forslag="' + x.id + '">' + esc(x.knapp) + '</button></div>';
+    }).join('') + '</div>';
+  }
 
   /* ── Kedjeläget: stegrad, svarsruta, laddning ── */
   function kBarHtml() {
@@ -1047,11 +1199,13 @@
   function vyKlar() {
     var prompt = byggPrompt(S), L = lista(), pk = foreslagetPaket();
     var h = '<section class="pgn-sek">';
-    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Din prompt är klar!</h1><p class="pgn-ingress">Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.</p></div>';
-    h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.raw ? 'Från dina senaste prompter' : S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span>' + prompt.length + ' tecken</span></div><pre data-prompt>' + esc(prompt) + '</pre></div>';
+    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Din prompt är klar!</h1><p class="pgn-ingress">' + (S.raw ? 'Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.' : 'Kopiera den, eller justera den här nedanför. Den ändras direkt.') + '</p></div>';
+    h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.raw ? 'Från dina senaste prompter' : S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span>' + prompt.length + ' tecken</span></div><pre data-prompt>' + radHtml(prompt) + '</pre></div>';
+    if (!S.raw) h += justeraHtml();
     h += '<div class="pgn-rad"><button type="button" class="pgn-gul" data-kopiera>' + (S.kopierad ? 'Kopierad ✓' : 'Kopiera prompt') + '</button>' +
       '<button type="button" class="pgn-ram" data-borjaom>' + (K ? 'Lämna mallen' : 'Gör en ny') + '</button></div>';
     if (K) h += kSvarHtml();
+    if (!S.raw) h += forslagHtml();
     var kort = prompt.length <= 6000;
     h += '<div class="pgn-ai"><span>Öppna direkt i:</span>' +
       '<a href="https://chatgpt.com/' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="chatgpt">ChatGPT ↗</a>' +
@@ -1063,11 +1217,6 @@
       (pk ? '' : '<div class="pgn-p-val">' + PAKET.map(function (p) { return '<a href="/projektpaket/' + p.slug + '?source=generator" data-projekt="' + p.slug + '">' + esc(p.namn) + '</a>'; }).join('') + '</div>') +
       '</div>' + (pk ? '<a class="pgn-p-knapp" href="/projektpaket/' + pk.slug + '?source=generator" data-projekt="' + pk.slug + '">Projektmall: ' + esc(pk.namn) + ' →</a>' : '') + '</div>';
     h += '<div class="pgn-drag">';
-    if (!S.raw) h += '<button type="button" data-vaxla="fin" aria-expanded="' + S.fin + '"><span>Finjustera (valfritt)</span><span>' + (S.fin ? '−' : '+') + '</span></button>';
-    if (S.fin && !S.raw) h += '<div class="pgn-drag-inne"><span>Klicka på det du vill ändra. Prompten byggs om direkt.</span><div class="pgn-chips">' +
-      (phParse(S.text).length ? '<button type="button" class="pgn-chip" data-tillfyll><strong>Ifyllt:</strong> ' + phParse(S.text).length + ' fält</button>' : '') +
-      '<button type="button" class="pgn-chip" data-fintyp><strong>Typ:</strong> ' + esc(typNamn()) + '</button>' +
-      L.map(function (o, i) { return '<button type="button" class="pgn-chip" data-gaopt="' + i + '"><strong>' + esc(o.kort) + ':</strong> ' + esc(sammanfatta(o) || 'Inte valt') + '</button>'; }).join('') + '</div></div>';
     h += '<button type="button" data-vaxla="sa" aria-expanded="' + S.sa + '"><span>Så funkar prompten</span><span>' + (S.sa ? '−' : '+') + '</span></button>';
     if (S.sa) h += '<div class="pgn-drag-inne"><ul>' +
       '<li><strong>Roll:</strong> AI:n får veta vem den ska vara, så att svaret låter som en kunnig person och inte som en robot.</li>' +
@@ -1080,7 +1229,7 @@
       if (S.senOppen) h += '<div class="pgn-drag-inne">' + senasteHtml() + '</div>';
     }
     h += '</div>';
-    h += '<div class="pgn-apan"><b>Apan tycker:</b><span>' + (/\[[A-ZÅÄÖ]/.test(prompt) ? 'Byt ut texten inom hakparentes innan du skickar. Det tar tio sekunder och gör svaret dubbelt så bra.' : 'Blev svaret nästan rätt? Svara AI:n med vad som ska ändras i stället för att börja om. Andra försöket är ofta det bästa.') + '</span></div>';
+    h += '<div class="pgn-apan"><b>Apan tycker:</b><span>' + (/\[[A-ZÅÄÖ]/.test(prompt) ? 'Byt ut texten inom hakparentes innan du skickar. Det tar tio sekunder och gör svaret dubbelt så bra.' : (S.raw ? 'Blev svaret nästan rätt? Svara AI:n med vad som ska ändras i stället för att börja om. Andra försöket är ofta det bästa.' : 'Testa en knapp i taget och se vad som händer med prompten. Så lär du dig vad som gör en prompt bra, nästan utan att märka det.')) + '</span></div>';
     return h + '</section>';
   }
 
@@ -1098,13 +1247,17 @@
     return '<div class="pgn-bar-wrap"><button type="button" class="pgn-bar' + (klar ? ' is-klar' : '') + '" data-bar>' +
       (klar ? '' : PRICKAR) +
       '<span class="pgn-bar-mitt"><span>' + text + '</span>' + (klar ? '' : '<span class="pgn-bar-spar"><i style="width:' + pct + '%"></i></span>') + '</span>' +
-      (klar ? '' : '<span class="pgn-bar-hint">Visa →</span>') + '</button></div>';
+      (!klar && S.steg === 'opt' && S.puls && S.nya && Date.now() < S.nya.till ? '<span class="pgn-puls" data-puls>+' + S.puls + (S.puls === 1 ? ' rad' : ' rader') + '</span>' : '') +
+      (klar ? '' : S.steg === 'opt' ? '<span class="pgn-bar-hint"><span class="pgn-d">Visa →</span><span class="pgn-m">Visa ↑</span></span>' : '<span class="pgn-bar-hint">Visa →</span>') + '</button></div>';
   }
 
   var forraSteg = null;
   function rita() {
+    efterAndring();
+    if (S.steg !== 'opt') S.ark = '';
+    if (S.steg !== 'klar') S.justera = '';
     var vy = S.steg === 'laddar' ? vyLaddar() : S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
-    root.innerHTML = '<div class="pgn"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + kBarHtml() + vy + '</div>' + barHtml();
+    root.innerHTML = '<div class="pgn' + (S.steg === 'opt' ? ' is-bred' : '') + '"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + kBarHtml() + vy + '</div>' + barHtml() + arkHtml();
     if (S.steg === 'start') { ritaTraffar(); }
     var nyckel = S.steg + ':' + S.optIdx;
     if (forraSteg !== null && forraSteg !== nyckel) {
@@ -1236,6 +1389,7 @@
       sparaFyll(t5, el.value.trim());
       uppdateraFyll(); return;
     }
+    if (el.hasAttribute('data-egen') || el.hasAttribute('data-falt')) S._fore = byggPrompt(S);
     if (el.hasAttribute('data-egen')) {
       var ei = +el.getAttribute('data-egen'), del = el.getAttribute('data-del');
       S.svar.egna = Array.isArray(S.svar.egna) ? S.svar.egna : [];
@@ -1243,7 +1397,7 @@
       S.svar.egna[ei][del] = el.value;
       var nav2 = root.querySelector('.pgn-nav');
       if (nav2) { var L3 = lista(); [].forEach.call(nav2.querySelectorAll('[data-gaopt]'), function (b) { b.classList.toggle('is-gjord', stegGjort(L3[+b.getAttribute('data-gaopt')])); }); }
-      return;
+      ritaLive(); return;
     }
     if (el.hasAttribute('data-falt')) {
       var k = el.getAttribute('data-falt');
@@ -1251,10 +1405,12 @@
       if (FYLL[k]) sparaKedja(k, el.value.trim());
       var nav = root.querySelector('.pgn-nav');
       if (nav) { var L = lista(); [].forEach.call(nav.querySelectorAll('[data-gaopt]'), function (b) { var o = L[+b.getAttribute('data-gaopt')]; var gj = stegGjort(o); b.classList.toggle('is-gjord', gj); }); }
+      ritaLive();
     }
   });
   root.addEventListener('focusin', function (e) { if (e.target.hasAttribute && e.target.hasAttribute('data-text')) laddaBibliotek(function () {}); });
   root.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && (S.ark || S.justera)) { var k0 = S.justera; S.ark = ''; S.justera = ''; rita(); var tb = k0 && root.querySelector('[data-justera="' + k0 + '"]'); if (tb) tb.focus(); return; }
     /* Enter i ett Fyll i-fält: nästa tomma fält, eller vidare när allt är ifyllt */
     if (e.target.hasAttribute && e.target.hasAttribute('data-ph') && e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -1273,6 +1429,25 @@
     }
     var b = e.target.closest('button');
     if (!b || !root.contains(b)) return;
+    if (b.hasAttribute('data-bar')) return;
+    snap();
+    if (b.hasAttribute('data-justera')) { var jk = b.getAttribute('data-justera'); S.justera = S.justera === jk ? '' : jk; rita(); var fm = root.querySelector('.pgn-meny .pgn-chip'); if (fm && S.justera) { try { fm.focus({ preventScroll: true }); } catch (e3) {} } return; }
+    if (b.hasAttribute('data-jstang')) { S.justera = ''; rita(); return; }
+    if (b.hasAttribute('data-jval')) {
+      var jkey = S.justera; jSatt(jkey, b.getAttribute('data-jval'));
+      S.justera = ''; S.kopierad = false; track('pgny_andra', { vad: 'justera_' + jkey }); rita();
+      var tb2 = root.querySelector('[data-justera="' + jkey + '"]'); if (tb2) { try { tb2.focus({ preventScroll: true }); } catch (e4) {} }
+      return;
+    }
+    if (b.hasAttribute('data-jtyp')) { S.typ = b.getAttribute('data-jtyp'); S.justera = ''; S.kopierad = false; track('pgny_andra', { vad: 'justera_typ' }); rita(); return; }
+    if (b.hasAttribute('data-fler')) { track('pgny_andra', { vad: 'fler_val' }); S.steg = 'opt'; S.optIdx = 0; S.typOppen = false; rita(); return; }
+    if (b.hasAttribute('data-forslag')) {
+      var fid = b.getAttribute('data-forslag'); track('pgny_andra', { vad: 'forslag_' + fid });
+      if (fid === 'tre' || fid === 'fragor') { var rg2 = Array.isArray(S.svar.regler) ? S.svar.regler.slice() : []; rg2.push(fid === 'tre' ? 'Ge tre alternativ' : 'Ställ frågor om något är oklart'); S.svar.regler = rg2; S.kopierad = false; rita(); return; }
+      S.justera = fid; rita(); var fm2 = root.querySelector('.pgn-meny .pgn-chip'); if (fm2) { try { fm2.focus({ preventScroll: true }); } catch (e5) {} } return;
+    }
+    if (b.hasAttribute('data-arkstang')) { S.ark = ''; rita(); return; }
+    if (b.hasAttribute('data-arkklar')) { S.ark = ''; tillBygg(); return; }
     if (b.hasAttribute('data-exempel')) {
       S.text = EXEMPEL[+b.getAttribute('data-exempel')]; S.typ = null; S.mallNamn = '';
       var ta = root.querySelector('[data-text]'); if (ta) { ta.value = S.text; ta.focus(); }
@@ -1317,7 +1492,6 @@
     if (b.hasAttribute('data-typ')) { S.typ = b.getAttribute('data-typ'); S.optIdx = 0; S.typOppen = false; track('pgny_andra', { vad: 'typ' }); rita(); return; }
     if (b.hasAttribute('data-tillstart')) { S.steg = 'start'; S.raw = ''; rita(); var t3 = root.querySelector('[data-text]'); if (t3) t3.focus(); return; }
     if (b.hasAttribute('data-gaopt')) { if (S.steg === 'klar') track('pgny_andra', { vad: 'steg' }); S.steg = 'opt'; S.optIdx = +b.getAttribute('data-gaopt'); S.typOppen = false; rita(); return; }
-    if (b.hasAttribute('data-fintyp')) { S.steg = 'opt'; S.optIdx = 0; S.typOppen = true; rita(); return; }
     if (b.hasAttribute('data-val')) {
       var key = b.getAttribute('data-val'), val = b.getAttribute('data-v');
       var L = lista(), o = L[S.optIdx];
@@ -1381,6 +1555,7 @@
     if (S.steg === 'klar') kopiera();
     else if (S.steg === 'fyll') fyllKlar();
     else if (S.steg === 'bygger') tillKlar();
+    else if (S.steg === 'opt' && window.matchMedia && window.matchMedia('(max-width: 1099px)').matches) { S.ark = 'prompt'; track('pgny_visa', { fran_steg: (lista()[S.optIdx] || {}).kort || '', vad: 'panel' }); rita(); var ak = root.querySelector('[data-arkklar]'); if (ak) { try { ak.focus({ preventScroll: true }); } catch (e6) {} } }
     else { track('pgny_visa', { fran_steg: (lista()[S.optIdx] || {}).kort || '' }); tillBygg(); }
   });
 
