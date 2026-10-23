@@ -98,7 +98,7 @@
         { key: 'bregler', typ: 'multi', label: 'Extra', val: v(['Ingen text i bilden']) }] }
     ],
     video: [
-      { kort: 'Stil', titel: 'Hur ska videon se ut?', hjalp: 'Välj stil, format och ljus.', grupper: [
+      { kort: 'Stil', titel: 'Hur ska videon se ut?', hjalp: 'Välj stil, format och ljus. Hoppa över, så väljer videotjänsten själv.', grupper: [
         { key: 'vstil', label: 'Stil', full: true, val: v(['Realistisk', 'Cinematic', 'Illustration', 'Drömsk', 'Kommersiell']) },
         { key: 'vformat', label: 'Format', val: v(['1:1', '16:9', '9:16']) },
         { key: 'vljus', label: 'Ljus', val: v(['Mjukt', 'Gyllene timmen', 'Neon', 'Mörkt och filmiskt']) }] },
@@ -232,16 +232,49 @@
     return r.join('\n');
   }
 
+  /* ── Video: samma tanke, en färdig videoprompt (Veo i Gemini, Sora, Runway) ── */
+  var VSTIL = { 'Realistisk': 'realistisk, som riktig film', 'Cinematic': 'filmisk, som en scen ur en långfilm', 'Illustration': 'animerad illustration', 'Drömsk': 'drömsk och mjuk', 'Kommersiell': 'som en reklamfilm, ren och påkostad' };
+  var VLJUS = { 'Mjukt': 'mjukt och jämnt', 'Gyllene timmen': 'varmt ljus från en låg sol, gyllene timmen', 'Neon': 'neonljus i starka färger', 'Mörkt och filmiskt': 'mörkt och filmiskt, med djupa skuggor' };
+  var VKAM = { 'Stilla': 'stillastående kamera', 'Långsam panorering': 'kameran panorerar långsamt', 'Åker in': 'kameran åker långsamt in mot motivet', 'Åker ut': 'kameran åker långsamt bakåt från motivet', 'Handhållen': 'handhållen kamera, lite skakig', 'Runt motivet': 'kameran åker runt motivet' };
+  var VTEMPO = { 'Låg': 'lugnt, lite rörelse', 'Medel': 'måttligt tempo', 'Hög': 'mycket rörelse och högt tempo' };
+  var VFORM = { '1:1': 'kvadratisk, 1:1', '16:9': 'liggande, 16:9', '9:16': 'stående, 9:16' };
+  var RE_VIDEOORD = /^(?:skapa|gör|filma|generera|ta fram)?\s*(?:mig\s+)?(?:en|ett)?\s*(video|film|filmklipp|klipp|reel|animering|animation)(?:en|et|n)?\b\s*(.*)$/i;
+  function videoMotiv(text) {
+    var t = text.replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '');
+    var m = t.match(RE_VIDEOORD);
+    if (m) { var ord = m[1].toLowerCase(); return 'Skapa ' + (/^(klipp|filmklipp)$/.test(ord) ? 'ett' : 'en') + ' ' + ord + (m[2] ? ' ' + m[2] : '') + '.'; }
+    if (/^(En|Ett|Några|Två|Tre|Min|Mitt|Mina|Vår|Vårt|Våra|Den|Det|De)\b/.test(t)) t = t.charAt(0).toLowerCase() + t.slice(1);
+    return 'Skapa en video: ' + t + '.';
+  }
+  function videoMotivOrd(text) {
+    var t = (text || '').trim(), m = t.match(RE_VIDEOORD); if (m) t = m[2] || '';
+    t = t.replace(/^(till|för)\b.*$/i, '');
+    return t.split(/\s+/).filter(Boolean).length;
+  }
+  function videoPrompt(text, x) {
+    var r = [text ? videoMotiv(text) : 'Skapa en video: [BESKRIV VAD SOM SKA HÄNDA I VIDEON].'];
+    if (VSTIL[x.vstil]) r.push('Stil: ' + VSTIL[x.vstil] + '.');
+    if (VLJUS[x.vljus]) r.push('Ljus: ' + VLJUS[x.vljus] + '.');
+    if (VKAM[x.vkamera]) r.push('Kamera: ' + VKAM[x.vkamera] + '.');
+    if (VTEMPO[x.vtempo]) r.push('Rörelse: ' + VTEMPO[x.vtempo] + '.');
+    if (VFORM[x.vformat]) r.push('Format: ' + VFORM[x.vformat] + '.');
+    if (Array.isArray(x.vregler) && x.vregler.length) r.push('Videon ska gå att loopa sömlöst.');
+    return r.join('\n');
+  }
+  /* Direkt bild- eller videoprompt (inte en hel mall från biblioteket)? */
+  function arDirektMedia(S) { return !S.raw && (S.typ === 'bild' || S.typ === 'video') && !arBildMall(applyFills(S.text || '').trim()); }
+
   function byggPrompt(S) {
     if (S.raw) return S.raw;
+    if (S.typ === 'video' && !arBildMall(applyFills(S.text || '').trim())) return videoPrompt(applyFills(S.text || '').trim(), S.svar);
     if (S.typ === 'bild' && !arBildMall(applyFills(S.text || '').trim())) return bildPrompt(applyFills(S.text || '').trim(), S.svar);
     var t = S.typ, x = S.svar, text = applyFills(S.text || '').trim();
     var isBild = t === 'bild', isVideo = t === 'video', isKod = t === 'kod', isMedia = isBild || isVideo;
-    var hel = (!isMedia || isBild) && !!text && arHelPrompt(text);
+    var hel = !!text && arHelPrompt(text);
     var egenRoll = hel && /^\s*(du är|agera som|tänk dig att du är|act as|you are)\b/i.test(text);
     var sys = [], out = [], regler = [], kat = [], kontext = [];
     if (isBild) { if (!egenRoll) sys.push('Du är expert på att skriva prompter för AI-bildgeneratorer. Använd visuellt beskrivande språk.'); }
-    else if (isVideo) sys.push('Du är expert på att skriva prompter för AI-videogeneratorer. Beskriv scen, rörelse, tempo, ljus och kamera tydligt.');
+    else if (isVideo) { if (!egenRoll) sys.push('Du är expert på att skriva prompter för AI-videogeneratorer. Beskriv scen, rörelse, tempo, ljus och kamera tydligt.'); }
     else if (isKod) { if (!egenRoll) sys.push(x.rollEgen || x.roll ? rollMening(x.rollEgen || x.roll) + ' Du skriver tydlig och robust kod.' : 'Du är en senior utvecklare som skriver tydlig och robust kod.'); }
     else if (!egenRoll) sys.push(rollMening(x.rollEgen || x.roll || STD_ROLL[t] || STD_ROLL.skriva));
     if (TONE[x.ton] && !isMedia && !isKod) (egenRoll ? out : sys).push(TONE[x.ton]);
@@ -284,7 +317,6 @@
       if (Array.isArray(x.bregler) && x.bregler.length) kat.push('Ingen text i bilden');
     }
     if (isVideo) {
-      out.push('Skriv en färdig videoprompt på engelska som jag kan klistra in i en videogenerator (t.ex. Sora, Runway eller Veo).');
       if (x.vstil) kat.push('Stil: ' + x.vstil);
       if (x.vformat) kat.push('Format: ' + x.vformat);
       if (x.vljus) kat.push('Ljus: ' + x.vljus);
@@ -1134,7 +1166,7 @@
   function forslagLista() {
     var t = S.typ || 'skriva', x = S.svar, rg = Array.isArray(x.regler) ? x.regler : [], f = [];
     if (t === 'bild') { if (!S.raw && !arBildMall(applyFills(S.text || '').trim()) && bildMotivOrd(applyFills(S.text || '')) < 5) f.push({ id: 'motiv', text: 'Beskriv vad som ska synas: vem eller vad, var och vilken känsla. Ju mer konkret, desto närmare bilden du ser framför dig.', knapp: 'Beskriv bilden' }); if (!x.bstil) f.push({ id: 'bstil', text: 'Välj stil. Foto, illustration eller 3D ger helt olika bilder.', knapp: 'Välj stil' }); if (!x.bformat) f.push({ id: 'bformat', text: 'Välj format, så blir bilden rätt till där den ska användas.', knapp: 'Välj format' }); if (!x.bljus) f.push({ id: 'bljus', text: 'Ljuset gör mycket för känslan i bilden.', knapp: 'Välj ljus' }); }
-    else if (t === 'video') { if (!x.vformat) f.push({ id: 'vformat', text: 'Välj format, liggande eller stående.', knapp: 'Välj format' }); }
+    else if (t === 'video') { if (!S.raw && !arBildMall(applyFills(S.text || '').trim()) && videoMotivOrd(applyFills(S.text || '')) < 5) f.push({ id: 'motiv', text: 'Beskriv vad som ska hända: vem eller vad, var och vad som rör sig. Ju mer konkret, desto bättre video.', knapp: 'Beskriv videon' }); if (!x.vformat) f.push({ id: 'vformat', text: 'Välj format, liggande eller stående.', knapp: 'Välj format' }); if (!x.vkamera) f.push({ id: 'vkamera', text: 'Säg hur kameran ska röra sig, så känns videon genomtänkt.', knapp: 'Välj rörelse' }); }
     else if (t === 'kod') { if (!x.ksprak) f.push({ id: 'ksprak', text: 'Säg vilket språk koden ska vara i, så slipper AI:n gissa.', knapp: 'Välj språk' }); if (!x.ksvar) f.push({ id: 'ksvar', text: 'Vill du ha bara kod, eller kod med förklaring?', knapp: 'Välj svar' }); }
     else {
       if (!x.malgrupp && !x.malgruppEgen) f.push({ id: 'malgrupp', text: 'Du har inte sagt vem som ska läsa. Då vet AI:n vilka ord och vilken nivå som passar.', knapp: 'Välj läsare' });
@@ -1263,9 +1295,9 @@
 
   function vyKlar() {
     var prompt = byggPrompt(S), L = lista(), pk = foreslagetPaket();
-    var arBild = !S.raw && S.typ === 'bild' && !arBildMall(applyFills(S.text || '').trim());
+    var arBild = arDirektMedia(S) && S.typ === 'bild', arVideo = arDirektMedia(S) && S.typ === 'video';
     var h = '<section class="pgn-sek">';
-    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>' + (arBild ? 'Din bildprompt är klar!' : 'Din prompt är klar!') + '</h1><p class="pgn-ingress">' + (S.raw ? 'Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.' : arBild ? 'Klistra in den i ChatGPT, Gemini eller Copilot, så skapas bilden direkt. Justera den här nedanför.' : 'Kopiera den, eller justera den här nedanför. Den ändras direkt.') + '</p></div>';
+    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>' + (arBild ? 'Din bildprompt är klar!' : arVideo ? 'Din videoprompt är klar!' : 'Din prompt är klar!') + '</h1><p class="pgn-ingress">' + (S.raw ? 'Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.' : arBild ? 'Klistra in den i ChatGPT, Gemini eller Copilot, så skapas bilden direkt. Justera den här nedanför.' : arVideo ? 'Klistra in den i en videotjänst, till exempel Gemini (Veo), Sora eller Runway. Justera den här nedanför.' : 'Kopiera den, eller justera den här nedanför. Den ändras direkt.') + '</p></div>';
     if (S.redigera) {
       h += '<div class="pgn-red"><label for="pgn-red">' + (S.raw ? 'Redigera prompten' : 'Din uppgift') + '</label>' +
         '<textarea id="pgn-red" class="pgn-in" data-uppgift>' + esc(S.raw || S.text) + '</textarea>' +
@@ -1282,7 +1314,11 @@
     if (!S.raw) h += forslagHtml();
     var kort = prompt.length <= 6000;
     /* Claude skapar inga bilder, så den visas inte för bildprompter */
-    h += '<div class="pgn-ai"><span>' + (arBild ? 'Skapa bilden i:' : 'Öppna direkt i:') + '</span>' +
+    if (arVideo) h += '<div class="pgn-ai"><span>Skapa videon i:</span>' +
+      '<a href="https://gemini.google.com/app" target="_blank" rel="noopener" data-ai="gemini">Gemini ↗</a>' +
+      '<a href="https://sora.com/" target="_blank" rel="noopener" data-ai="sora">Sora ↗</a>' +
+      '<a href="https://app.runwayml.com/" target="_blank" rel="noopener" data-ai="runway">Runway ↗</a></div>';
+    else h += '<div class="pgn-ai"><span>' + (arBild ? 'Skapa bilden i:' : 'Öppna direkt i:') + '</span>' +
       '<a href="https://chatgpt.com/' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="chatgpt">ChatGPT ↗</a>' +
       (arBild ? '' : '<a href="https://claude.ai/new' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="claude">Claude ↗</a>') +
       '<a href="https://gemini.google.com/app" target="_blank" rel="noopener" data-ai="gemini">Gemini ↗</a>' +
@@ -1299,6 +1335,12 @@
       '<li><strong>Ljus och bildutsnitt:</strong> det som skiljer en levande bild från en platt.</li>' +
       '<li><strong>Format:</strong> rätt mått direkt, för Instagram, webben eller en affisch.</li>' +
       '<li><strong>Midjourney?</strong> Där fungerar engelska bäst. Be ChatGPT översätta prompten först.</li></ul></div>';
+    else if (S.sa && arVideo) h += '<div class="pgn-drag-inne"><ul>' +
+      '<li><strong>Motiv:</strong> vad som ska hända. Vem eller vad, var och vad som rör sig.</li>' +
+      '<li><strong>Stil och ljus:</strong> realistiskt, filmiskt eller animerat avgör hela känslan.</li>' +
+      '<li><strong>Kamera och rörelse:</strong> det som gör att videon känns regisserad och inte slumpad.</li>' +
+      '<li><strong>Format:</strong> stående 9:16 för Reels och TikTok, liggande 16:9 för YouTube och webben.</li>' +
+      '<li><strong>Tips:</strong> videotjänsterna gör korta klipp, oftast några sekunder. Beskriv en scen i taget.</li></ul></div>';
     else if (S.sa) h += '<div class="pgn-drag-inne"><ul>' +
       '<li><strong>Roll:</strong> AI:n får veta vem den ska vara, så att svaret låter som en kunnig person och inte som en robot.</li>' +
       '<li><strong>Uppgift och läsare:</strong> ju tydligare vem det är till, desto bättre träffar texten.</li>' +
