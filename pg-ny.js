@@ -89,7 +89,7 @@
         { key: 'extra', typ: 'text', label: 'Egna regler', ph: 'T.ex. max 150 ord, inga emojis', full: true }] }
     ],
     bild: [
-      { kort: 'Stil', titel: 'Hur ska bilden se ut?', hjalp: 'Välj stil och format. Hoppa över så väljer apan.', grupper: [
+      { kort: 'Stil', titel: 'Hur ska bilden se ut?', hjalp: 'Välj stil och format. Hoppa över, så väljer bildtjänsten själv.', grupper: [
         { key: 'bstil', label: 'Stil', full: true, val: v(['Fotorealistisk', 'Cinematic', 'Illustration', '3D', 'Minimal']) },
         { key: 'bformat', label: 'Format', full: true, val: v(['1:1 kvadrat', '16:9 liggande', '9:16 stående']) }] },
       { kort: 'Ljus och kamera', titel: 'Ljus och kamera', hjalp: 'Det som får bilden att kännas rätt.', grupper: [
@@ -200,14 +200,47 @@
   }
   function arHelPrompt(c) { return c.length > 150 && c.indexOf('\n') !== -1; }
 
+  /* ── Bild: en färdig bildprompt att klistra in i ChatGPT, Gemini eller Copilot
+     (inte en prompt som ber AI:n skriva en bildprompt). Hela bildmallar från
+     biblioteket (långa, flera rader) skickas som förut. ── */
+  var BSTIL = { 'Fotorealistisk': 'fotorealistisk, som ett riktigt foto', 'Cinematic': 'filmisk, som en stillbild ur en film', 'Illustration': 'tecknad illustration', '3D': '3D-renderad', 'Minimal': 'minimalistisk, med enkla former och mycket luft' };
+  var BLJUS = { 'Mjukt': 'mjukt och jämnt', 'Gyllene timmen': 'varmt ljus från en låg sol, gyllene timmen', 'Neon': 'neonljus i starka färger', 'Dramatiskt': 'dramatiskt, med djupa skuggor', 'Studio': 'rent studioljus' };
+  var BKAM = { 'Närbild': 'närbild', 'Vidvinkel': 'vidvinkel som visar hela miljön', 'Porträtt': 'porträtt, motivet i fokus och bakgrunden suddig' };
+  var BFORM = { '1:1 kvadrat': 'kvadratisk, 1:1', '16:9 liggande': 'liggande, 16:9', '9:16 stående': 'stående, 9:16' };
+  var RE_BILDORD = /^(?:skapa|gör|rita|generera|designa|ta fram)?\s*(?:mig\s+)?(?:en|ett)?\s*(bild|foto|fotografi|illustration|logga|logotyp|affisch|ikon|teckning|målning)(?:en|et)?\b\s*(.*)$/i;
+  function arBildMall(text) { return !!text && arHelPrompt(text); }
+  function bildMotiv(text) {
+    var t = text.replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '');
+    var m = t.match(RE_BILDORD);
+    if (m) { var ord = m[1].toLowerCase(); return 'Skapa ' + (/^(foto|fotografi)$/.test(ord) ? 'ett' : 'en') + ' ' + ord + (m[2] ? ' ' + m[2] : '') + '.'; }
+    if (/^(En|Ett|Några|Två|Tre|Min|Mitt|Mina|Vår|Vårt|Våra|Den|Det|De)\b/.test(t)) t = t.charAt(0).toLowerCase() + t.slice(1);
+    return 'Skapa en bild: ' + t + '.';
+  }
+  /* Hur många ord som beskriver själva motivet (för "Apan föreslår") */
+  function bildMotivOrd(text) {
+    var t = (text || '').trim(), m = t.match(RE_BILDORD); if (m) t = m[2] || '';
+    t = t.replace(/^(till|för)\b.*$/i, '');
+    return t.split(/\s+/).filter(Boolean).length;
+  }
+  function bildPrompt(text, x) {
+    var r = [text ? bildMotiv(text) : 'Skapa en bild: [BESKRIV VAD SOM SKA SYNAS PÅ BILDEN].'];
+    if (BSTIL[x.bstil]) r.push('Stil: ' + BSTIL[x.bstil] + '.');
+    if (BLJUS[x.bljus]) r.push('Ljus: ' + BLJUS[x.bljus] + '.');
+    if (BKAM[x.bkamera]) r.push('Bildutsnitt: ' + BKAM[x.bkamera] + '.');
+    if (BFORM[x.bformat]) r.push('Format: ' + BFORM[x.bformat] + '.');
+    if (Array.isArray(x.bregler) && x.bregler.length) r.push('Ingen text i bilden.');
+    return r.join('\n');
+  }
+
   function byggPrompt(S) {
     if (S.raw) return S.raw;
+    if (S.typ === 'bild' && !arBildMall(applyFills(S.text || '').trim())) return bildPrompt(applyFills(S.text || '').trim(), S.svar);
     var t = S.typ, x = S.svar, text = applyFills(S.text || '').trim();
     var isBild = t === 'bild', isVideo = t === 'video', isKod = t === 'kod', isMedia = isBild || isVideo;
-    var hel = !isMedia && !!text && arHelPrompt(text);
+    var hel = (!isMedia || isBild) && !!text && arHelPrompt(text);
     var egenRoll = hel && /^\s*(du är|agera som|tänk dig att du är|act as|you are)\b/i.test(text);
     var sys = [], out = [], regler = [], kat = [], kontext = [];
-    if (isBild) sys.push('Du är expert på att skriva prompter för AI-bildgeneratorer. Använd visuellt beskrivande språk.');
+    if (isBild) { if (!egenRoll) sys.push('Du är expert på att skriva prompter för AI-bildgeneratorer. Använd visuellt beskrivande språk.'); }
     else if (isVideo) sys.push('Du är expert på att skriva prompter för AI-videogeneratorer. Beskriv scen, rörelse, tempo, ljus och kamera tydligt.');
     else if (isKod) { if (!egenRoll) sys.push(x.rollEgen || x.roll ? rollMening(x.rollEgen || x.roll) + ' Du skriver tydlig och robust kod.' : 'Du är en senior utvecklare som skriver tydlig och robust kod.'); }
     else if (!egenRoll) sys.push(rollMening(x.rollEgen || x.roll || STD_ROLL[t] || STD_ROLL.skriva));
@@ -244,7 +277,6 @@
     if (x.extra) regler.push(x.extra.trim());
 
     if (isBild) {
-      out.push('Skriv en färdig bildprompt på engelska som jag kan klistra in i en bildgenerator (t.ex. Midjourney, DALL·E eller Gemini).');
       if (x.bstil) kat.push('Stil: ' + x.bstil);
       if (x.bformat) kat.push('Format: ' + x.bformat);
       if (x.bljus) kat.push('Ljus: ' + x.bljus);
@@ -1101,7 +1133,7 @@
   /* "Apan föreslår": högst två saker som saknas, med ett klick */
   function forslagLista() {
     var t = S.typ || 'skriva', x = S.svar, rg = Array.isArray(x.regler) ? x.regler : [], f = [];
-    if (t === 'bild') { if (!x.bformat) f.push({ id: 'bformat', text: 'Välj format, så blir bilden rätt till där den ska användas.', knapp: 'Välj format' }); if (!x.bljus) f.push({ id: 'bljus', text: 'Ljuset gör mycket för känslan i bilden.', knapp: 'Välj ljus' }); }
+    if (t === 'bild') { if (!S.raw && !arBildMall(applyFills(S.text || '').trim()) && bildMotivOrd(applyFills(S.text || '')) < 5) f.push({ id: 'motiv', text: 'Beskriv vad som ska synas: vem eller vad, var och vilken känsla. Ju mer konkret, desto närmare bilden du ser framför dig.', knapp: 'Beskriv bilden' }); if (!x.bstil) f.push({ id: 'bstil', text: 'Välj stil. Foto, illustration eller 3D ger helt olika bilder.', knapp: 'Välj stil' }); if (!x.bformat) f.push({ id: 'bformat', text: 'Välj format, så blir bilden rätt till där den ska användas.', knapp: 'Välj format' }); if (!x.bljus) f.push({ id: 'bljus', text: 'Ljuset gör mycket för känslan i bilden.', knapp: 'Välj ljus' }); }
     else if (t === 'video') { if (!x.vformat) f.push({ id: 'vformat', text: 'Välj format, liggande eller stående.', knapp: 'Välj format' }); }
     else if (t === 'kod') { if (!x.ksprak) f.push({ id: 'ksprak', text: 'Säg vilket språk koden ska vara i, så slipper AI:n gissa.', knapp: 'Välj språk' }); if (!x.ksvar) f.push({ id: 'ksvar', text: 'Vill du ha bara kod, eller kod med förklaring?', knapp: 'Välj svar' }); }
     else {
@@ -1231,8 +1263,9 @@
 
   function vyKlar() {
     var prompt = byggPrompt(S), L = lista(), pk = foreslagetPaket();
+    var arBild = !S.raw && S.typ === 'bild' && !arBildMall(applyFills(S.text || '').trim());
     var h = '<section class="pgn-sek">';
-    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Din prompt är klar!</h1><p class="pgn-ingress">' + (S.raw ? 'Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.' : 'Kopiera den, eller justera den här nedanför. Den ändras direkt.') + '</p></div>';
+    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>' + (arBild ? 'Din bildprompt är klar!' : 'Din prompt är klar!') + '</h1><p class="pgn-ingress">' + (S.raw ? 'Kopiera den och klistra in i ChatGPT, Claude, Gemini eller Copilot.' : arBild ? 'Klistra in den i ChatGPT, Gemini eller Copilot, så skapas bilden direkt. Justera den här nedanför.' : 'Kopiera den, eller justera den här nedanför. Den ändras direkt.') + '</p></div>';
     if (S.redigera) {
       h += '<div class="pgn-red"><label for="pgn-red">' + (S.raw ? 'Redigera prompten' : 'Din uppgift') + '</label>' +
         '<textarea id="pgn-red" class="pgn-in" data-uppgift>' + esc(S.raw || S.text) + '</textarea>' +
@@ -1248,9 +1281,10 @@
     if (K) h += kSvarHtml();
     if (!S.raw) h += forslagHtml();
     var kort = prompt.length <= 6000;
-    h += '<div class="pgn-ai"><span>Öppna direkt i:</span>' +
+    /* Claude skapar inga bilder, så den visas inte för bildprompter */
+    h += '<div class="pgn-ai"><span>' + (arBild ? 'Skapa bilden i:' : 'Öppna direkt i:') + '</span>' +
       '<a href="https://chatgpt.com/' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="chatgpt">ChatGPT ↗</a>' +
-      '<a href="https://claude.ai/new' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="claude">Claude ↗</a>' +
+      (arBild ? '' : '<a href="https://claude.ai/new' + (kort ? '?q=' + encodeURIComponent(prompt) : '') + '" target="_blank" rel="noopener" data-ai="claude">Claude ↗</a>') +
       '<a href="https://gemini.google.com/app" target="_blank" rel="noopener" data-ai="gemini">Gemini ↗</a>' +
       '<a href="https://m365.cloud.microsoft/chat" target="_blank" rel="noopener" data-ai="copilot">Copilot ↗</a></div>';
     if (!K) h += '<div class="pgn-projekt"><div><p class="pgn-p-rubrik">Gör du sånt här ofta?</p>' +
@@ -1259,7 +1293,13 @@
       '</div>' + (pk ? '<a class="pgn-p-knapp" href="/projektpaket/' + pk.slug + '?source=generator" data-projekt="' + pk.slug + '">Projektmall: ' + esc(pk.namn) + ' →</a>' : '') + '</div>';
     h += '<div class="pgn-drag">';
     h += '<button type="button" data-vaxla="sa" aria-expanded="' + S.sa + '"><span>Så funkar prompten</span><span>' + (S.sa ? '−' : '+') + '</span></button>';
-    if (S.sa) h += '<div class="pgn-drag-inne"><ul>' +
+    if (S.sa && arBild) h += '<div class="pgn-drag-inne"><ul>' +
+      '<li><strong>Motiv:</strong> vad som ska synas. Ju mer konkret (vem, var, vad som händer), desto närmare bilden du ser framför dig.</li>' +
+      '<li><strong>Stil:</strong> foto, illustration eller 3D avgör hela känslan.</li>' +
+      '<li><strong>Ljus och bildutsnitt:</strong> det som skiljer en levande bild från en platt.</li>' +
+      '<li><strong>Format:</strong> rätt mått direkt, för Instagram, webben eller en affisch.</li>' +
+      '<li><strong>Midjourney?</strong> Där fungerar engelska bäst. Be ChatGPT översätta prompten först.</li></ul></div>';
+    else if (S.sa) h += '<div class="pgn-drag-inne"><ul>' +
       '<li><strong>Roll:</strong> AI:n får veta vem den ska vara, så att svaret låter som en kunnig person och inte som en robot.</li>' +
       '<li><strong>Uppgift och läsare:</strong> ju tydligare vem det är till, desto bättre träffar texten.</li>' +
       '<li><strong>Underlag:</strong> fakta, siffror eller en gammal text. Det är där svaret blir ditt.</li>' +
@@ -1495,6 +1535,7 @@
     if (b.hasAttribute('data-forslag')) {
       var fid = b.getAttribute('data-forslag'); track('pgny_andra', { vad: 'forslag_' + fid });
       if (fid === 'tre' || fid === 'fragor') { var rg2 = Array.isArray(S.svar.regler) ? S.svar.regler.slice() : []; rg2.push(fid === 'tre' ? 'Ge tre alternativ' : 'Ställ frågor om något är oklart'); S.svar.regler = rg2; S.kopierad = false; rita(); return; }
+      if (fid === 'motiv') { S.redigera = true; S.justera = ''; rita(); var tm = root.querySelector('[data-uppgift]'); if (tm) { try { tm.focus(); tm.setSelectionRange(tm.value.length, tm.value.length); } catch (e9) {} } return; }
       S.justera = fid; rita(); var fm2 = root.querySelector('.pgn-meny .pgn-chip'); if (fm2) { try { fm2.focus({ preventScroll: true }); } catch (e5) {} } return;
     }
     if (b.hasAttribute('data-arkstang')) { S.ark = ''; rita(); return; }
