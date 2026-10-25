@@ -873,11 +873,13 @@
   /* Projektmall-förslag (samma mappning som projekt-puff.js) */
   var PAKET = [
     { slug: 'saljassistenten', namn: 'Säljassistenten' }, { slug: 'smaforetagets-ai-avdelning', namn: 'Småföretagets AI-avdelning' },
-    { slug: 'innehallsmaskinen', namn: 'Innehållsmaskinen' }, { slug: 'kundtjanst-for-webbshopen', namn: 'Kundtjänst för webbshopen' }
+    { slug: 'innehallsmaskinen', namn: 'Innehållsmaskinen' }, { slug: 'kundtjanst-for-webbshopen', namn: 'Kundtjänst för webbshopen' },
+    { slug: 'klientassistenten', namn: 'Klientassistenten' }
   ];
   var ROLL_PAKET = { 'Säljare': 'saljassistenten', 'Copywriter': 'innehallsmaskinen', 'Marknadsförare': 'innehallsmaskinen', 'SEO-expert': 'innehallsmaskinen' };
   function foreslagetPaket() {
     var s = ROLL_PAKET[S.svar.roll];
+    if (!s && /klient|coach|konsult|rådgivning|rådgivare/i.test(S.text)) s = 'klientassistenten';
     if (!s && /kundtjänst|reklamation|retur|kundmejl|kundservice/i.test(S.text)) s = 'kundtjanst-for-webbshopen';
     if (!s && /linkedin|instagram|inlägg|nyhetsbrev|sociala/i.test(S.text)) s = 'innehallsmaskinen';
     if (!s && /offert|sälj|prospekt|kundmöte|invändning/i.test(S.text)) s = 'saljassistenten';
