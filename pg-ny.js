@@ -876,7 +876,7 @@
     { slug: 'innehallsmaskinen', namn: 'Innehållsmaskinen' }, { slug: 'kundtjanst-for-webbshopen', namn: 'Kundtjänst för webbshopen' },
     { slug: 'klientassistenten', namn: 'Klientassistenten' }
   ];
-  var ROLL_PAKET = { 'Säljare': 'saljassistenten', 'Copywriter': 'innehallsmaskinen', 'Marknadsförare': 'innehallsmaskinen', 'SEO-expert': 'innehallsmaskinen' };
+  var ROLL_PAKET = { 'Säljare': 'saljassistenten', 'Copywriter': 'innehallsmaskinen', 'Marknadsförare': 'innehallsmaskinen', 'SEO-expert': 'innehallsmaskinen', 'Coach': 'klientassistenten' };
   function foreslagetPaket() {
     var s = ROLL_PAKET[S.svar.roll];
     if (!s && /klient|coach|konsult|rådgivning|rådgivare/i.test(S.text)) s = 'klientassistenten';
