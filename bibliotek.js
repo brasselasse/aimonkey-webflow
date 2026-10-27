@@ -3,7 +3,7 @@
    Kräver pg-fyll.js (window.AimFyll).
 
    Webflow renderar korten (100 per sida, länk till /ai-prompter/<slug>
-   och CMS-fält som data-pb-*, utan prompttexten sedan 1.2.0). Skriptet
+   och CMS-fält som data-pb-*, utan prompttexten sedan 1.4.0). Skriptet
    ritar första sidans kort direkt, hämtar resten av sidorna i bakgrunden
    (tre åt gången), döljer Webflow-listan (den ligger kvar i HTML:en för
    länkarnas skull) och ritar biblioteket enligt skissen 2026-10-15:
