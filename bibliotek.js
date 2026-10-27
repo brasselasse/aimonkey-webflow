@@ -256,10 +256,37 @@
         var pe = card.querySelector('.prompt-copy-text.prompt-copy');
         var raw = ((w && w.getAttribute('data-brief')) || (pe && pe.textContent) || '').replace(/\r\n?/g, '\n').trim();
         if (!raw) throw new Error('ingen text');
-        p.prompt = raw;
+        p.prompt = raw; p.sen = true;
         return raw;
       })['catch'](function (e) { delete TEXTER[p.slug]; throw e; });
     return TEXTER[p.slug];
+  }
+
+  /* Sökningen i prompttexterna: när någon börjar söka hämtas /prompt-data
+     (alla prompttexter, ca 120 kB komprimerat) en gång, så att sökningen
+     hittar ord inne i prompterna precis som förut. Bara de som söker
+     betalar för det. */
+  var berikad = null;
+  function berika(klar) {
+    if (berikad) return berikad.then(klar);
+    berikad = fetch('/prompt-data', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (html) {
+        if (!html) return;
+        var doc = new DOMParser().parseFromString(html, 'text/html'), map = {};
+        [].forEach.call(doc.querySelectorAll('.pg-data-item'), function (it) {
+          var s = it.querySelector('.pg-d-slug'), t = it.querySelector('.pg-d-prompt');
+          if (s && t) map[s.textContent.trim()] = t.textContent.replace(/\r\n?/g, '\n').trim();
+        });
+        P.forEach(function (p) {
+          if (p.prompt || !map[p.slug]) return;
+          p.prompt = map[p.slug]; p.sen = true;
+          var m = /fr[åa]n steg (\d+)/i.exec(p.prompt);
+          p.byggerPa = p.steg > 1 && m ? +m[1] : 0;
+          p.hay = (p.titel + ' ' + p.desc + ' ' + p.kat + ' ' + p.mall + ' ' + p.stegrubrik + ' ' + p.prompt).toLowerCase();
+        });
+      })['catch'](function () {});
+    return berikad.then(klar);
   }
 
   /* Kopierar text som kanske inte har hämtats än. ClipboardItem med ett
@@ -369,7 +396,7 @@
       '<div class="pb-etiketter">' + e + '</div>' +
       '<h3 class="pb-titel"><a href="' + href + '" data-pb="oppna">' + esc(p.titel) + '</a></h3>' +
       (p.desc ? '<p class="pb-desc">' + esc(p.desc) + '</p>' : '') +
-      (p.prompt ? '<div class="pb-utdrag">' + esc(p.prompt.slice(0, 320)) + '</div>' : '') +
+      (p.prompt && !p.sen ? '<div class="pb-utdrag">' + esc(p.prompt.slice(0, 320)) + '</div>' : '') +
       '<div class="pb-knappar">' +
         (n !== 0 ?'<a class="pb-prim" href="' + href + '" data-pb="fyll">Fyll i och kopiera →</a><button type="button" class="pb-sek" data-pb="kopiera">Kopiera</button>'
            : '<button type="button" class="pb-prim" data-pb="kopiera">Kopiera prompt</button><a class="pb-lank" href="' + href + '" data-pb="oppna">Öppna →</a>') +
@@ -496,6 +523,7 @@
     var sokTimer, matTimer, senastSok = '';
     el.sok.addEventListener('input', function () {
       S.q = el.sok.value.trim(); S.flode = ''; S.visa = PER_SIDA;
+      if (S.q && !LADDAR) berika(function () { if (S.q) { ritaVerktyg(); ritaFloden(); ritaLista(); } });
       clearTimeout(sokTimer); clearTimeout(matTimer);
       sokTimer = setTimeout(function () { ritaVerktyg(); ritaFloden(); ritaLista(); skrivAdress(); }, 180);
       /* Mät först när besökaren slutat skriva, så att "m", "me", "mej" inte blir tre sökningar */
@@ -588,6 +616,7 @@
       root.querySelector('[data-pb-antal]').textContent = P.length;
       ritaAllt();
       visaLaddar(false);
+      if (S.q) berika(function () { if (S.q) { ritaVerktyg(); ritaFloden(); ritaLista(); } });
       track('pb_visa', { prompter: P.length, floden: FLODEN.length, ms: Date.now() - t0 });
     });
     function visaLaddar(pa) {
