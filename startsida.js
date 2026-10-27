@@ -197,6 +197,7 @@
       var n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]; n.focus(); n.click();
     });
     visa();
+    sek.classList.add('st-flikar-klara');
 
     alla.forEach(function (k) {
       var slug = k.getAttribute('data-st-slug'), rad = k.querySelector('.st-knappar');
@@ -241,8 +242,11 @@
     });
 
     if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (es) { if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); hamtaData(); } }, { rootMargin: '400px 0px' });
-      io.observe(sek);
+      /* Hämta först när sektionen faktiskt syns och sidan har laddat klart,
+         så att de ~500 kB inte konkurrerar med första visningen. */
+      var io = new IntersectionObserver(function (es) { if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); hamtaData(); } }, { rootMargin: '0px' });
+      var starta = function () { io.observe(sek); };
+      if (document.readyState === 'complete') starta(); else window.addEventListener('load', starta);
     } else hamtaData();
   }
 
@@ -330,7 +334,7 @@
 
   function init() {
     F = window.AimFyll || null;
-    var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    if (!document.querySelector('link[href*="startsida.css"]')) { var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     sok(); kort(); datum(); lar(); faq();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

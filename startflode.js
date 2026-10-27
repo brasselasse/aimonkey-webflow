@@ -554,15 +554,16 @@
       if (!q) { e.preventDefault(); location.href = '/promptbiblioteket'; return; }
       track('pb_start_sok', { q: q.slice(0, 80) });
     });
-    hamtaData().then(function (d) {
-      if (d.__antal > 50) form.q.placeholder = 'Sök bland ' + d.__antal + ' prompter';
-    });
+    /* Antalet prompter i platshållaren hämtas först när någon går in i sökrutan */
+    form.q.addEventListener('focus', function () {
+      hamtaData().then(function (d) { if (d.__antal > 50) form.q.placeholder = 'Sök bland ' + d.__antal + ' prompter'; });
+    }, { once: true });
   }
 
   /* ---------- Start ---------- */
   function init() {
     F = window.AimFyll || F;
-    var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    if (!document.querySelector('link[href*="startsida.css"]')) { var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     [].forEach.call(document.querySelectorAll('[data-sf-roll]'), function (a) { a.setAttribute('role', 'radio'); a.setAttribute('aria-checked', 'false'); });
     var g = document.querySelector('[data-sf="roller"]'); if (g) { g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', 'Välj yrke'); }
     el3.setAttribute('id', 'steg-3'); el2.setAttribute('id', 'steg-2');
