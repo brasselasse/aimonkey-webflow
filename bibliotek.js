@@ -3,8 +3,9 @@
    Kräver pg-fyll.js (window.AimFyll).
 
    Webflow renderar korten (100 per sida, länk till /ai-prompter/<slug>
-   och CMS-fält som data-pb-*). Skriptet hämtar resten av sidorna via
-   paginering, döljer Webflow-listan (den ligger kvar i HTML:en för
+   och CMS-fält som data-pb-*, utan prompttexten sedan 1.2.0). Skriptet
+   ritar första sidans kort direkt, hämtar resten av sidorna i bakgrunden
+   (tre åt gången), döljer Webflow-listan (den ligger kvar i HTML:en för
    länkarnas skull) och ritar biblioteket enligt skissen 2026-10-15:
    sök, "Vad vill du göra?", Färdiga flöden, Alla/Mina prompter,
    kategorier, filter, sortering och kort med etiketter, utdrag,
@@ -87,6 +88,7 @@
     '.pb-titel a{color:#0b1f3b!important;text-decoration:none}',
     '.pb-titel a:hover{color:#00806b!important;text-decoration:underline}',
     '.pb-desc{margin:0!important;font-size:15px!important;line-height:1.5!important;color:#3d4a5c!important}',
+    '.pb-laddar-rad{margin:-8px 0 0!important;font-size:14px!important;color:#5b6573!important}',
     '.pb-utdrag{background:#f2f6f9;border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.55;color:#3d4a5c;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}',
     '.pb-knappar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:auto}',
     '.pb-prim{font:inherit;font-size:15px;font-weight:600;min-height:44px;padding:0 18px;border-radius:12px;border:0;background:#0b1f3b;color:#fff!important;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}',
@@ -150,14 +152,20 @@
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { if (ok) ok(); }, fallback); else fallback();
   }
 
-  /* ── Läs korten ── */
+  /* ── Läs korten ──
+     Sedan 1.2.0 har korten inte hela prompttexten (för tung sida). Antalet
+     fält kommer från CMS-fältet Antal fält (data-pb-falt) och texten hämtas
+     från promptsidan först när någon trycker på Kopiera. Finns texten ändå
+     i kortet används den som förut. */
   function lasKort(root) {
     return [].slice.call(root.querySelectorAll('[data-pb-slug]')).map(function (el) {
       function t(sel) { var e = el.querySelector(sel); return e ? e.textContent.trim() : ''; }
       var pe = el.querySelector('.prompt-copy-text.prompt-copy');
       var prompt = pe ? (pe.getAttribute('data-pm-raw') || pe.textContent || '') : '';
       var datum = new Date(t('.prompter-date'));
+      var fa = (el.getAttribute('data-pb-falt') || '').trim();
       return {
+        faltCms: fa !== '' && !isNaN(+fa) ? +fa : null,
         slug: el.getAttribute('data-pb-slug') || '',
         titel: t('.article-title-prompt'),
         desc: t('.article-desc-prompt'),
@@ -174,38 +182,99 @@
     }).filter(function (p) { return p.slug && p.titel; });
   }
 
-  function hamtaAlla(cb) {
+  /* Hämtar resten av sidorna. Korten från första sidan visas direkt (forst),
+     resten läses in i bakgrunden och hela listan kommer i klar(). Sidorna
+     hämtas i omgångar om tre parallellt; en sida utan nya kort eller utan
+     Nästa-länk betyder att vi är klara. */
+  function hamtaAlla(forst, klar) {
     var alla = lasKort(document), sedda = {};
     alla.forEach(function (p) { sedda[p.slug] = 1; });
     var next = document.querySelector('.w-pagination-next');
-    var url = next ? next.getAttribute('href') : '';
-    var varv = 0;
-    if (!url) {
-      /* Finsweet (gamla sidan) kan ha tagit bort pagineringen och laddar
-         själv in resten: vänta tills antalet kort slutat växa (max 6 s). */
+    var href = next ? next.getAttribute('href') || '' : '';
+    var m = /[?&]([^=&]+_page)=(\d+)/.exec(href);
+    if (!m) {
+      /* Ingen paginering (t.ex. om Finsweet laddar allt): vänta tills
+         antalet kort slutat växa (max 6 s). */
+      forst(alla.slice());
       var forra = -1, lika = 0, start = Date.now();
       (function vanta() {
         var n = document.querySelectorAll('[data-pb-slug]').length;
         lika = n === forra ? lika + 1 : 0; forra = n;
         if (lika >= 6 || Date.now() - start > 6000) {
           lasKort(document).forEach(function (p) { if (!sedda[p.slug]) { sedda[p.slug] = 1; alla.push(p); } });
-          return cb(alla);
+          return klar(alla);
         }
         setTimeout(vanta, 100);
       })();
       return;
     }
-    (function steg() {
-      if (!url || ++varv > 10) return cb(alla);
-      fetch(location.pathname + url, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
-        if (!html) return cb(alla);
+    forst(alla.slice());
+    var param = m[1], sida = +m[2], PARALLELLT = 3, MAX = 30;
+    var sidor = {};
+    function hamta(n) {
+      return fetch(location.pathname + '?' + param + '=' + n, { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .then(function (html) {
+          if (!html) return { kort: [], next: false };
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          return { kort: lasKort(doc), next: !!doc.querySelector('.w-pagination-next') };
+        })['catch'](function () { return { kort: [], next: false }; });
+    }
+    (function omgang(fran) {
+      var nr = [];
+      for (var i = 0; i < PARALLELLT && fran + i <= MAX; i++) nr.push(fran + i);
+      if (!nr.length) return slut();
+      Promise.all(nr.map(hamta)).then(function (svar) {
+        var fortsatt = true;
+        svar.forEach(function (s, i) {
+          sidor[nr[i]] = s.kort;
+          if (!s.kort.length || !s.next) fortsatt = false;
+        });
+        if (fortsatt) omgang(fran + nr.length); else slut();
+      });
+    })(sida);
+    function slut() {
+      Object.keys(sidor).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+        sidor[n].forEach(function (p) { if (!sedda[p.slug]) { sedda[p.slug] = 1; alla.push(p); } });
+      });
+      klar(alla);
+    }
+  }
+
+  /* Prompttexten hämtas från promptsidan (data-brief eller själva texten)
+     och sparas, så att andra klicket går direkt. */
+  var TEXTER = {};
+  function hamtaPrompt(p) {
+    if (p.prompt) return Promise.resolve(p.prompt);
+    if (TEXTER[p.slug]) return TEXTER[p.slug];
+    TEXTER[p.slug] = fetch('/ai-prompter/' + encodeURIComponent(p.slug), { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.text(); })
+      .then(function (html) {
         var doc = new DOMParser().parseFromString(html, 'text/html');
-        lasKort(doc).forEach(function (p) { if (!sedda[p.slug]) { sedda[p.slug] = 1; alla.push(p); } });
-        var n = doc.querySelector('.w-pagination-next');
-        url = n ? n.getAttribute('href') : '';
-        steg();
-      })['catch'](function () { cb(alla); });
-    })();
+        var card = doc.querySelector('.prompt-container.prompt-large') || doc;
+        var w = card.querySelector('.anpassa-btn-wrapper');
+        var pe = card.querySelector('.prompt-copy-text.prompt-copy');
+        var raw = ((w && w.getAttribute('data-brief')) || (pe && pe.textContent) || '').replace(/\r\n?/g, '\n').trim();
+        if (!raw) throw new Error('ingen text');
+        p.prompt = raw;
+        return raw;
+      })['catch'](function (e) { delete TEXTER[p.slug]; throw e; });
+    return TEXTER[p.slug];
+  }
+
+  /* Kopierar text som kanske inte har hämtats än. ClipboardItem med ett
+     löfte behåller klicket som "användarhandling" i Safari och Chrome. */
+  function kopieraSen(lofte, ok, fel) {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      try {
+        var item = new ClipboardItem({ 'text/plain': lofte.then(function (t) { return new Blob([t], { type: 'text/plain' }); }) });
+        navigator.clipboard.write([item]).then(function () { lofte.then(ok); }, function () {
+          lofte.then(function (t) { tillKlipp(t, function () { ok(t); }); }, fel);
+        });
+        return;
+      } catch (e) {}
+    }
+    lofte.then(function (t) { tillKlipp(t, function () { ok(t); }); }, fel);
   }
 
   /* ── Tillstånd (speglas i adressen) ── */
@@ -226,15 +295,15 @@
     try { history.replaceState(null, '', location.pathname + (s ? '?' + s : '')); } catch (e) {}
   }
 
-  var P = [], FLODEN = [], KATS = [], root, el = {};
+  var P = [], FLODEN = [], KATS = [], root, el = {}, LADDAR = true;
 
   function bygg(alla) {
     P = alla.map(function (p, i) {
       p.ordning = i;
-      p.falt = F.parse(p.prompt, { kod: p.typ === 'kod' }).length;
+      p.falt = p.prompt ? F.parse(p.prompt, { kod: p.typ === 'kod' }).length : p.faltCms;
       var m = /fr[åa]n steg (\d+)/i.exec(p.prompt);
       p.byggerPa = p.steg > 1 && m ? +m[1] : 0;
-      p.hay = (p.titel + ' ' + p.desc + ' ' + p.kat + ' ' + p.mall + ' ' + p.prompt).toLowerCase();
+      p.hay = (p.titel + ' ' + p.desc + ' ' + p.kat + ' ' + p.mall + ' ' + p.stegrubrik + ' ' + p.prompt).toLowerCase();
       return p;
     });
     var fm = {};
@@ -300,9 +369,9 @@
       '<div class="pb-etiketter">' + e + '</div>' +
       '<h3 class="pb-titel"><a href="' + href + '" data-pb="oppna">' + esc(p.titel) + '</a></h3>' +
       (p.desc ? '<p class="pb-desc">' + esc(p.desc) + '</p>' : '') +
-      '<div class="pb-utdrag">' + esc(p.prompt.slice(0, 320)) + '</div>' +
+      (p.prompt ? '<div class="pb-utdrag">' + esc(p.prompt.slice(0, 320)) + '</div>' : '') +
       '<div class="pb-knappar">' +
-        (n ? '<a class="pb-prim" href="' + href + '" data-pb="fyll">Fyll i och kopiera →</a><button type="button" class="pb-sek" data-pb="kopiera">Kopiera</button>'
+        (n !== 0 ?'<a class="pb-prim" href="' + href + '" data-pb="fyll">Fyll i och kopiera →</a><button type="button" class="pb-sek" data-pb="kopiera">Kopiera</button>'
            : '<button type="button" class="pb-prim" data-pb="kopiera">Kopiera prompt</button><a class="pb-lank" href="' + href + '" data-pb="oppna">Öppna →</a>') +
         '<span class="pb-luft"></span>' +
         '<button type="button" class="pb-ikon" data-pb="fav" aria-pressed="' + fav + '" aria-label="' + (fav ? 'Ta bort från Mina prompter' : 'Spara i Mina prompter') + '" title="' + (fav ? 'Ta bort från Mina prompter' : 'Spara i Mina prompter') + '">' + stjarna(fav) + '</button>' +
@@ -353,7 +422,7 @@
     }
     el.antal.textContent = f ? '' : S.flik === 'mina'
       ? 'Mina prompter: ' + l.length + ' (★ sparade och senast kopierade, i den här webbläsaren)'
-      : 'Visar ' + l.length + ' av ' + P.length + ' prompter' + (S.kat ? ' i ' + S.kat : '') + (S.q ? ' för "' + S.q + '"' : '');
+      : 'Visar ' + l.length + ' av ' + P.length + (LADDAR ? '+' : '') + ' prompter' + (S.kat ? ' i ' + S.kat : '') + (S.q ? ' för "' + S.q + '"' : '');
     el.antal.hidden = !!f;
     if (!l.length) {
       var minaTomt = S.flik === 'mina' && !S.q && !S.kat;
@@ -386,7 +455,7 @@
     root.innerHTML =
       '<div class="pb-wrap">' +
         '<div class="pb-hero">' +
-          '<p class="pb-etikett"><span data-pb-antal>300+</span> prompter på svenska · gratis</p>' +
+          '<p class="pb-etikett"><span data-pb-antal>400+</span> prompter på svenska · gratis</p>' +
           '<h1 class="pb-h1">Promptbiblioteket</h1>' +
           '<p class="pb-ingress">Hitta en prompt, fyll i det som är ditt och kopiera. Funkar i ChatGPT, Claude, Gemini och Copilot.</p>' +
         '</div>' +
@@ -460,13 +529,21 @@
       if (!p) return;
       if (d.pb === 'oppna' || d.pb === 'fyll') { track('pb_oppna', { prompt: p.slug, via: d.pb }); return; }
       if (d.pb === 'kopiera') {
-        tillKlipp(p.prompt);
-        F.sparaSenaste(p.prompt, p.typ, p.titel, p.slug);
-        var q = encodeURIComponent(p.prompt);
-        if (p.falt) toast('Kopierad med hakparenteser', 'Byt ut [DET SOM STÅR SÅ HÄR] innan du skickar, eller fyll i fälten på promptsidan.', [{ namn: 'Fyll i på promptsidan', href: '/ai-prompter/' + p.slug }]);
-        else toast('Kopierad! Klistra in i din AI', p.titel, [{ namn: 'ChatGPT', href: 'https://chatgpt.com/?q=' + q }, { namn: 'Claude', href: 'https://claude.ai/new?q=' + q }]);
-        track('pb_kopiera_ra', { prompt: p.slug, falt: p.falt });
-        if (S.flik === 'mina') ritaVerktyg();
+        var harText = !!p.prompt;
+        if (!harText) { t.setAttribute('aria-busy', 'true'); t.style.opacity = '.6'; }
+        kopieraSen(hamtaPrompt(p), function (text) {
+          t.removeAttribute('aria-busy'); t.style.opacity = '';
+          if (p.falt == null) p.falt = F.parse(text, { kod: p.typ === 'kod' }).length;
+          F.sparaSenaste(text, p.typ, p.titel, p.slug);
+          var q = encodeURIComponent(text);
+          if (p.falt) toast('Kopierad med hakparenteser', 'Byt ut [DET SOM STÅR SÅ HÄR] innan du skickar, eller fyll i fälten på promptsidan.', [{ namn: 'Fyll i på promptsidan', href: '/ai-prompter/' + p.slug }]);
+          else toast('Kopierad! Klistra in i din AI', p.titel, [{ namn: 'ChatGPT', href: 'https://chatgpt.com/?q=' + q }, { namn: 'Claude', href: 'https://claude.ai/new?q=' + q }]);
+          track('pb_kopiera_ra', { prompt: p.slug, falt: p.falt, hamtad: !harText });
+          if (S.flik === 'mina') ritaVerktyg();
+        }, function () {
+          t.removeAttribute('aria-busy'); t.style.opacity = '';
+          toast('Det gick inte att kopiera', 'Öppna prompten och kopiera den därifrån.', [{ namn: 'Öppna prompten', href: '/ai-prompter/' + p.slug }]);
+        });
         return;
       }
       if (d.pb === 'fav') {
@@ -496,13 +573,45 @@
     skelett();
     el.sok.value = S.q;
     document.body.classList.add('pb-on');
-    hamtaAlla(function (alla) {
-      bygg(alla);
-      root.querySelector('[data-pb-antal]').textContent = P.length;
+    var t0 = Date.now();
+    hamtaAlla(function (forsta) {
+      /* Första sidan: rita direkt, så att besökaren kan börja leta. */
+      bygg(forsta);
       handelser();
       ritaAllt();
-      track('pb_visa', { prompter: P.length, floden: FLODEN.length });
+      visaLaddar(true);
+    }, function (alla) {
+      LADDAR = false;
+      var visa = S.visa;
+      bygg(alla);
+      S.visa = visa;
+      root.querySelector('[data-pb-antal]').textContent = P.length;
+      ritaAllt();
+      visaLaddar(false);
+      track('pb_visa', { prompter: P.length, floden: FLODEN.length, ms: Date.now() - t0 });
     });
+    function visaLaddar(pa) {
+      var n = root.querySelector('.pb-laddar-rad');
+      if (pa && !n) {
+        n = document.createElement('p');
+        n.className = 'pb-laddar-rad';
+        n.setAttribute('role', 'status');
+        n.textContent = 'Läser in alla prompter …';
+        el.antal.parentNode.insertBefore(n, el.antal.nextSibling);
+      }
+      if (n) n.hidden = !pa || !LADDAR;
+    }
+    /* Hämta texten i förväg när någon pekar på Kopiera, så att klicket går direkt. */
+    function forhamta(e) {
+      var t = e.target.closest && e.target.closest('[data-pb="kopiera"]');
+      if (!t) return;
+      var kort = t.closest('.pb-kort'), slug = kort && kort.getAttribute('data-slug');
+      var p = slug && P.filter(function (x) { return x.slug === slug; })[0];
+      if (p && !p.prompt) hamtaPrompt(p)['catch'](function () {});
+    }
+    root.addEventListener('pointerover', forhamta);
+    root.addEventListener('focusin', forhamta);
+    root.addEventListener('touchstart', forhamta, { passive: true });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
