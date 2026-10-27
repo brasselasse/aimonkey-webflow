@@ -614,6 +614,9 @@
     root.addEventListener('touchstart', forhamta, { passive: true });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  /* Skriptet ligger i sidfoten, efter listan. Starta direkt om listan och
+     AimFyll redan finns, i stället för att vänta på att alla andra skript
+     i sidfoten har laddats (DOMContentLoaded). */
+  if (document.readyState !== 'loading' || (window.AimFyll && document.querySelector('.section_blog') && document.querySelector('.w-pagination-wrapper, footer'))) init();
+  else document.addEventListener('DOMContentLoaded', init);
 })();
