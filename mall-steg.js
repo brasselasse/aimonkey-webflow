@@ -141,7 +141,9 @@
     return /\.webflow\.io$/.test(location.hostname);
   })();
   var CSS_ENKEL = [
-    /* Sidomenyn: ett lugnt vitt kort, ingen tidslinje, ingen knapp */
+    /* Sidomenyn: ett lugnt vitt kort, ingen tidslinje, ingen knapp.
+       Dator: menyn börjar i linje med logotypen och är lite bredare. */
+    '@media (min-width:992px){body.mall-enkel .article-copy-wrapper{padding-left:0!important;padding-right:0!important}body.mall-enkel .content27_component{grid-template-columns:300px minmax(0,1fr)!important}}',
     'body.mall-enkel .stegnav-kort{border:1px solid #e1e7ee;border-radius:18px;padding:18px;box-shadow:0 6px 18px rgba(11,31,59,.05)}',
     '@media (min-width:992px){body.mall-enkel .stegnav-kort .content27_sidebar-heading{display:none}}',
     'body.mall-enkel .stegnav-eyebrow{font-size:11px;margin:0 0 8px}',
