@@ -131,6 +131,80 @@
     '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
 
+  /* ── Förslag 2026-10-28: enklare stegdel ("enkel").
+        På testdomänen är den på som standard (?enkel=0 visar dagens version).
+        På aimonkey.se bara med ?enkel=1. Utan flaggan är allt som förut. ── */
+  var ENKEL = (function () {
+    var q = location.search;
+    if (/[?&]enkel=1/.test(q)) return true;
+    if (/[?&]enkel=0/.test(q)) return false;
+    return /\.webflow\.io$/.test(location.hostname);
+  })();
+  var CSS_ENKEL = [
+    /* Sidomenyn: ett lugnt vitt kort, ingen tidslinje, ingen knapp */
+    'body.mall-enkel .stegnav-kort{border:1px solid #e1e7ee;border-radius:18px;padding:18px;box-shadow:0 6px 18px rgba(11,31,59,.05)}',
+    '@media (min-width:992px){body.mall-enkel .stegnav-kort .content27_sidebar-heading{display:none}}',
+    'body.mall-enkel .stegnav-eyebrow{font-size:11px;margin:0 0 8px}',
+    'body.mall-enkel .stegnav-kort > .stegnav-progress{margin:0 0 12px;font-size:12px;font-weight:700;color:#3d4a5c;flex-direction:row-reverse}',
+    'body.mall-enkel .stegnav-bar{height:6px;background:#e5edf3}',
+    'body.mall-enkel .stegnav-kort .stegnav a:after{display:none!important}',
+    'body.mall-enkel .stegnav-kort .stegnav{gap:2px}',
+    'body.mall-enkel .stegnav-kort .stegnav a{padding:8px 10px;border-radius:12px;gap:10px;color:#3d4a5c}',
+    'body.mall-enkel .stegnav-kort .stegnav a.is-open{background:#e5f9f6;color:#0b1f3b;font-weight:700}',
+    'body.mall-enkel .stegnav-kort .stegnav a.is-current:not(.is-open) i{background:#fff;border:1.5px solid #0b1f3b;color:#0b1f3b}',
+    'body.mall-enkel .stegnav-kort .stegnav a.is-open i{background:#0b1f3b;border-color:#0b1f3b;color:#fff}',
+    'body.mall-enkel .stegnav-kort .stegnav a.is-done i{background:#00806b;border-color:#00806b;color:#fff}',
+    'body.mall-enkel .stegnav-kort .stegnav a span{min-width:0;overflow-wrap:anywhere}',
+    'body.mall-enkel .stegnav-kort .stegnav i{width:26px;height:26px;font-size:12px;font-weight:700}',
+    'body.mall-enkel .stegnav-nu,body.mall-enkel .stegnav-cta{display:none!important}',
+    /* Resan under menyn: textrader i stället för mörk ruta */
+    'body.mall-enkel .mall-resa{background:transparent;color:#3d4a5c;padding:4px 4px 0!important;border-radius:0}',
+    'body.mall-enkel .mall-resa .mall-resa-label{color:#5b6573!important;font-size:11px!important;font-weight:700;letter-spacing:.05em;margin:0 0 6px!important}',
+    'body.mall-enkel .mall-resa ol{display:none}',
+    'body.mall-enkel .mall-resa-forra{font-size:14px;color:#3d4a5c;margin:0 0 6px}',
+    'body.mall-enkel .mall-resa-forra a{color:#0b1f3b;font-weight:700;text-decoration:none}',
+    'body.mall-enkel .mall-resa .mall-resa-mer{margin-top:0;font-size:14px;font-weight:700;color:#00806b}',
+    'body.mall-enkel .mall-resa-mobil{background:#fff;border:1px solid #e1e7ee;border-radius:16px;padding:16px 18px!important;margin-top:14px!important}',
+    /* Rubriken ovanför stegen: inget andra förlopp */
+    'body.mall-enkel .stegkort-progress{display:none}',
+    'body.mall-enkel .stegkort-rubrik{margin-bottom:.35rem}',
+    /* Korten: ingen tidslinje, en ram, ett öppet steg */
+    'body.mall-enkel [data-mall-v2="steg"] .w-dyn-items{display:flex;flex-direction:column;gap:14px}',
+    'body.mall-enkel .stegkort{display:block;margin:0!important;padding:0!important}',
+    'body.mall-enkel .stegkort-rail{display:none}',
+    'body.mall-enkel .stegkort-card{background:#fff;border:1px solid #e1e7ee!important;border-radius:18px;box-shadow:0 6px 18px rgba(11,31,59,.05);padding:22px 24px;margin:0}',
+    'body.mall-enkel .stegkort.is-open .stegkort-card{border:1.5px solid #00c9a7!important;box-shadow:0 10px 28px rgba(11,31,59,.07)}',
+    'body.mall-enkel .stegkort-steg{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#00806b;margin:0 0 6px}',
+    'body.mall-enkel .stegkort-titel{font-size:24px;line-height:1.2;margin:0}',
+    'body.mall-enkel .stegkort-badge{display:none!important}',
+    'body.mall-enkel .stegkort-nar{margin:8px 0 14px;color:#3d4a5c;font-size:15px;line-height:1.5}',
+    'body.mall-enkel .stegkort-prompt{background:#f6f8fb!important;border:0!important;border-radius:14px;padding:16px 18px;font-size:14px;line-height:1.6;color:#24324a}',
+    'body.mall-enkel .stegkort-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;margin-top:14px}',
+    'body.mall-enkel .stegkort-actions .stegkort-kopiera{background:#00806b!important;color:#fff!important;border:0!important;border-radius:12px;padding:12px 20px;font-weight:700;font-size:15px}',
+    'body.mall-enkel .stegkort-actions .stegkort-kopiera.is-copied{background:#e5f9f6!important;color:#005042!important}',
+    'body.mall-enkel .stegkort-actions .stegkort-anpassa{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;color:#00806b!important;font-weight:700;font-size:14px}',
+    'body.mall-enkel .stegkort-oppna{display:none!important}',
+    'body.mall-enkel .stegkort-vaxlar{display:flex;gap:16px;margin-left:auto}',
+    'body.mall-enkel .stegkort-vaxel{background:none;border:0;padding:0;font:inherit;font-size:14px;font-weight:600;color:#3d4a5c;cursor:pointer}',
+    'body.mall-enkel .stegkort-vaxel.is-on{color:#00806b}',
+    'body.mall-enkel .stegkort-acc{border:0!important;padding:0!important;margin:0}',
+    'body.mall-enkel .stegkort-acc-btn{display:none!important}',
+    'body.mall-enkel .stegkort-acc.is-open .stegkort-acc-body{display:block;border-left:3px solid #c9f3ea;padding:4px 0 4px 14px;margin-top:14px;font-size:14px;line-height:1.55;color:#3d4a5c}',
+    'body.mall-enkel .stegkort-foot{display:flex;justify-content:flex-end;border-top:1px solid #edf1f5;margin-top:16px;padding-top:14px}',
+    'body.mall-enkel .stegkort-klar{font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1.5px solid #c9d3de!important;background:#fff!important;color:#0b1f3b!important;text-decoration:none}',
+    /* Hopfällt kort: en rad med bock/siffra, titel och status */
+    'body.mall-enkel .stegkort-rad{display:none}',
+    'body.mall-enkel .stegkort.is-collapsed .stegkort-card{padding:14px 20px;cursor:pointer}',
+    'body.mall-enkel .stegkort.is-collapsed .stegkort-rad{display:flex;align-items:center;gap:12px}',
+    'body.mall-enkel .stegkort.is-collapsed .stegkort-head,body.mall-enkel .stegkort.is-collapsed .stegkort-steg,body.mall-enkel .stegkort.is-collapsed .stegkort-visa-hela{display:none!important}',
+    'body.mall-enkel .stegkort-rad i{font-style:normal;flex:0 0 26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid #c9d3de;color:#5b6573;box-sizing:border-box}',
+    'body.mall-enkel .stegkort.is-done .stegkort-rad i{background:#00806b;border-color:#00806b;color:#fff}',
+    'body.mall-enkel .stegkort-rad b{flex:1;font-size:18px;color:#0b1f3b}',
+    'body.mall-enkel .stegkort-rad span{font-size:13px;color:#5b6573}',
+    'body.mall-enkel .stegkort-klart{margin:14px 0 0}',
+    '@media (max-width:767px){body.mall-enkel .stegkort-card{padding:18px}body.mall-enkel .stegkort-titel{font-size:21px}body.mall-enkel .stegkort-actions{flex-direction:column;align-items:stretch}body.mall-enkel .stegkort-actions .stegkort-kopiera{text-align:center}body.mall-enkel .stegkort-actions .stegkort-anpassa{text-align:center}body.mall-enkel .stegkort-vaxlar{margin:4px 0 0;justify-content:space-between}body.mall-enkel .stegkort-foot{justify-content:stretch}body.mall-enkel .stegkort-klar{flex:1;text-align:center}}'
+  ].join('\n');
+
   /* ── Puff "Nästa steg": AI-skill (AI-Mallar.ai-skill → AI-skills) och/eller
         projektmall (AI-Mallar.projektmall → Projektpaket). Bara en ruta per sida;
         finns båda blir det två val i samma ruta. ── */
@@ -394,6 +468,23 @@
         ol.appendChild(li);
       });
       box.appendChild(ol);
+      if (ENKEL) {
+        var ord = enhet(roll) === 'del' ? 'del' : 'fas';
+        lab.textContent = (ord === 'del' ? 'Del ' : 'Fas ') + fas + ' av ' + nums.length + ' i ' + resanNamn(roll);
+        var idx = nums.indexOf(fas);
+        [[nums[idx - 1], 'Förra ' + (ord === 'del' ? 'delen' : 'fasen')], [nums[idx + 1], 'Nästa ' + (ord === 'del' ? 'del' : 'fas')]].forEach(function (p) {
+          if (p[0] === undefined) return;
+          var m = faser[p[0]][0];
+          var rad = document.createElement('p');
+          rad.className = 'mall-resa-forra';
+          rad.appendChild(document.createTextNode(p[1] + ': '));
+          var l = document.createElement('a');
+          l.href = '/ai-mallar/' + m.slug;
+          l.textContent = shortName(m.namn);
+          rad.appendChild(l);
+          box.appendChild(rad);
+        });
+      }
       if (pillarUrl) {
         var a = document.createElement('a');
         a.className = 'mall-resa-mer';
@@ -408,7 +499,7 @@
 
   function init() {
     var style = document.createElement('style');
-    style.textContent = CSS;
+    style.textContent = CSS + (ENKEL ? '\n' + CSS_ENKEL : '');
     document.head.appendChild(style);
 
     var list = document.querySelector('[data-mall-v2="steg"]');
@@ -449,6 +540,7 @@
       return;
     }
     document.body.classList.add('mall-v2-on');
+    if (ENKEL) document.body.classList.add('mall-enkel');
 
     cards.sort(function (a, b) { return (+a.getAttribute('data-steg') || 0) - (+b.getAttribute('data-steg') || 0); });
     var total = cards.length;
@@ -460,7 +552,7 @@
     /* Rubrik + förlopp ovanför listan */
     var head = document.createElement('div');
     head.innerHTML = '<h2 class="stegkort-rubrik">Stegen</h2>' +
-      '<p class="stegkort-ingress">Kör stegen i ordning. Svaret från ett steg klistrar du in i nästa, eller låter Promptgeneratorn hjälpa dig.</p>' +
+      '<p class="stegkort-ingress">' + (ENKEL ? 'Kör stegen i ordning. Svaret från ett steg tar du med till nästa.' : 'Kör stegen i ordning. Svaret från ett steg klistrar du in i nästa, eller låter Promptgeneratorn hjälpa dig.') + '</p>' +
       '<div class="stegkort-progress"><span class="stegkort-progress-txt"></span><div class="stegkort-progress-bar"><span></span></div></div>';
     list.parentNode.insertBefore(head, list);
     var progTxt = head.querySelector('.stegkort-progress-txt');
@@ -493,19 +585,65 @@
         [].slice.call(sidebar.children).forEach(function (c) { if (c !== kort) kort.appendChild(c); });
         var ey = document.createElement('p');
         ey.className = 'stegnav-eyebrow';
-        ey.textContent = 'Mallens ' + total + ' steg';
+        ey.textContent = ENKEL ? (mallNamnKort() + ' · ' + total + ' steg') : 'Mallens ' + total + ' steg';
         kort.insertBefore(ey, kort.firstChild);
       } catch (err) {}
     }
 
     var done = loadDone();
     var openOverride = {};
+    var aktiv = null; /* enkel: steget man valt att titta på (annars nästa ogjorda) */
+    function mallNamnKort() { return shortName(String(mallNamn).trim()); }
 
     cards.forEach(function (card, i) {
       var n = +card.getAttribute('data-steg') || (i + 1);
       card.id = 'steg-' + n;
       var promptEl = card.querySelector('.stegkort-prompt');
       var titel = (card.querySelector('.stegkort-titel') || {}).textContent || ('Steg ' + n);
+
+      if (ENKEL) {
+        var kortEl0 = card.querySelector('.stegkort-card');
+        var headEl = card.querySelector('.stegkort-head');
+        if (kortEl0 && headEl) {
+          var steg = document.createElement('span');
+          steg.className = 'stegkort-steg';
+          steg.textContent = 'Steg ' + n + ' av ' + total;
+          kortEl0.insertBefore(steg, headEl);
+          var rad = document.createElement('div');
+          rad.className = 'stegkort-rad';
+          rad.innerHTML = '<i></i><b></b><span></span>';
+          rad.querySelector('b').textContent = titel.trim();
+          kortEl0.insertBefore(rad, steg);
+          card._rad = rad;
+        }
+        /* Exempel och följdprompt som två små växlar på knappraden */
+        var act = card.querySelector('.stegkort-actions');
+        var accs = [].slice.call(card.querySelectorAll('.stegkort-acc')).filter(function (acc) {
+          var b = acc.querySelector('.stegkort-acc-body');
+          return b && b.textContent.trim();
+        });
+        if (act && accs.length) {
+          var vx = document.createElement('div');
+          vx.className = 'stegkort-vaxlar';
+          accs.forEach(function (acc) {
+            var lbl = /n[äa]sta drag|f[öo]ljd/i.test((acc.querySelector('.stegkort-acc-btn') || {}).textContent || '') ? 'Följdprompt' : 'Exempel på svar';
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'stegkort-vaxel';
+            b.textContent = lbl + ' +';
+            b.setAttribute('aria-expanded', 'false');
+            b.addEventListener('click', function () {
+              var on = acc.classList.toggle('is-open');
+              b.classList.toggle('is-on', on);
+              b.textContent = lbl + (on ? ' −' : ' +');
+              b.setAttribute('aria-expanded', on ? 'true' : 'false');
+              track('mall_steg_vaxel', { steg: n, vad: lbl });
+            });
+            vx.appendChild(b);
+          });
+          act.appendChild(vx);
+        }
+      }
 
       /* Visa hela prompten */
       if (promptEl) {
@@ -605,6 +743,7 @@
         } else { done.splice(idx, 1); }
         saveDone(done);
         openOverride = {};
+        aktiv = null;
         update();
         var next = cards[i + 1];
         if (idx === -1 && next) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -615,6 +754,7 @@
         if (!card.classList.contains('is-collapsed')) return;
         e.preventDefault();
         openOverride[n] = true;
+        aktiv = n;
         update();
       });
 
@@ -624,7 +764,7 @@
         a.innerHTML = '<i></i><span></span>';
         a.querySelector('span').textContent = titel.trim();
         a.addEventListener('click', function () {
-          openOverride[n] = true; update();
+          openOverride[n] = true; aktiv = n; update();
           /* Mobil/surfplatta: stäng dropdownen "Din väg" när man valt ett steg */
           var lc = nav.parentNode;
           var head = sidebar.querySelector('.content27_sidebar-heading');
@@ -682,16 +822,28 @@
         var isDone = done.indexOf(n) !== -1;
         if (!isDone && current === null) current = n;
       });
-      cards.forEach(function (card) {
+      var openN = aktiv !== null ? aktiv : current;
+      cards.forEach(function (card, i) {
         var n = +card.getAttribute('data-steg');
         var isDone = done.indexOf(n) !== -1;
         var isCurrent = n === current;
         card.classList.toggle('is-done', isDone);
         card.classList.toggle('is-current', isCurrent);
         card.classList.toggle('is-todo', !isDone && !isCurrent);
-        card.classList.toggle('is-collapsed', isDone && !openOverride[n]);
+        if (ENKEL) {
+          card.classList.toggle('is-open', n === openN);
+          card.classList.toggle('is-collapsed', n !== openN);
+          if (card._rad) {
+            card._rad.querySelector('i').textContent = isDone ? '✓' : String(n);
+            card._rad.querySelector('span').textContent = isDone ? 'Klart · öppna igen' : (isCurrent ? 'Nästa steg' : 'Inte gjort än');
+          }
+          if (card._nav) card._nav.classList.toggle('is-open', n === openN);
+        } else card.classList.toggle('is-collapsed', isDone && !openOverride[n]);
         var klar = card.querySelector('.stegkort-klar');
-        if (klar) klar.textContent = isDone ? 'Klart ✓ Ångra' : (n === total ? 'Markera som klart' : 'Markera som klart och gå vidare');
+        var nastaKort = cards[i + 1];
+        if (klar) klar.textContent = ENKEL
+          ? (isDone ? 'Klart ✓ Ångra' : (nastaKort ? '✓ Klart, gå till steg ' + nastaKort.getAttribute('data-steg') : '✓ Klart'))
+          : (isDone ? 'Klart ✓ Ångra' : (n === total ? 'Markera som klart' : 'Markera som klart och gå vidare'));
         if (card._nav) {
           card._nav.classList.toggle('is-done', isDone);
           card._nav.classList.toggle('is-current', isCurrent);
