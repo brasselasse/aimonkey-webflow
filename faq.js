@@ -1,5 +1,5 @@
 /* ============================================================
-   AIMonkey — faq.js 1.0.0 (site-skript, sidfoten)
+   AIMonkey — faq.js 1.0.1 (site-skript, sidfoten)
    Gemensamt beteende för FAQ-listorna (Relume faq5:
    .faq_accordion > .faq5_question + .faq5_answer).
 
@@ -68,7 +68,19 @@
     document.head.appendChild(s);
   }
 
+  /* 3. Tomma listor: en FAQ-del utan frågor (t.ex. en mall som saknar FAQ) döljs helt. */
+  function tomma() {
+    [].forEach.call(document.querySelectorAll('.faq5_component, .vt-faq-block'), function (c) {
+      if (c.querySelector('.faq_accordion') || c.querySelector('.comparison-wrapper')) return;
+      if (!c.querySelector('.w-dyn-list, .w-dyn-empty')) return;
+      c.style.display = 'none';
+      var sek = c.closest('.section_faq');
+      if (sek && !sek.querySelector('.faq_accordion')) sek.style.display = 'none';
+    });
+  }
+
   function kor() {
+    tomma();
     var items = [].slice.call(document.querySelectorAll('.faq_accordion'));
     if (!items.length) return;
     items.forEach(koppla);
