@@ -131,19 +131,18 @@
     '@media (max-width:767px){.mall-info-grid,.mall-misstag-grid{grid-template-columns:1fr}.mall-nastafas{padding:22px}.mall-nastafas .mall-nastafas-titel{font-size:22px!important}.stegkort{gap:12px}.stegkort-rail{width:32px}.stegkort-num{width:32px;height:32px;font-size:14px}.stegkort-card{padding:16px}.stegkort-titel{font-size:20px}.stegkort-actions{flex-direction:column;align-items:stretch}.stegkort-btn{text-align:center}.stegkort-oppna{margin-left:0;text-align:center}.stegkort-klart{margin-left:0}}'
   ].join('\n');
 
-  /* ── Förslag 2026-10-28: enklare stegdel ("enkel").
-        På testdomänen är den på som standard (?enkel=0 visar dagens version).
-        På aimonkey.se bara med ?enkel=1. Utan flaggan är allt som förut. ── */
+  /* ── Enklare stegdel ("enkel"), standard sedan 2026-10-28.
+        ?enkel=0 visar den gamla versionen (tidslinje, mörk resa-ruta). ── */
   var ENKEL = (function () {
     var q = location.search;
     if (/[?&]enkel=1/.test(q)) return true;
     if (/[?&]enkel=0/.test(q)) return false;
-    return /\.webflow\.io$/.test(location.hostname);
+    return true;
   })();
   var CSS_ENKEL = [
     /* Sidomenyn: ett lugnt vitt kort, ingen tidslinje, ingen knapp.
-       Dator: menyn börjar i linje med logotypen och är lite bredare. */
-    '@media (min-width:992px){body.mall-enkel .article-copy-wrapper{padding-left:0!important;padding-right:0!important}body.mall-enkel .content27_component{grid-template-columns:300px minmax(0,1fr)!important}}',
+       (Bredd 300 px och linjering med logotypen ligger i Webflow:
+       .content27_component.is-mall och .article-copy-wrapper.is-mall) */
     'body.mall-enkel .stegnav-kort{border:1px solid #e1e7ee;border-radius:18px;padding:18px;box-shadow:0 6px 18px rgba(11,31,59,.05)}',
     '@media (min-width:992px){body.mall-enkel .stegnav-kort .content27_sidebar-heading{display:none}}',
     'body.mall-enkel .stegnav-eyebrow{font-size:11px;margin:0 0 8px}',
