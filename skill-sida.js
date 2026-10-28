@@ -18,7 +18,7 @@
        [data-skill="faq"]       h2 + Collection list (källa: skillens FAQ).
                                 Post: [data-faq="item"] > h3[data-faq="q"],
                                 RichText[data-faq="a"]
-       [data-skill="apan"]      RichText ← Apan tycker
+       [data-skill="apan"]      Komponenten "Apan tycker" (Apans text ← Apan tycker)
    Allt annat byggs av skriptet. Utan [data-skill="app"] gör det inget.
 
    Fältformat i CMS:
@@ -170,9 +170,6 @@
     '[data-faq="a"] a{color:#00806b;font-weight:600}',
     '[data-faq="a"][hidden]{display:none}',
     /* Apan */
-    '[data-skill="apan"]{display:flex;gap:14px;align-items:flex-start;background:#0b1f3b;color:#e8edf3;border-radius:20px;padding:20px 22px}',
-    '[data-skill="apan"]:before{content:"Apan tycker:";font-weight:700;color:#4cd9c1;white-space:nowrap}',
-    '[data-skill="apan"] p{margin:0;color:#e8edf3;font-size:16px;line-height:1.55}',
     '[data-skill="apan"].sk-tom{display:none}',
     '.sk-h1-typ{color:#00806b}',
     '[data-skill="namn"]{font-size:clamp(34px,5vw,56px)!important;line-height:1.1!important}',
@@ -189,7 +186,7 @@
     '.sk-andrat.is-synlig{display:block}',
     '.sk-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
     '.sk-koppstatus.is-av{color:#5b6573;font-weight:500}',
-    '@media (max-width:767px){.sk-reglerlista label{flex-wrap:wrap}.sk-reglerlista label>span:not(.sk-badge){flex-basis:calc(100% - 28px)}.sk-reglerlista .sk-badge{margin-left:28px}.sk-falt,.sk-jamfor{grid-template-columns:1fr}.sk-kort,.sk-forklaring{padding:18px}[data-skill="apan"]{flex-direction:column;gap:6px}.sk-kopiera{width:100%}.sk-steghuvud h2,.sk-forklaring h2{font-size:22px!important}.sk-forlopp{display:none}}',
+    '@media (max-width:767px){.sk-reglerlista label{flex-wrap:wrap}.sk-reglerlista label>span:not(.sk-badge){flex-basis:calc(100% - 28px)}.sk-reglerlista .sk-badge{margin-left:28px}.sk-falt,.sk-jamfor{grid-template-columns:1fr}.sk-kort,.sk-forklaring{padding:18px}.sk-kopiera{width:100%}.sk-steghuvud h2,.sk-forklaring h2{font-size:22px!important}.sk-forlopp{display:none}}',
     /* Skillsidan */
     '.sk-hamta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 14px}',
     '.sk-hamtakort{display:flex;flex-direction:column;gap:10px;border:1.5px solid #dbe2ea;border-radius:16px;padding:16px 18px;background:#fff}',
@@ -429,7 +426,7 @@
   /* ── Toppen ── */
   var faq = app.querySelector('[data-skill="faq"]');
   var apan = app.querySelector('[data-skill="apan"]');
-  if (apan && !textAv(apan)) apan.classList.add('sk-tom');
+  if (apan && (!textAv(apan) || apan.querySelector('.apan-tycker .w-dyn-bind-empty'))) apan.classList.add('sk-tom');
   var faqItems = faq ? [].slice.call(faq.querySelectorAll('[data-faq="item"]')) : [];
   if (faq && !faqItems.length) faq.classList.add('sk-tom');
   if (faq) faq.id = 'vanliga-fragor';

@@ -104,9 +104,8 @@
     '.pb-mer{align-self:center;font:inherit;font-size:16px;font-weight:600;min-height:48px;padding:0 24px;border-radius:14px;border:1.5px solid #0b1f3b;background:#fff;color:#0b1f3b;cursor:pointer}',
     '.pb-laddar{font-size:15px;color:#3d4a5c}',
     '.pb-botten{display:flex;flex-wrap:wrap;gap:18px}',
-    '.pb-apan{flex:999 1 520px;min-width:0;background:#e5f9f6;border-radius:22px;padding:24px 26px;display:flex;flex-direction:column;gap:10px}',
-    '.pb-apan strong{font-size:22px;color:#005042}',
-    '.pb-apan blockquote{margin:0;border:0;padding:0;font-size:17px;line-height:1.6;color:#0b1f3b}',
+    '.pb-botten>[data-pb="apan"]{flex:999 1 520px;min-width:0}',
+    '.pb-botten>[data-pb="apan"]>*{margin-bottom:0!important}',
     '.pb-gen{flex:1 1 300px;min-width:0;background:#0b1f3b;color:#fff;border-radius:22px;padding:24px 26px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}',
     '.pb-gen strong{font-size:22px}',
     '.pb-gen p{margin:0!important;font-size:15px!important;line-height:1.5!important;color:#ced2d7!important}',
@@ -508,7 +507,7 @@
           '<button type="button" class="pb-mer" data-el="mer" hidden></button>' +
         '</section>' +
         '<section class="pb-botten">' +
-          '<div class="pb-apan"><strong>Apan tycker</strong><blockquote>Börja aldrig med en tom ruta. Leta upp prompten som ligger närmast, fyll i dina riktiga uppgifter och låt AI:n göra grovjobbet. Ju mer konkret du är i fälten, desto mindre behöver du rätta i svaret.</blockquote></div>' +
+          '<div data-el="apanPlats" hidden></div>' +
           '<div class="pb-gen"><strong>Hittar du inte rätt?</strong><p>Beskriv uppgiften med egna ord, så bygger Promptgeneratorn en prompt åt dig.</p><a href="/promptgeneratorn">Öppna Promptgeneratorn →</a></div>' +
         '</section>' +
       '</div>' +
@@ -517,6 +516,9 @@
     el.sok = root.querySelector('#pb-sok');
     var host = document.querySelector('.section_blog');
     host.parentNode.insertBefore(root, host);
+    /* Apan tycker: komponenten ligger som Webflow-element på sidan ([data-pb="apan"]) och flyttas hit. */
+    var apan = document.querySelector('[data-pb="apan"]');
+    if (apan && el.apanPlats) el.apanPlats.parentNode.replaceChild(apan, el.apanPlats);
   }
 
   function handelser() {

@@ -18,7 +18,7 @@
                                  referensfält FAQ. Varje post:
                                  [data-faq="item"] > h3[data-faq="q"] ← Name,
                                  RichText[data-faq="a"] ← Svar RT
-       [data-paket="apan"]     RichText ← Apan tycker
+       [data-paket="apan"]     Komponenten "Apan tycker" (Apans text ← Apan tycker)
    Allt annat byggs av skriptet. Utan [data-paket="app"] gör det inget.
 ============================================================ */
 (function () {
@@ -161,9 +161,6 @@
     '[data-faq="a"] a{color:#00806b;font-weight:600}',
     '[data-faq="a"][hidden]{display:none}',
     /* Apan */
-    '[data-paket="apan"]{display:flex;gap:14px;align-items:flex-start;background:#0b1f3b;color:#e8edf3;border-radius:20px;padding:20px 22px}',
-    '[data-paket="apan"]:before{content:"Apan tycker:";font-weight:700;color:#4cd9c1;white-space:nowrap}',
-    '[data-paket="apan"] p{margin:0;color:#e8edf3;font-size:16px;line-height:1.55}',
     '[data-paket="apan"].pp-tom{display:none}',
     '.pp-h1-typ{color:#00806b}',
     '[data-paket="namn"]{font-size:clamp(34px,5vw,56px)!important;line-height:1.1!important}',
@@ -180,7 +177,7 @@
     '.pp-andrat.is-synlig{display:block}',
     '.pp-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
     '.pp-koppstatus.is-av{color:#5b6573;font-weight:500}',
-    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista label>span:not(.pp-badge){flex-basis:calc(100% - 28px)}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
+    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista label>span:not(.pp-badge){flex-basis:calc(100% - 28px)}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
   ].join('\n');
   var st = document.createElement('style');
   st.textContent = CSS;
@@ -371,7 +368,7 @@
   var forvem = app.querySelector('[data-paket="forvem"]');
   var faq = app.querySelector('[data-paket="faq"]');
   var apan = app.querySelector('[data-paket="apan"]');
-  if (apan && !textAv(apan)) apan.classList.add('pp-tom');
+  if (apan && (!textAv(apan) || apan.querySelector('.apan-tycker .w-dyn-bind-empty'))) apan.classList.add('pp-tom');
   var faqItems = faq ? [].slice.call(faq.querySelectorAll('[data-faq="item"]')) : [];
   if (faq && !faqItems.length) faq.classList.add('pp-tom');
   if (faq) faq.id = 'vanliga-fragor';
