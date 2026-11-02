@@ -679,6 +679,13 @@
     '.pgn-uppg-text{flex:1 1 220px;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
     '.pgn-typ{font:inherit;font-size:14px;font-weight:600;color:var(--pg-navy);background:#f2f6f9;border:1.5px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:40px;padding:0 14px}',
     '.pgn-andra{font:inherit;font-size:15px;font-weight:600;color:var(--pg-teal-d);background:none;border:0;cursor:pointer;min-height:40px;padding:0 6px}',
+    '.pgn-andra-grupp{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}',
+    '.pgn-borjaom{font:inherit;font-size:14px;font-weight:600;color:var(--pg-navy);background:#fff;border:1.5px solid #c9d3de;border-radius:999px;cursor:pointer;min-height:40px;padding:0 14px}',
+    '.pgn-borjaom:hover{border-color:var(--pg-navy)}',
+    '.pgn-franmall{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:#e5f9f6;border:1.5px solid #b6ebe1;border-radius:16px;padding:12px 16px;font-size:16px;color:var(--pg-navy)}',
+    '.pgn-ta-wrap{position:relative}.pgn-ta-wrap .pgn-ta{padding-bottom:58px}',
+    '.pgn-tom{position:absolute;right:14px;bottom:14px;font:inherit;font-size:14px;font-weight:600;color:#5b6573;background:#f2f6f9;border:1px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:36px;padding:0 12px}',
+    '.pgn-tom:hover{color:var(--pg-navy);border-color:#c9d3de}',
     '.pgn-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
     '.pgn-nav>span{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5b6573;margin-right:4px}',
     '.pgn-nav button{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;min-height:42px;border-radius:999px;cursor:pointer;background:transparent;color:var(--pg-gra);border:1.5px dashed #c9d3de}',
@@ -937,8 +944,11 @@
     return '<section class="pgn-sek">' +
       '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Vad vill du ha hjälp med?</h1>' +
       '<p class="pgn-ingress">Skriv som du skulle förklara för en kollega. Apan bygger resten.</p></div>' +
+      (S.mallNamn && S.text ? '<div class="pgn-franmall"><span>Du utgår från mallen <b>' + esc(S.mallNamn) + '</b>. Ändra i texten, eller börja från en tom ruta.</span>' +
+        '<button type="button" class="pgn-borjaom" data-borjaom>↺ Börja om med tom ruta</button></div>' : '') +
       '<label for="pgn-uppgift" class="pgn-sr">Din uppgift</label>' +
-      '<textarea id="pgn-uppgift" class="pgn-ta" data-text placeholder="Skriv fritt, eller sök: mejl, offert, recension, LinkedIn …">' + esc(S.text) + '</textarea>' +
+      '<div class="pgn-ta-wrap"><textarea id="pgn-uppgift" class="pgn-ta" data-text placeholder="Skriv fritt, eller sök: mejl, offert, recension, LinkedIn …">' + esc(S.text) + '</textarea>' +
+      '<button type="button" class="pgn-tom" data-tom aria-label="Töm rutan"' + (S.text ? '' : ' hidden') + '>✕ Töm</button></div>' +
       '<div data-traffar></div>' +
       '<div class="pgn-ex"><p data-exrubrik>Eller välj ett exempel</p><div class="pgn-chips">' +
         EXEMPEL.map(function (e, i) { return '<button type="button" class="pgn-chip" data-exempel="' + i + '">' + esc(e) + '</button>'; }).join('') +
@@ -970,10 +980,16 @@
     if (r) r.textContent = senasteTraffar.length ? 'Eller börja från ett exempel' : 'Eller välj ett exempel';
   }
 
+  /* Ändra/Börja om i uppgiftsrutan (2026-11-02): från en mall var det svårt att börja om,
+     "Ändra" lade bara tillbaka hela malltexten i rutan. */
+  function andraKnappar() {
+    return '<span class="pgn-andra-grupp"><button type="button" class="pgn-andra" data-tillstart>' + (S.mallNamn ? 'Ändra i mallen' : 'Ändra') + '</button>' +
+      '<button type="button" class="pgn-borjaom" data-borjaom>↺ Börja om</button></span>';
+  }
   function uppgBoxHtml() {
     return '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>Din uppgift:</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || applyFills(S.text)) + '</span>' +
       '<button type="button" class="pgn-typ" data-typvaxla aria-expanded="' + (S.typOppen ? 'true' : 'false') + '">Typ: ' + esc(typNamn()) + ' ▾</button>' +
-      '<button type="button" class="pgn-andra" data-tillstart>Ändra</button></div>' +
+      andraKnappar() + '</div>' +
       (S.typOppen ? '<div class="pgn-chips">' + TYPER.map(function (t) { return '<button type="button" class="pgn-chip" data-typ="' + t.id + '" aria-pressed="' + (t.id === S.typ) + '">' + t.namn + '</button>'; }).join('') + '</div>' : '') +
     '</div>';
   }
@@ -1052,7 +1068,7 @@
     var h = '<section class="pgn-sek">';
     /* I kedjeläget visar stegraden redan vilket steg det är */
     if (!K) h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.mallNamn ? 'Mall:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
-      '<button type="button" class="pgn-andra" data-tillstart>Ändra</button></div></div>';
+      andraKnappar() + '</div></div>';
     h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Fyll i det som är ditt</h1>' +
       '<p class="pgn-ingress">Det är de här luckorna som gör prompten till din. Står det kvar [NAMN] i prompten blir svaret lika generiskt. Prompten blir klar när allt är ifyllt.</p>' +
       '<span class="pgn-fyll-rakna' + (st.kvar ? '' : ' is-klar') + '" data-fyllrakna aria-live="polite">' + st.klar + ' av ' + st.alla + ' ifyllda</span></div>';
@@ -1321,7 +1337,7 @@
         '<div class="pgn-red-rad"><button type="button" class="pgn-mork" data-redklar>Klar</button><span class="pgn-not">Prompten nedanför ändras medan du skriver.</span></div></div>';
     } else {
       h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.raw ? 'Prompt:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.raw ? 'Från dina senaste prompter' : (S.mallNamn || applyFills(S.text))) + '</span>' +
-        '<button type="button" class="pgn-andra" data-redigera>' + (S.raw ? '✎ Redigera prompten' : '✎ Ändra uppgiften') + '</button></div></div>';
+        '<span class="pgn-andra-grupp"><button type="button" class="pgn-andra" data-redigera>' + (S.raw ? '✎ Redigera prompten' : '✎ Ändra uppgiften') + '</button>' + (K ? '' : '<button type="button" class="pgn-borjaom" data-borjaom>↺ Börja om</button>') + '</span></div></div>';
     }
     h += '<div class="pgn-prompt"><div class="pgn-prompt-topp"><span>' + (S.raw ? 'Från dina senaste prompter' : S.mallNamn ? 'Från mallen ' + esc(S.mallNamn) : esc(typNamn())) + '</span><span data-tecken>' + prompt.length + ' tecken</span></div><pre data-prompt>' + radHtml(prompt) + '</pre></div>';
     if (!S.raw) h += justeraHtml();
@@ -1566,7 +1582,7 @@
   var svarTimer = null, kSvarTrackat = {};
   root.addEventListener('input', function (e) {
     var el = e.target;
-    if (el.hasAttribute('data-text')) { S.text = el.value; S.mallNamn = ''; if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
+    if (el.hasAttribute('data-text')) { S.text = el.value; var tb = root.querySelector('[data-tom]'); if (tb) tb.hidden = !el.value; if (S.mallNamn) { S.mallNamn = ''; var fm = root.querySelector('.pgn-franmall'); if (fm) fm.remove(); } if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
     if (el.hasAttribute('data-kedjasvar') && K) {
       clearTimeout(svarTimer);
       var lab = root.querySelector('[data-kedjasparat]'); if (lab) lab.textContent = '';
@@ -1758,12 +1774,18 @@
     if (b.hasAttribute('data-nasta')) { nastaFran(S.optIdx, false); return; }
     if (b.hasAttribute('data-hoppa')) { nastaFran(S.optIdx, true); return; }
     if (b.hasAttribute('data-kopiera')) { kopiera(); return; }
+    if (b.hasAttribute('data-tom')) {
+      S.text = ''; S.mallNamn = ''; S.typ = null; S.fyll = {}; S.forifyllt = {}; S.kalla = 'scratch';
+      try { if (/[?&]brief=/.test(location.search)) history.replaceState(null, '', location.pathname); } catch (e8) {}
+      track('pgny_ny', { vad: 'tom' }); rita(); var t5 = root.querySelector('[data-text]'); if (t5) t5.focus(); return;
+    }
     if (b.hasAttribute('data-borjaom')) {
       var bevara = { foretag: S.svar.foretag, produkt: S.svar.produkt };
       S.steg = 'start'; S.text = ''; S.typ = null; S.svar = {}; S.mallNamn = ''; S.kopierad = S.harKop = false; S.fin = false; S.sa = false; S.kalla = 'scratch'; S.raw = ''; S.senVisa = -1; S.senRensa = false; S.senOppen = false; S.fyll = {}; S.forifyllt = {};
       if (bevara.foretag) S.svar.foretag = bevara.foretag; if (bevara.produkt) S.svar.produkt = bevara.produkt;
-      if (K) { K = null; try { history.replaceState(null, '', location.pathname); sessionStorage.removeItem('pg_chain'); } catch (e2) {} }
-      track('pgny_ny', {}); rita(); var t4 = root.querySelector('[data-text]'); if (t4) t4.focus(); return;
+      if (K) { K = null; try { sessionStorage.removeItem('pg_chain'); } catch (e2) {} }
+      try { if (location.search) history.replaceState(null, '', location.pathname); } catch (e9) {}
+      track('pgny_ny', { vad: 'borja_om' }); rita(); var t4 = root.querySelector('[data-text]'); if (t4) t4.focus(); return;
     }
     if (b.hasAttribute('data-vaxla')) { var w = b.getAttribute('data-vaxla'); S[w] = !S[w]; rita(); return; }
   });
