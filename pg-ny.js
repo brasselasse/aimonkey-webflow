@@ -684,7 +684,14 @@
     '.pgn-borjaom:hover{border-color:var(--pg-navy)}',
     '.pgn-franmall{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:#e5f9f6;border:1.5px solid #b6ebe1;border-radius:16px;padding:12px 16px;font-size:16px;color:var(--pg-navy)}',
     '.pgn-ta-wrap{position:relative}.pgn-ta-wrap .pgn-ta{padding-bottom:58px}',
-    '.pgn-tom{position:absolute;right:14px;bottom:14px;font:inherit;font-size:14px;font-weight:600;color:#5b6573;background:#f2f6f9;border:1px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:36px;padding:0 12px}',
+    '.pgn-ta-knappar{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;align-items:center}',
+    '.pgn-mik{font:inherit;font-size:14px;font-weight:600;color:#fff;background:var(--pg-teal-d);border:1px solid var(--pg-teal-d);border-radius:999px;cursor:pointer;min-height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:6px}',
+    '.pgn-mik:hover{filter:brightness(1.08)}',
+    '.pgn-mik.is-pa{background:#c62f3a;border-color:#c62f3a;animation:pgnmik 1.4s ease-in-out infinite}',
+    '@keyframes pgnmik{0%,100%{box-shadow:0 0 0 0 rgba(198,47,58,.35)}50%{box-shadow:0 0 0 8px rgba(198,47,58,0)}}',
+    '@media (prefers-reduced-motion:reduce){.pgn-mik.is-pa{animation:none}}',
+    '.pgn-mik-not{margin:8px 4px 0;font-size:14px;color:#5b6573}.pgn-mik-not.is-fel{color:#b3261e}',
+    '.pgn-tom{font:inherit;font-size:14px;font-weight:600;color:#5b6573;background:#f2f6f9;border:1px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:36px;padding:0 12px}',
     '.pgn-tom:hover{color:var(--pg-navy);border-color:#c9d3de}',
     '.pgn-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
     '.pgn-nav>span{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5b6573;margin-right:4px}',
@@ -948,7 +955,9 @@
         '<button type="button" class="pgn-borjaom" data-borjaom>↺ Börja om med tom ruta</button></div>' : '') +
       '<label for="pgn-uppgift" class="pgn-sr">Din uppgift</label>' +
       '<div class="pgn-ta-wrap"><textarea id="pgn-uppgift" class="pgn-ta" data-text placeholder="Skriv fritt, eller sök: mejl, offert, recension, LinkedIn …">' + esc(S.text) + '</textarea>' +
-      '<button type="button" class="pgn-tom" data-tom aria-label="Töm rutan"' + (S.text ? '' : ' hidden') + '>✕ Töm</button></div>' +
+      '<div class="pgn-ta-knappar">' + (MIK ? '<button type="button" class="pgn-mik" data-mik aria-pressed="false">🎤 Prata in</button>' : '') +
+      '<button type="button" class="pgn-tom" data-tom aria-label="Töm rutan"' + (S.text ? '' : ' hidden') + '>✕ Töm</button></div></div>' +
+      (MIK ? '<p class="pgn-mik-not" data-miknot aria-live="polite" hidden></p>' : '') +
       '<div data-traffar></div>' +
       '<div class="pgn-ex"><p data-exrubrik>Eller välj ett exempel</p><div class="pgn-chips">' +
         EXEMPEL.map(function (e, i) { return '<button type="button" class="pgn-chip" data-exempel="' + i + '">' + esc(e) + '</button>'; }).join('') +
@@ -1464,7 +1473,56 @@
   }
 
   var forraSteg = null;
+  /* ── Diktering (2026-11-02): "🎤 Prata in" i uppgiftsrutan. Webbläsarens egen
+     taligenkänning (Web Speech API, sv-SE). Chrome/Edge/Safari; döljs där den saknas
+     (t.ex. Firefox). Ljudet tolkas av webbläsarens tjänst (Google/Microsoft/Apple),
+     inget skickas till AIMonkey. dataLayer: pgny_mik (vad: start/klar/fel). ── */
+  var MIK = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var mik = null;
+  function mikNot(t, fel) {
+    var n = root.querySelector('[data-miknot]'); if (!n) return;
+    n.textContent = t || ''; n.hidden = !t; n.classList.toggle('is-fel', !!fel);
+  }
+  function mikKnapp(pa) {
+    var k = root.querySelector('[data-mik]'); if (!k) return;
+    k.classList.toggle('is-pa', pa); k.setAttribute('aria-pressed', pa ? 'true' : 'false');
+    k.textContent = pa ? '■ Sluta lyssna' : '🎤 Prata in';
+  }
+  function mikStopp() { if (mik) { var r = mik.rec; mik = null; try { r.stop(); } catch (e) {} mikKnapp(false); } }
+  function mikStart() {
+    var ta = root.querySelector('[data-text]'); if (!ta || !MIK) return;
+    var r; try { r = new MIK(); } catch (e) { return; }
+    r.lang = 'sv-SE'; r.interimResults = true; r.continuous = true;
+    var bas = ta.value.replace(/\s+$/, ''); if (bas) bas += ' ';
+    mik = { rec: r, bas: bas, ord: 0 };
+    r.onresult = function (ev) {
+      var t = root.querySelector('[data-text]');
+      if (!t || !mik || mik.rec !== r) { try { r.stop(); } catch (e) {} return; }
+      var txt = '';
+      for (var i = 0; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
+      txt = txt.replace(/^\s+/, '');
+      if (txt && !mik.bas) txt = txt.charAt(0).toUpperCase() + txt.slice(1);
+      t.value = mik.bas + txt; mik.ord = txt.split(/\s+/).filter(Boolean).length;
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    r.onerror = function (ev) {
+      var e = ev && ev.error;
+      if (e === 'not-allowed' || e === 'service-not-allowed') mikNot('Webbläsaren fick inte använda mikrofonen. Tillåt mikrofonen för sidan (hänglåset i adressfältet) och försök igen.', true);
+      else if (e === 'no-speech') mikNot('Apan hörde inget. Tryck på Prata in och försök igen.', true);
+      else if (e !== 'aborted') mikNot('Dikteringen fungerade inte just nu. Skriv i stället, eller försök igen.', true);
+      track('pgny_mik', { vad: 'fel', fel: e || '' });
+    };
+    r.onend = function () {
+      if (mik && mik.rec === r) { track('pgny_mik', { vad: 'klar', ord: mik.ord }); mik = null; mikKnapp(false); }
+      var n = root.querySelector('[data-miknot]'); if (n && !n.classList.contains('is-fel')) mikNot('');
+      var t = root.querySelector('[data-text]'); if (t) { try { t.focus(); } catch (e) {} }
+    };
+    try { r.start(); } catch (e) { mik = null; return; }
+    mikKnapp(true); mikNot('Prata nu. Texten skrivs in medan du pratar. Din webbläsare gör om talet till text, inget sparas hos AIMonkey.');
+    track('pgny_mik', { vad: 'start' });
+  }
   function rita() {
+    if (mik) mikStopp();
     efterAndring();
     if (S.steg !== 'opt' && S.ark !== 'ai') S.ark = '';
     if (S.steg !== 'klar' && S.ark === 'ai') S.ark = '';
@@ -1774,6 +1832,7 @@
     if (b.hasAttribute('data-nasta')) { nastaFran(S.optIdx, false); return; }
     if (b.hasAttribute('data-hoppa')) { nastaFran(S.optIdx, true); return; }
     if (b.hasAttribute('data-kopiera')) { kopiera(); return; }
+    if (b.hasAttribute('data-mik')) { if (mik) mikStopp(); else mikStart(); return; }
     if (b.hasAttribute('data-tom')) {
       S.text = ''; S.mallNamn = ''; S.typ = null; S.fyll = {}; S.forifyllt = {}; S.kalla = 'scratch';
       try { if (/[?&]brief=/.test(location.search)) history.replaceState(null, '', location.pathname); } catch (e8) {}
