@@ -1524,6 +1524,19 @@
     mikKnapp(true); mikNot('Prata nu. Texten skrivs in medan du pratar. Din webbläsare gör om talet till text, inget sparas hos AIMonkey.');
     track('pgny_mik', { vad: 'start' });
   }
+  /* Textrutorna växer med texten (2026-11-02) så att man ser allt man skrivit.
+     Tak på 70 % av fönstrets höjd, därefter rullar rutan som vanligt. */
+  function vaxa(ta) {
+    if (!ta) return;
+    var kant = ta.offsetHeight - ta.clientHeight;
+    ta.style.height = 'auto';
+    var tak = Math.max(320, Math.round(window.innerHeight * 0.7));
+    var h = ta.scrollHeight + kant;
+    ta.style.height = Math.min(h, tak) + 'px';
+    ta.style.overflowY = h > tak ? 'auto' : 'hidden';
+  }
+  function vaxaAlla() { [].forEach.call(root.querySelectorAll('[data-text],[data-uppgift]'), vaxa); }
+  window.addEventListener('resize', function () { vaxaAlla(); });
   function rita() {
     if (mik) mikStopp();
     efterAndring();
@@ -1533,6 +1546,7 @@
     var vy = S.steg === 'laddar' ? vyLaddar() : S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
     root.innerHTML = '<div class="pgn' + (S.steg === 'opt' ? ' is-bred' : '') + '"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + kBarHtml() + vy + '</div>' + barHtml() + arkHtml() + aiArkHtml();
     if (S.steg === 'start') { ritaTraffar(); }
+    vaxaAlla();
     var nyckel = S.steg + ':' + S.optIdx;
     if (forraSteg !== null && forraSteg !== nyckel) {
       var f = root.querySelector('[data-fokus]');
@@ -1643,7 +1657,7 @@
   var svarTimer = null, kSvarTrackat = {};
   root.addEventListener('input', function (e) {
     var el = e.target;
-    if (el.hasAttribute('data-text')) { S.text = el.value; var tb = root.querySelector('[data-tom]'); if (tb) tb.hidden = !el.value; if (S.mallNamn) { S.mallNamn = ''; var fm = root.querySelector('.pgn-franmall'); if (fm) fm.remove(); } if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
+    if (el.hasAttribute('data-text')) { vaxa(el); S.text = el.value; var tb = root.querySelector('[data-tom]'); if (tb) tb.hidden = !el.value; if (S.mallNamn) { S.mallNamn = ''; var fm = root.querySelector('.pgn-franmall'); if (fm) fm.remove(); } if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar(); return; }
     if (el.hasAttribute('data-kedjasvar') && K) {
       clearTimeout(svarTimer);
       var lab = root.querySelector('[data-kedjasparat]'); if (lab) lab.textContent = '';
@@ -1663,7 +1677,7 @@
       sparaFyll(t5, el.value.trim());
       uppdateraFyll(); return;
     }
-    if (el.hasAttribute('data-uppgift')) {
+    if (el.hasAttribute('data-uppgift')) { vaxa(el);
       S._fore = byggPrompt(S);
       if (S.raw) S.raw = el.value; else S.text = el.value;
       S.kopierad = S.harKop = false;
