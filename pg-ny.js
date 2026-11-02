@@ -685,10 +685,11 @@
     '.pgn-franmall{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:#e5f9f6;border:1.5px solid #b6ebe1;border-radius:16px;padding:12px 16px;font-size:16px;color:var(--pg-navy)}',
     '.pgn-ta-wrap{position:relative}.pgn-ta-wrap .pgn-ta{padding-bottom:58px}',
     '.pgn-ta-knappar{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;align-items:center}',
-    '.pgn-mik{font:inherit;font-size:14px;font-weight:600;color:#fff;background:var(--pg-teal-d);border:1px solid var(--pg-teal-d);border-radius:999px;cursor:pointer;min-height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:6px}',
-    '.pgn-mik:hover{filter:brightness(1.08)}',
-    '.pgn-mik.is-pa{background:#c62f3a;border-color:#c62f3a;animation:pgnmik 1.4s ease-in-out infinite}',
-    '@keyframes pgnmik{0%,100%{box-shadow:0 0 0 0 rgba(198,47,58,.35)}50%{box-shadow:0 0 0 8px rgba(198,47,58,0)}}',
+    '.pgn-mik{position:absolute;left:14px;bottom:14px;font:inherit;font-size:14px;font-weight:600;color:#5b6573;background:#f2f6f9;border:1px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:6px}',
+    '.pgn-mik svg{width:16px;height:16px;flex:0 0 16px}',
+    '.pgn-mik:hover{color:var(--pg-navy);border-color:#c9d3de}',
+    '.pgn-mik.is-pa{color:#b3261e;background:#fdecec;border-color:#f3c2c2;animation:pgnmik 1.6s ease-in-out infinite}',
+    '@keyframes pgnmik{0%,100%{box-shadow:0 0 0 0 rgba(179,38,30,.25)}50%{box-shadow:0 0 0 6px rgba(179,38,30,0)}}',
     '@media (prefers-reduced-motion:reduce){.pgn-mik.is-pa{animation:none}}',
     '.pgn-mik-not{margin:8px 4px 0;font-size:14px;color:#5b6573}.pgn-mik-not.is-fel{color:#b3261e}',
     '.pgn-tom{font:inherit;font-size:14px;font-weight:600;color:#5b6573;background:#f2f6f9;border:1px solid #dbe2ea;border-radius:999px;cursor:pointer;min-height:36px;padding:0 12px}',
@@ -955,7 +956,8 @@
         '<button type="button" class="pgn-borjaom" data-borjaom>↺ Börja om med tom ruta</button></div>' : '') +
       '<label for="pgn-uppgift" class="pgn-sr">Din uppgift</label>' +
       '<div class="pgn-ta-wrap"><textarea id="pgn-uppgift" class="pgn-ta" data-text placeholder="Skriv fritt, eller sök: mejl, offert, recension, LinkedIn …">' + esc(S.text) + '</textarea>' +
-      '<div class="pgn-ta-knappar">' + (MIK ? '<button type="button" class="pgn-mik" data-mik aria-pressed="false">🎤 Prata in</button>' : '') +
+      (MIK ? '<button type="button" class="pgn-mik" data-mik aria-pressed="false">' + MIK_IKON + '<span>Prata in</span></button>' : '') +
+      '<div class="pgn-ta-knappar">' +
       '<button type="button" class="pgn-tom" data-tom aria-label="Töm rutan"' + (S.text ? '' : ' hidden') + '>✕ Töm</button></div></div>' +
       (MIK ? '<p class="pgn-mik-not" data-miknot aria-live="polite" hidden></p>' : '') +
       '<div data-traffar></div>' +
@@ -1479,6 +1481,7 @@
      inget skickas till AIMonkey. dataLayer: pgny_mik (vad: start/klar/fel). ── */
   var MIK = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   var mik = null;
+  var MIK_IKON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
   function mikNot(t, fel) {
     var n = root.querySelector('[data-miknot]'); if (!n) return;
     n.textContent = t || ''; n.hidden = !t; n.classList.toggle('is-fel', !!fel);
@@ -1486,7 +1489,7 @@
   function mikKnapp(pa) {
     var k = root.querySelector('[data-mik]'); if (!k) return;
     k.classList.toggle('is-pa', pa); k.setAttribute('aria-pressed', pa ? 'true' : 'false');
-    k.textContent = pa ? '■ Sluta lyssna' : '🎤 Prata in';
+    k.innerHTML = MIK_IKON + '<span>' + (pa ? 'Lyssnar … tryck för att sluta' : 'Prata in') + '</span>';
   }
   function mikStopp() { if (mik) { var r = mik.rec; mik = null; try { r.stop(); } catch (e) {} mikKnapp(false); } }
   function mikStart() {
