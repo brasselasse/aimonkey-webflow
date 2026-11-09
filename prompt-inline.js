@@ -14,14 +14,13 @@
    får en egen post i Prompters kopplas alltså automatiskt.
 
    Stegkort (mall-steg.js) och dolda prompter rörs inte.
-   TEST: körs bara på webflow.io eller med ?promptkort=1.
+   Live sedan 2026-11-09. Stäng av för felsökning med ?promptkort=0.
    dataLayer: pin_kopiera { prompt, typ }, pin_generator { prompt }.
 ============================================================ */
 (function () {
   'use strict';
-  var TEST = /webflow\.io$/.test(location.hostname) || /[?&]promptkort=1/.test(location.search);
-  if (/[?&]promptkort=0/.test(location.search)) TEST = false;
-  if (!TEST) return;
+  /* Avstängning för felsökning: ?promptkort=0 */
+  if (/[?&]promptkort=0/.test(location.search)) return;
 
   var GRANS = 40;
   var PD_KEY = 'pin_pd_v1';
