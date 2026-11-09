@@ -141,9 +141,13 @@
   function bygg(w, data) {
     var cc = w.querySelector('.code-container'); if (!cc) return;
     var text = promptText(cc); if (!text) return;
-    var traff = data[nyckel(text)] || null;
+    /* innerText saknar listmarkörerna (1. / -) som promptText lägger till, och det var
+       så promptposterna skapades. Matcha på båda. */
+    var rå = (cc.innerText || cc.textContent || '').trim();
+    var traff = data[nyckel(text)] || data[nyckel(rå)] || null;
+    var n = Math.min(ord(text), ord(rå) || ord(text));
     if (traff && traff.text) text = traff.text;
-    var n = ord(text), id = traff ? traff.slug : '';
+    var id = traff ? traff.slug : '';
     w.removeAttribute('style'); w.classList.add('pin-klar');
 
     if (n < GRANS && !traff) {
