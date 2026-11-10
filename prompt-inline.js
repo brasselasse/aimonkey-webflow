@@ -6,7 +6,7 @@
    inbäddad HTML) till:
    - Hel prompt (minst 40 ord): kort med rubrik, kategori, gula luckor,
      "N luckor att fylla i", Kopiera, "Fyll i med Promptgeneratorn →"
-     och "Tips och varianter →" till /ai-prompter/<slug>.
+     och "Öppna promptsidan →" till /ai-prompter/<slug>.
    - Kort exempel (under 40 ord): en citatrad med en liten Kopiera.
 
    Rubrik, kategori och promptsida hämtas från /prompt-data genom att
@@ -167,7 +167,7 @@
       '<div class="pin-text">' + markera(text) + '</div>' +
       '<div class="pin-knappar"><button type="button" class="pin-kop">Kopiera prompt</button>' +
       '<a class="pin-gen" href="' + esc(generatorLank(text, namn || document.title)) + '">' + (l ? 'Fyll i med Promptgeneratorn →' : 'Anpassa i Promptgeneratorn →') + '</a>' +
-      (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Tips och varianter →</a>' : '') +
+      (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '') +
       '</div></div>';
     w.innerHTML = html;
 
