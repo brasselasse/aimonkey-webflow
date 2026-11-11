@@ -7,7 +7,9 @@
    Använder sajtens klasser .paket-puff* (samma utseende som pillar-puffarna).
 
    Underhåll:
-     • PAKET  = projektmallar som är live. Lägg till när en ny släpps.
+     • PAKET  = projektmallar som är live. Lägg till när en ny släpps
+       (kolla först att /projektpaket/<slug> svarar 200, annars blir
+       knappen en död länk). Ordningen = ordningen på valknapparna.
      • ARTIKLAR = artikel-slug → rekommenderad projektmall ('' = låt
        läsaren välja bland alla).
    dataLayer: paket_puff_visa / paket_puff_klick (paket, kalla, sida).
@@ -19,7 +21,10 @@
     { slug: 'saljassistenten', namn: 'Säljassistenten', kort: 'för dig som säljer' },
     { slug: 'smaforetagets-ai-avdelning', namn: 'Småföretagets AI-avdelning', kort: 'för dig som driver eget' },
     { slug: 'innehallsmaskinen', namn: 'Innehållsmaskinen', kort: 'för sociala medier och nyhetsbrev' },
-    { slug: 'kundtjanst-for-webbshopen', namn: 'Kundtjänst för webbshopen', kort: 'för dig som svarar kunder' }
+    { slug: 'kundtjanst-for-webbshopen', namn: 'Kundtjänst för webbshopen', kort: 'för dig som svarar kunder' },
+    { slug: 'klientassistenten', namn: 'Klientassistenten', kort: 'för coacher och konsulter' },
+    { slug: 'jobbsokarprojektet', namn: 'Jobbsökarprojektet', kort: 'för dig som söker jobb' },
+    { slug: 'pluggkompisen', namn: 'Pluggkompisen', kort: 'för dig som pluggar' }
   ];
 
   var ARTIKLAR = {
@@ -35,7 +40,9 @@
     'claude-gmail-google-drive-integration': '',
     'chatgpt-google-drive-library': '',
     'vanliga-nyborjarmisstag-med-ai': '',
-    'ai-pa-jobbet-2026-kompletta-guiden': ''
+    'ai-pa-jobbet-2026-kompletta-guiden': '',
+    'prompt-skill-eller-projekt': '',
+    'ai-i-jobbsokandet-cv-brev-intervju': 'jobbsokarprojektet'
   };
 
   /* Promptgeneratorns roller → projektmall */
