@@ -623,6 +623,9 @@
     }).catch(function () { bibliotek = []; laddar = false; vantar.splice(0).forEach(function (f) { f([]); }); });
   }
   var STOPP = /^(och|att|för|med|som|till|det|den|ett|en|om|på|av|jag|vill|vår|vårt|våra|min|mitt|mina|har|kan|inte|från|hur|vad|ska|skriv|gör|ett|nytt|ny|nya)$/;
+  /* Träfflistan (U2, 2026-11-11): lista i stället för tre kolumner. 6 syns, "Visa N till" visar upp till 12 */
+  var TRAFF_MAX = 12;
+  function traffVisa() { return window.innerWidth < 768 ? 4 : 6; }
   function sok(q) {
     if (!bibliotek || !q) return [];
     var ord = q.toLowerCase().split(/[^a-zåäö0-9-]+/).filter(function (w) { return w.length >= 3 && !STOPP.test(w); });
@@ -631,7 +634,7 @@
       var namn = p.namn.toLowerCase(), rest = (p.desc + ' ' + p.cat).toLowerCase(), pt = 0;
       ord.forEach(function (w) { var st = w.length > 5 ? w.slice(0, w.length - 2) : w; if (namn.indexOf(st) !== -1) pt += 3; else if (rest.indexOf(st) !== -1) pt += 1; });
       return { p: p, pt: pt };
-    }).filter(function (x) { return x.pt >= 2; }).sort(function (a, b) { return b.pt - a.pt; }).slice(0, 3).map(function (x) { return x.p; });
+    }).filter(function (x) { return x.pt >= 2; }).sort(function (a, b) { return b.pt - a.pt; }).slice(0, TRAFF_MAX).map(function (x) { return x.p; });
   }
 
   /* ── CSS ── */
@@ -655,11 +658,17 @@
     '.pgn-traff{display:flex;flex-direction:column;gap:12px;background:var(--pg-mint);border:1.5px solid var(--pg-teal);border-radius:24px;padding:20px 22px;animation:pgn-inn .3s ease-out}',
     '.pgn-traff-topp{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}',
     '.pgn-traff-topp p{margin:0;font-size:20px;font-weight:700}.pgn-traff-topp span{font-size:14px;color:#005042}',
-    '.pgn-traff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}',
-    '.pgn-mall{text-align:left;font:inherit;padding:16px 18px;min-height:84px;border-radius:16px;border:2px solid #fff;background:#fff;color:var(--pg-navy);cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:transform .15s,border-color .15s}',
-    '.pgn-mall:hover,.pgn-kort:hover{border-color:var(--pg-teal);transform:translateY(-2px)}',
-    '.pgn-mall small{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--pg-teal-d)}',
-    '.pgn-mall b{font-size:18px;line-height:1.25}.pgn-mall span{font-size:14px;line-height:1.4;color:#4a5668}',
+    '.pgn-traff-lista{list-style:none;margin:0;padding:0;background:#fff;border:1px solid #cdebe4;border-radius:16px;overflow:hidden}',
+    '.pgn-traff-lista li+li{border-top:1px solid #e6ebf0}',
+    '.pgn-mall{width:100%;text-align:left;font:inherit;display:flex;align-items:center;gap:14px;padding:12px 18px;min-height:60px;border:0;background:#fff;color:var(--pg-navy);cursor:pointer;transition:background .15s}',
+    '.pgn-mall:hover,.pgn-mall:focus-visible{background:#f3fbf9}.pgn-mall:focus-visible{outline:2px solid var(--pg-teal);outline-offset:-2px}',
+    '.pgn-kort:hover{border-color:var(--pg-teal);transform:translateY(-2px)}',
+    '.pgn-mall-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}',
+    '.pgn-mall b{font-size:17px;line-height:1.3}.pgn-mall-desc{font-size:14px;line-height:1.4;color:#4a5668;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.pgn-mall-meta{flex:none;font-size:13px;font-weight:600;color:#4a5668}.pgn-mall-pil{flex:none;color:var(--pg-teal-d);font-weight:700;font-size:18px}',
+    '.pgn-traff-fot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px}',
+    '.pgn-traff-mer{font:inherit;font-size:15px;font-weight:700;color:var(--pg-teal-d);background:none;border:0;padding:8px 0;min-height:44px;cursor:pointer}.pgn-traff-mer:hover{text-decoration:underline}',
+    '@media (max-width:767px){.pgn-mall{padding:12px 14px;gap:10px}.pgn-mall b{font-size:16px}.pgn-mall-desc{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.pgn-mall-meta{display:none}}',
     '.pgn-lank{font-size:15px;font-weight:600;color:var(--pg-teal-d)}',
     '.pgn-ex{display:flex;flex-direction:column;gap:12px}.pgn-ex p{margin:0;font-size:15px;font-weight:600;color:var(--pg-gra)}',
     '.pgn-chips{display:flex;flex-wrap:wrap;gap:10px}',
@@ -975,16 +984,26 @@
     if (q.length < 3 || q.length > 140) return '';
     var t = sok(q);
     if (!t.length) return '';
-    return '<div class="pgn-traff"><div class="pgn-traff-topp"><p>Det finns färdiga mallar för det här</p><span>Hoppar över stegen, allt är ifyllt</span></div>' +
-      '<div class="pgn-traff-grid">' + t.map(function (p, i) {
-        return '<button type="button" class="pgn-mall" data-mall="' + i + '"><small>' + esc(p.cat || 'Prompt') + '</small><b>' + esc(p.namn) + '</b>' + (p.desc ? '<span>' + esc(p.desc.length > 90 ? p.desc.slice(0, 90) + '…' : p.desc) + '</span>' : '') + '</button>';
-      }).join('') + '</div><a class="pgn-lank" href="/promptbiblioteket">Se alla färdiga prompter och mallar →</a></div>';
+    var visa = S.traffAlla ? t : t.slice(0, traffVisa()), fler = t.length - visa.length;
+    return '<div class="pgn-traff"><div class="pgn-traff-topp"><p>Det finns färdiga prompter för det här</p><span>Hoppar över stegen, allt är ifyllt</span></div>' +
+      '<ul class="pgn-traff-lista">' + visa.map(function (p, i) {
+        var n = luckor(p.prompt);
+        return '<li><button type="button" class="pgn-mall" data-mall="' + i + '"><span class="pgn-mall-text"><b>' + esc(p.namn) + '</b>' + (p.desc ? '<span class="pgn-mall-desc">' + esc(p.desc) + '</span>' : '') + '</span>' +
+          (n ? '<span class="pgn-mall-meta">' + n + (n === 1 ? ' lucka' : ' luckor') + '</span>' : '') + '<span class="pgn-mall-pil" aria-hidden="true">→</span></button></li>';
+      }).join('') + '</ul><div class="pgn-traff-fot">' + (fler > 0 ? '<button type="button" class="pgn-traff-mer" data-traffmer>Visa ' + fler + ' till</button>' : '<span></span>') +
+      '<a class="pgn-lank" href="/promptbiblioteket">Se alla färdiga prompter och mallar →</a></div></div>';
+  }
+  function luckor(t) {
+    var m = (t || '').match(/\[[^\]\n]{1,80}\]/g) || [], u = {};
+    m.forEach(function (x) { u[x.toUpperCase()] = 1; });
+    return Object.keys(u).length;
   }
   var senasteTraffar = [];
   function ritaTraffar() {
     var box = root.querySelector('[data-traffar]');
     if (!box) return;
     var q = S.text.trim();
+    if (q !== ritaTraffar.q) { S.traffAlla = false; ritaTraffar.q = q; }
     senasteTraffar = (q.length >= 3 && q.length <= 140) ? sok(q) : [];
     box.innerHTML = traffarHtml();
     var r = root.querySelector('[data-exrubrik]');
@@ -1784,6 +1803,7 @@
       });
       return;
     }
+    if (b.hasAttribute('data-traffmer')) { S.traffAlla = true; track('pgny_traff_fler', { antal: senasteTraffar.length }); ritaTraffar(); var nx = root.querySelectorAll('.pgn-mall')[traffVisa()]; if (nx) nx.focus(); return; }
     if (b.hasAttribute('data-mall')) {
       var p = senasteTraffar[+b.getAttribute('data-mall')]; if (!p) return;
       S.text = p.prompt; S.mallNamn = p.namn; S.typ = p.typ; S.kalla = 'sok';
