@@ -18,7 +18,7 @@
        [data-skill="faq"]       h2 + Collection list (källa: skillens FAQ).
                                 Post: [data-faq="item"] > h3[data-faq="q"],
                                 RichText[data-faq="a"]
-       [data-skill="apan"]      RichText ← Apan tycker
+       [data-skill="apan"]      Komponenten "Apan tycker" (Apans text ← Apan tycker)
    Allt annat byggs av skriptet. Utan [data-skill="app"] gör det inget.
 
    Fältformat i CMS:
@@ -41,7 +41,7 @@
     '.sk-overst{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:14px}',
     '.sk-kicker{display:inline-flex;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#0b1f3b;border-radius:999px;padding:6px 12px}',
     '.sk-etikett{display:inline-flex;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#005042;background:#e5f9f6;border-radius:999px;padding:6px 12px}',
-    '.sk-pillar{font-size:14px;color:#00806b;text-decoration:none}',
+    '.sk-pillar{font-size:14px;color:#007863;text-decoration:none}',
     '.sk-pillar:hover{text-decoration:underline}',
     '.sk-alla{font-size:14px;font-weight:600;color:#0b1f3b;text-decoration:none}',
     '.sk-alla:hover{text-decoration:underline}',
@@ -64,7 +64,7 @@
     '.sk-chatt small{font-size:14px;color:#4a5668}',
     '.sk-chatt.is-med small{color:#24433d}',
     '.sk-forklaring-fot{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:15px;color:#4a5668}',
-    '.sk-forklaring-fot a{color:#00806b;font-weight:600}',
+    '.sk-forklaring-fot a{color:#007863;font-weight:600}',
     /* Förloppet */
     '.sk-forlopp{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 32px;padding:0;list-style:none;counter-reset:fl}',
     '.sk-forlopp li{counter-increment:fl}',
@@ -85,7 +85,7 @@
     '.sk-tjanster{display:flex;flex-wrap:wrap;gap:8px;align-items:center}',
     '.sk-tab{font:inherit;font-size:17px;font-weight:700;padding:12px 22px;min-height:50px;border-radius:999px;cursor:pointer;background:#fff;color:#0b1f3b;border:2px solid #c9d3de}',
     '.sk-tab[aria-pressed="true"]{background:#0b1f3b;color:#fff;border-color:#0b1f3b}',
-    '.sk-ingen{font-size:15px;color:#00806b;font-weight:600;margin-left:6px}',
+    '.sk-ingen{font-size:15px;color:#007863;font-weight:600;margin-left:6px}',
     '.sk-term{margin:14px 0 0;font-size:15px;line-height:1.5;color:#24433d;background:#e5f9f6;border-radius:12px;padding:10px 14px}',
     '.sk-falt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}',
     '.sk-falt label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:#3d4a5c}',
@@ -97,7 +97,7 @@
     '.sk-regler p{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#005042}',
     '.sk-reglerlista{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}',
     '.sk-reglerlista label{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.45;color:#0b1f3b;cursor:pointer}',
-    '.sk-reglerlista input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#00806b}',
+    '.sk-reglerlista input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#007863}',
     '.sk-reglerlista em{font-style:normal;font-weight:600;color:#005042}',
     '.sk-instr{border:2px solid #00c9a7;border-radius:18px;padding:20px 22px;background:#fff}',
     '.sk-instr-topp{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:14px;color:#4a5668;margin-bottom:10px}',
@@ -132,7 +132,7 @@
     '.sk-startkort{border:1.5px solid #dbe2ea;border-radius:16px;padding:16px 18px}',
     '.sk-startkort-topp{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 12px;margin-bottom:10px}',
     '.sk-startkort-topp strong{font-size:18px;color:#0b1f3b}',
-    '.sk-startkort-topp a{font-size:14px;font-weight:600;color:#00806b}',
+    '.sk-startkort-topp a{font-size:14px;font-weight:600;color:#007863}',
     '.sk-startkort p{margin:0 0 12px;font-size:16px;line-height:1.55;color:#24384f;background:#f2f6f9;border-radius:12px;padding:12px 14px}',
     '.sk-liten{font:inherit;font-size:15px;font-weight:600;padding:10px 18px;min-height:44px;border-radius:12px;border:1.5px solid #0b1f3b;background:#fff;color:#0b1f3b;cursor:pointer}',
     '.sk-kopplingar{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}',
@@ -157,24 +157,23 @@
     /* FAQ */
     '[data-skill="faq"]{margin:0 0 36px;scroll-margin-top:90px}',
     '[data-skill="faq"].sk-tom{display:none}',
-    '[data-skill="faq"] > h2{font-size:26px!important;line-height:1.2!important;margin:0 0 14px!important;color:#0b1f3b}',
+    '[data-skill="faq"] > h2{font-size:2.75rem!important;line-height:1.2!important;font-weight:700;letter-spacing:-.0275rem;margin:0 0 1rem!important;color:#313a47}',
+    '@media (max-width:991px){[data-skill="faq"] > h2{font-size:2.25rem!important}}',
+    '@media (max-width:767px){[data-skill="faq"] > h2{font-size:2rem!important}}',
     '[data-skill="faq"] .w-dyn-empty{display:none!important}',
-    '[data-skill="faq"] [role="list"],[data-skill="faq"] .w-dyn-items{display:flex;flex-direction:column;gap:10px}',
-    '[data-faq="item"]{background:#fff;border:1.5px solid #e1e7ee;border-radius:16px}',
-    '[data-faq="q"]{margin:0!important;font-size:17px!important;line-height:1.4!important;font-weight:600;color:#0b1f3b}',
-    '.sk-faq-knapp{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;text-align:left;font:inherit;font-size:17px;font-weight:600;color:#0b1f3b;background:none;border:0;padding:16px 20px;min-height:56px;cursor:pointer}',
-    '.sk-faq-knapp:after{content:"+";font-size:22px;color:#00806b;flex-shrink:0}',
-    '.sk-faq-knapp[aria-expanded="true"]:after{content:"−"}',
-    '[data-faq="a"]{padding:0 20px 18px;font-size:16px;line-height:1.6;color:#24384f}',
+    '[data-skill="faq"] [role="list"],[data-skill="faq"] .w-dyn-items{display:flex;flex-direction:column;gap:0}',
+    '[data-faq="item"]{background:none;border:0;border-bottom:1px solid rgba(1,2,3,.1);border-radius:0}',
+    '[data-faq="q"]{margin:0!important;font-size:1.125rem!important;line-height:1.5!important;font-weight:700;color:#313a47}',
+    '.sk-faq-knapp{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;width:100%;text-align:left;font:inherit;font-size:1.125rem;font-weight:700;color:#313a47;background:none;border:0;padding:1.25rem 0;min-height:56px;cursor:pointer}',
+    '.sk-faq-knapp:after{content:"+";font-size:2rem;font-weight:300;line-height:1;color:#313a47;flex-shrink:0;width:2rem;text-align:center;transition:transform .3s}',
+    '.sk-faq-knapp[aria-expanded="true"]:after{transform:rotate(45deg)}',
+    '[data-faq="a"]{padding:0 3.5rem 1.25rem 0;font-size:1rem;line-height:1.6;color:#313a47}',
     '[data-faq="a"] p{margin:0}',
-    '[data-faq="a"] a{color:#00806b;font-weight:600}',
+    '[data-faq="a"] a{color:inherit;font-weight:700;text-decoration:underline}',
     '[data-faq="a"][hidden]{display:none}',
     /* Apan */
-    '[data-skill="apan"]{display:flex;gap:14px;align-items:flex-start;background:#0b1f3b;color:#e8edf3;border-radius:20px;padding:20px 22px}',
-    '[data-skill="apan"]:before{content:"Apan tycker:";font-weight:700;color:#4cd9c1;white-space:nowrap}',
-    '[data-skill="apan"] p{margin:0;color:#e8edf3;font-size:16px;line-height:1.55}',
     '[data-skill="apan"].sk-tom{display:none}',
-    '.sk-h1-typ{color:#00806b}',
+    '.sk-h1-typ{color:#007863}',
     '[data-skill="namn"]{font-size:clamp(34px,5vw,56px)!important;line-height:1.1!important}',
     '.sk-val{border:1.5px solid #e1e7ee;border-radius:16px;padding:16px 18px;margin:0 0 18px}',
     '.sk-val.is-mint{background:#e5f9f6;border-color:#bfeee5}',
@@ -189,7 +188,7 @@
     '.sk-andrat.is-synlig{display:block}',
     '.sk-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
     '.sk-koppstatus.is-av{color:#5b6573;font-weight:500}',
-    '@media (max-width:767px){.sk-reglerlista label{flex-wrap:wrap}.sk-reglerlista label>span:not(.sk-badge){flex-basis:calc(100% - 28px)}.sk-reglerlista .sk-badge{margin-left:28px}.sk-falt,.sk-jamfor{grid-template-columns:1fr}.sk-kort,.sk-forklaring{padding:18px}[data-skill="apan"]{flex-direction:column;gap:6px}.sk-kopiera{width:100%}.sk-steghuvud h2,.sk-forklaring h2{font-size:22px!important}.sk-forlopp{display:none}}',
+    '@media (max-width:767px){.sk-reglerlista label{flex-wrap:wrap}.sk-reglerlista label>span:not(.sk-badge){flex-basis:calc(100% - 28px)}.sk-reglerlista .sk-badge{margin-left:28px}.sk-falt,.sk-jamfor{grid-template-columns:1fr}.sk-kort,.sk-forklaring{padding:18px}.sk-kopiera{width:100%}.sk-steghuvud h2,.sk-forklaring h2{font-size:22px!important}.sk-forlopp{display:none}}',
     /* Skillsidan */
     '.sk-hamta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 14px}',
     '.sk-hamtakort{display:flex;flex-direction:column;gap:10px;border:1.5px solid #dbe2ea;border-radius:16px;padding:16px 18px;background:#fff}',
@@ -199,16 +198,16 @@
     '.sk-hamtakort .sk-kopiera,.sk-hamtakort .sk-liten{align-self:flex-start}',
     '.sk-saknas{margin:0 0 14px;background:#fff4cc;border:1.5px solid #f2d66b;color:#4d3b00;border-radius:14px;padding:12px 16px;font-size:15px;line-height:1.5}',
     '.sk-mdrad{margin:0;font-size:14px;color:#4a5668}',
-    '.sk-textknapp{font:inherit;font-size:14px;font-weight:600;color:#00806b;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}',
+    '.sk-textknapp{font:inherit;font-size:14px;font-weight:600;color:#007863;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}',
     '.sk-forhand{margin-top:4px}',
-    '.sk-forhand summary{cursor:pointer;font-size:15px;font-weight:600;color:#00806b;margin:0 0 10px}',
+    '.sk-forhand summary{cursor:pointer;font-size:15px;font-weight:600;color:#007863;margin:0 0 10px}',
     '.sk-startkort.is-ja{border-color:#bfeee5;background:#f6fdfb}',
     '.sk-startkort.is-nej{border-color:#e1e7ee;background:#fafbfc}',
     '.sk-mer{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}',
     '.sk-merlank{display:flex;flex-direction:column;gap:6px;border:1.5px solid #dbe2ea;border-radius:16px;padding:16px 18px;text-decoration:none;background:#fff}',
     '.sk-merlank:hover{border-color:#00c9a7}',
     '.sk-merlank strong{font-size:17px;color:#0b1f3b}',
-    '.sk-merlank span{font-size:14px;color:#00806b;font-weight:600}',
+    '.sk-merlank span{font-size:14px;color:#007863;font-weight:600}',
     '@media (max-width:767px){.sk-hamta{grid-template-columns:1fr}.sk-hamtakort .sk-kopiera{width:100%}}'
   ].join('\n');
   var st = document.createElement('style');
@@ -429,7 +428,7 @@
   /* ── Toppen ── */
   var faq = app.querySelector('[data-skill="faq"]');
   var apan = app.querySelector('[data-skill="apan"]');
-  if (apan && !textAv(apan)) apan.classList.add('sk-tom');
+  if (apan && (!textAv(apan) || apan.querySelector('.apan-tycker .w-dyn-bind-empty'))) apan.classList.add('sk-tom');
   var faqItems = faq ? [].slice.call(faq.querySelectorAll('[data-faq="item"]')) : [];
   if (faq && !faqItems.length) faq.classList.add('sk-tom');
   if (faq) faq.id = 'vanliga-fragor';

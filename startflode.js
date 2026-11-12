@@ -184,9 +184,9 @@
     '.sf-stegrad li span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:13px;background:#dfe6ee;color:#33435a}',
     '.sf-stegrad li.is-akt{background:#0b1f3b;color:#fff}',
     '.sf-stegrad li.is-akt span{background:#ffd23f;color:#0b1f3b}',
-    '.sf-stegrad li.is-klar span{background:#00a085;color:#fff}',
+    '.sf-stegrad li.is-klar span{background:#00c9a7;color:#0b1f3b}',
     '.sf h1.sf-h1{margin:0;font-size:64px;font-weight:700;letter-spacing:-1.5px;line-height:1.02;color:#0b1f3b}',
-    '.sf-h1 em{font-style:normal;color:#00a085}',
+    '.sf-h1 em{font-style:normal;color:#007863}',
     '.sf-ingress{margin:0;font-size:19px;line-height:1.55;color:#33435a;max-width:600px}',
     '.sf-roller{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px;margin-top:4px}',
     '.sf-roll{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:84px;padding:14px 16px;border-radius:16px;cursor:pointer;color:#0b1f3b;text-decoration:none;border:2px solid transparent;background:#fff;box-shadow:0 4px 14px -10px rgba(11,31,59,.3);box-sizing:border-box;transition:border-color .15s}',
@@ -244,8 +244,8 @@
     '.sf-fas-mall{font-size:14px;color:#4a5a70;line-height:1.45}',
     '.sf-fas .sf-pill-snart{align-self:flex-start;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}',
     '.sf-cta-rad{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center}',
-    '.sf-cta{background:#00a085;color:#fff;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:600;font-size:16px}',
-    '.sf-cta:hover{background:#00796b;color:#fff}',
+    '.sf-cta{background:#00c9a7;color:#0b1f3b;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:600;font-size:16px}',
+    '.sf-cta:hover{background:#4cd9c1;color:#0b1f3b}',
     '.sf-lank{font-weight:600;font-size:15px;color:#005042}',
     '.sf-team{display:flex;flex-wrap:wrap;gap:16px}',
     '.sf-team-paket{flex:1 1 360px;min-width:0;background:#0b1f3b;color:#fff;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:14px}',
@@ -554,15 +554,16 @@
       if (!q) { e.preventDefault(); location.href = '/promptbiblioteket'; return; }
       track('pb_start_sok', { q: q.slice(0, 80) });
     });
-    hamtaData().then(function (d) {
-      if (d.__antal > 50) form.q.placeholder = 'Sök bland ' + d.__antal + ' prompter';
-    });
+    /* Antalet prompter i platshållaren hämtas först när någon går in i sökrutan */
+    form.q.addEventListener('focus', function () {
+      hamtaData().then(function (d) { if (d.__antal > 50) form.q.placeholder = 'Sök bland ' + d.__antal + ' prompter'; });
+    }, { once: true });
   }
 
   /* ---------- Start ---------- */
   function init() {
     F = window.AimFyll || F;
-    var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    if (!document.querySelector('link[href*="startsida.css"]')) { var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     [].forEach.call(document.querySelectorAll('[data-sf-roll]'), function (a) { a.setAttribute('role', 'radio'); a.setAttribute('aria-checked', 'false'); });
     var g = document.querySelector('[data-sf="roller"]'); if (g) { g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', 'Välj yrke'); }
     el3.setAttribute('id', 'steg-3'); el2.setAttribute('id', 'steg-2');

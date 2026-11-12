@@ -28,7 +28,7 @@
     '.pb-app{background:#f2f6f9;color:#0b1f3b;padding:40px 0 96px}',
     '.pb-wrap{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;flex-direction:column;gap:40px}',
     '.pb-hero{display:flex;flex-direction:column;gap:14px;max-width:820px}',
-    '.pb-etikett{margin:0!important;font-size:13px!important;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#00806b!important}',
+    '.pb-etikett{margin:0!important;font-size:13px!important;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#007863!important}',
     '.pb-h1{margin:0!important;font-size:clamp(38px,6vw,64px)!important;line-height:1.02!important;letter-spacing:-.02em}',
     '.pb-ingress{margin:0!important;font-size:clamp(17px,2vw,20px)!important;line-height:1.5!important;color:#3d4a5c!important}',
     '.pb-sok{position:relative;max-width:820px}',
@@ -45,7 +45,7 @@
     '.pb-h2rad{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 16px}',
     '.pb-h2{margin:0!important;font-size:28px!important;line-height:1.2!important}',
     '.pb-text{margin:0!important;font-size:16px!important;line-height:1.5!important;color:#3d4a5c!important;max-width:720px}',
-    '.pb-lank{font:inherit;font-size:15px;font-weight:600;color:#00806b!important;background:none;border:0;cursor:pointer;padding:6px 0;text-decoration:none}',
+    '.pb-lank{font:inherit;font-size:15px;font-weight:600;color:#007863!important;background:none;border:0;cursor:pointer;padding:6px 0;text-decoration:none}',
     '.pb-lank:hover{text-decoration:underline}',
     '.pb-floden{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:14px}',
     '.pb-flode{text-align:left;font:inherit;color:#0b1f3b;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:18px 20px;border-radius:20px;background:#fff;border:2px solid #e1e7ee;transition:border-color .15s,transform .15s}',
@@ -86,7 +86,7 @@
     '.pb-stegnr{width:34px;height:34px;border-radius:50%;background:#0b1f3b;color:#ffd23f;font-size:16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-right:4px}',
     '.pb-titel{margin:0!important;font-size:22px!important;line-height:1.25!important}',
     '.pb-titel a{color:#0b1f3b!important;text-decoration:none}',
-    '.pb-titel a:hover{color:#00806b!important;text-decoration:underline}',
+    '.pb-titel a:hover{color:#007863!important;text-decoration:underline}',
     '.pb-desc{margin:0!important;font-size:15px!important;line-height:1.5!important;color:#3d4a5c!important}',
     '.pb-laddar-rad{margin:-8px 0 0!important;font-size:14px!important;color:#5b6573!important}',
     '.pb-utdrag{background:#f2f6f9;border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.55;color:#3d4a5c;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}',
@@ -104,9 +104,8 @@
     '.pb-mer{align-self:center;font:inherit;font-size:16px;font-weight:600;min-height:48px;padding:0 24px;border-radius:14px;border:1.5px solid #0b1f3b;background:#fff;color:#0b1f3b;cursor:pointer}',
     '.pb-laddar{font-size:15px;color:#3d4a5c}',
     '.pb-botten{display:flex;flex-wrap:wrap;gap:18px}',
-    '.pb-apan{flex:999 1 520px;min-width:0;background:#e5f9f6;border-radius:22px;padding:24px 26px;display:flex;flex-direction:column;gap:10px}',
-    '.pb-apan strong{font-size:22px;color:#005042}',
-    '.pb-apan blockquote{margin:0;border:0;padding:0;font-size:17px;line-height:1.6;color:#0b1f3b}',
+    '.pb-botten>[data-pb="apan"]{flex:999 1 520px;min-width:0}',
+    '.pb-botten>[data-pb="apan"]>*{margin-bottom:0!important}',
     '.pb-gen{flex:1 1 300px;min-width:0;background:#0b1f3b;color:#fff;border-radius:22px;padding:24px 26px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}',
     '.pb-gen strong{font-size:22px}',
     '.pb-gen p{margin:0!important;font-size:15px!important;line-height:1.5!important;color:#ced2d7!important}',
@@ -508,7 +507,7 @@
           '<button type="button" class="pb-mer" data-el="mer" hidden></button>' +
         '</section>' +
         '<section class="pb-botten">' +
-          '<div class="pb-apan"><strong>Apan tycker</strong><blockquote>Börja aldrig med en tom ruta. Leta upp prompten som ligger närmast, fyll i dina riktiga uppgifter och låt AI:n göra grovjobbet. Ju mer konkret du är i fälten, desto mindre behöver du rätta i svaret.</blockquote></div>' +
+          '<div data-el="apanPlats" hidden></div>' +
           '<div class="pb-gen"><strong>Hittar du inte rätt?</strong><p>Beskriv uppgiften med egna ord, så bygger Promptgeneratorn en prompt åt dig.</p><a href="/promptgeneratorn">Öppna Promptgeneratorn →</a></div>' +
         '</section>' +
       '</div>' +
@@ -517,6 +516,9 @@
     el.sok = root.querySelector('#pb-sok');
     var host = document.querySelector('.section_blog');
     host.parentNode.insertBefore(root, host);
+    /* Apan tycker: komponenten ligger som Webflow-element på sidan ([data-pb="apan"]) och flyttas hit. */
+    var apan = document.querySelector('[data-pb="apan"]');
+    if (apan && el.apanPlats) el.apanPlats.parentNode.replaceChild(apan, el.apanPlats);
   }
 
   function handelser() {

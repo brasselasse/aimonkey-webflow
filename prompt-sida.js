@@ -54,7 +54,7 @@
     '.ps2-not{font-size:13px;color:#005042}',
     '.ps2-fel{display:none;font-size:13px;font-weight:600;color:#9a3412}',
     '.ps2-falt.is-fel .ps2-fel{display:block}',
-    '.ps2-steglank{font-size:13px;font-weight:600;color:#00806b!important;text-decoration:none}',
+    '.ps2-steglank{font-size:13px;font-weight:600;color:#007863!important;text-decoration:none}',
     '.ps2-steglank:hover{text-decoration:underline}',
     '.ps2-prompt-rubrik{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 8px;font-size:13px;color:#5b6573}',
     '.ps2-prompt-rubrik strong{font-size:15px;color:#0b1f3b}',
