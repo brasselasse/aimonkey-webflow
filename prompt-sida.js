@@ -75,7 +75,7 @@
     '.ps2-ai span{font-size:14px;font-weight:600;color:#3d4a5c;margin-right:2px}',
     '.ps2-ai a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:12px;border:1.5px solid #c9d3de;background:#fff;color:#0b1f3b!important;font-size:15px;font-weight:600;text-decoration:none}',
     '.ps2-ai a:hover{border-color:#0b1f3b}',
-    '.ps2-ai.is-last a{opacity:.55}',
+    '.ps2-ai.is-last a{opacity:.8}',
     '.ps2-klarruta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:#0b1f3b;color:#fff;border-radius:16px;padding:14px 18px}',
     '.ps2-klarruta[hidden]{display:none}',
     '.ps2-klarruta p{margin:0!important;flex:1 1 220px;font-size:15px!important;line-height:1.5!important;color:#f5f6fa!important}',
