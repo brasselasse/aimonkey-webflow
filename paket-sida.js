@@ -18,7 +18,7 @@
                                  referensfält FAQ. Varje post:
                                  [data-faq="item"] > h3[data-faq="q"] ← Name,
                                  RichText[data-faq="a"] ← Svar RT
-       [data-paket="apan"]     RichText ← Apan tycker
+       [data-paket="apan"]     Komponenten "Apan tycker" (Apans text ← Apan tycker)
    Allt annat byggs av skriptet. Utan [data-paket="app"] gör det inget.
 ============================================================ */
 (function () {
@@ -34,7 +34,7 @@
     '.pp-overst{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:14px}',
     '.pp-kicker{display:inline-flex;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#0b1f3b;border-radius:999px;padding:6px 12px}',
     '[data-paket="etikett"]{display:inline-flex;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#005042;background:#e5f9f6;border-radius:999px;padding:6px 12px}',
-    '.pp-pillar{font-size:14px;color:#00806b;text-decoration:none}',
+    '.pp-pillar{font-size:14px;color:#007863;text-decoration:none}',
     '.pp-pillar:hover{text-decoration:underline}',
     '[data-paket="namn"]{margin:0 0 12px}',
     '[data-paket="forvem"]{margin:0 0 16px;color:#3d4a5c;max-width:680px}',
@@ -55,7 +55,7 @@
     '.pp-chatt small{font-size:14px;color:#4a5668}',
     '.pp-chatt.is-med small{color:#24433d}',
     '.pp-forklaring-fot{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:15px;color:#4a5668}',
-    '.pp-forklaring-fot a{color:#00806b;font-weight:600}',
+    '.pp-forklaring-fot a{color:#007863;font-weight:600}',
     /* Förloppet */
     '.pp-forlopp{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 32px;padding:0;list-style:none;counter-reset:fl}',
     '.pp-forlopp li{counter-increment:fl}',
@@ -76,7 +76,7 @@
     '.pp-tjanster{display:flex;flex-wrap:wrap;gap:8px;align-items:center}',
     '.pp-tab{font:inherit;font-size:17px;font-weight:700;padding:12px 22px;min-height:50px;border-radius:999px;cursor:pointer;background:#fff;color:#0b1f3b;border:2px solid #c9d3de}',
     '.pp-tab[aria-pressed="true"]{background:#0b1f3b;color:#fff;border-color:#0b1f3b}',
-    '.pp-ingen{font-size:15px;color:#00806b;font-weight:600;margin-left:6px}',
+    '.pp-ingen{font-size:15px;color:#007863;font-weight:600;margin-left:6px}',
     '.pp-term{margin:14px 0 0;font-size:15px;line-height:1.5;color:#24433d;background:#e5f9f6;border-radius:12px;padding:10px 14px}',
     '.pp-falt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}',
     '.pp-falt label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:#3d4a5c}',
@@ -88,7 +88,7 @@
     '.pp-regler p{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#005042}',
     '.pp-reglerlista{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}',
     '.pp-reglerlista label{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.45;color:#0b1f3b;cursor:pointer}',
-    '.pp-reglerlista input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#00806b}',
+    '.pp-reglerlista input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#007863}',
     '.pp-reglerlista em{font-style:normal;font-weight:600;color:#005042}',
     '.pp-instr{border:2px solid #00c9a7;border-radius:18px;padding:20px 22px;background:#fff}',
     '.pp-instr-topp{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:14px;color:#4a5668;margin-bottom:10px}',
@@ -123,7 +123,7 @@
     '.pp-startkort{border:1.5px solid #dbe2ea;border-radius:16px;padding:16px 18px}',
     '.pp-startkort-topp{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 12px;margin-bottom:10px}',
     '.pp-startkort-topp strong{font-size:18px;color:#0b1f3b}',
-    '.pp-startkort-topp a{font-size:14px;font-weight:600;color:#00806b}',
+    '.pp-startkort-topp a{font-size:14px;font-weight:600;color:#007863}',
     '.pp-startkort p{margin:0 0 12px;font-size:16px;line-height:1.55;color:#24384f;background:#f2f6f9;border-radius:12px;padding:12px 14px}',
     '.pp-liten{font:inherit;font-size:15px;font-weight:600;padding:10px 18px;min-height:44px;border-radius:12px;border:1.5px solid #0b1f3b;background:#fff;color:#0b1f3b;cursor:pointer}',
     '.pp-kopplingar{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}',
@@ -148,24 +148,23 @@
     /* FAQ */
     '[data-paket="faq"]{margin:0 0 36px;scroll-margin-top:90px}',
     '[data-paket="faq"].pp-tom{display:none}',
-    '[data-paket="faq"] > h2{font-size:26px!important;line-height:1.2!important;margin:0 0 14px!important;color:#0b1f3b}',
+    '[data-paket="faq"] > h2{font-size:2.75rem!important;line-height:1.2!important;font-weight:700;letter-spacing:-.0275rem;margin:0 0 1rem!important;color:#313a47}',
+    '@media (max-width:991px){[data-paket="faq"] > h2{font-size:2.25rem!important}}',
+    '@media (max-width:767px){[data-paket="faq"] > h2{font-size:2rem!important}}',
     '[data-paket="faq"] .w-dyn-empty{display:none!important}',
-    '[data-paket="faq"] [role="list"],[data-paket="faq"] .w-dyn-items{display:flex;flex-direction:column;gap:10px}',
-    '[data-faq="item"]{background:#fff;border:1.5px solid #e1e7ee;border-radius:16px}',
-    '[data-faq="q"]{margin:0!important;font-size:17px!important;line-height:1.4!important;font-weight:600;color:#0b1f3b}',
-    '.pp-faq-knapp{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;text-align:left;font:inherit;font-size:17px;font-weight:600;color:#0b1f3b;background:none;border:0;padding:16px 20px;min-height:56px;cursor:pointer}',
-    '.pp-faq-knapp:after{content:"+";font-size:22px;color:#00806b;flex-shrink:0}',
-    '.pp-faq-knapp[aria-expanded="true"]:after{content:"−"}',
-    '[data-faq="a"]{padding:0 20px 18px;font-size:16px;line-height:1.6;color:#24384f}',
+    '[data-paket="faq"] [role="list"],[data-paket="faq"] .w-dyn-items{display:flex;flex-direction:column;gap:0}',
+    '[data-faq="item"]{background:none;border:0;border-bottom:1px solid rgba(1,2,3,.1);border-radius:0}',
+    '[data-faq="q"]{margin:0!important;font-size:1.125rem!important;line-height:1.5!important;font-weight:700;color:#313a47}',
+    '.pp-faq-knapp{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;width:100%;text-align:left;font:inherit;font-size:1.125rem;font-weight:700;color:#313a47;background:none;border:0;padding:1.25rem 0;min-height:56px;cursor:pointer}',
+    '.pp-faq-knapp:after{content:"+";font-size:2rem;font-weight:300;line-height:1;color:#313a47;flex-shrink:0;width:2rem;text-align:center;transition:transform .3s}',
+    '.pp-faq-knapp[aria-expanded="true"]:after{transform:rotate(45deg)}',
+    '[data-faq="a"]{padding:0 3.5rem 1.25rem 0;font-size:1rem;line-height:1.6;color:#313a47}',
     '[data-faq="a"] p{margin:0}',
-    '[data-faq="a"] a{color:#00806b;font-weight:600}',
+    '[data-faq="a"] a{color:inherit;font-weight:700;text-decoration:underline}',
     '[data-faq="a"][hidden]{display:none}',
     /* Apan */
-    '[data-paket="apan"]{display:flex;gap:14px;align-items:flex-start;background:#0b1f3b;color:#e8edf3;border-radius:20px;padding:20px 22px}',
-    '[data-paket="apan"]:before{content:"Apan tycker:";font-weight:700;color:#4cd9c1;white-space:nowrap}',
-    '[data-paket="apan"] p{margin:0;color:#e8edf3;font-size:16px;line-height:1.55}',
     '[data-paket="apan"].pp-tom{display:none}',
-    '.pp-h1-typ{color:#00806b}',
+    '.pp-h1-typ{color:#007863}',
     '[data-paket="namn"]{font-size:clamp(34px,5vw,56px)!important;line-height:1.1!important}',
     '.pp-val{border:1.5px solid #e1e7ee;border-radius:16px;padding:16px 18px;margin:0 0 18px}',
     '.pp-val.is-mint{background:#e5f9f6;border-color:#bfeee5}',
@@ -180,7 +179,7 @@
     '.pp-andrat.is-synlig{display:block}',
     '.pp-koppstatus{display:block;margin-top:auto;font-size:13px;font-weight:600;color:#005042}',
     '.pp-koppstatus.is-av{color:#5b6573;font-weight:500}',
-    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista label>span:not(.pp-badge){flex-basis:calc(100% - 28px)}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}[data-paket="apan"]{flex-direction:column;gap:6px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
+    '@media (max-width:767px){.pp-reglerlista label{flex-wrap:wrap}.pp-reglerlista label>span:not(.pp-badge){flex-basis:calc(100% - 28px)}.pp-reglerlista .pp-badge{margin-left:28px}.pp-falt,.pp-jamfor{grid-template-columns:1fr}.pp-kort,.pp-forklaring{padding:18px}.pp-kopiera{width:100%}.pp-steghuvud h2,.pp-forklaring h2{font-size:22px!important}.pp-forlopp{display:none}}'
   ].join('\n');
   var st = document.createElement('style');
   st.textContent = CSS;
@@ -371,7 +370,7 @@
   var forvem = app.querySelector('[data-paket="forvem"]');
   var faq = app.querySelector('[data-paket="faq"]');
   var apan = app.querySelector('[data-paket="apan"]');
-  if (apan && !textAv(apan)) apan.classList.add('pp-tom');
+  if (apan && (!textAv(apan) || apan.querySelector('.apan-tycker .w-dyn-bind-empty'))) apan.classList.add('pp-tom');
   var faqItems = faq ? [].slice.call(faq.querySelectorAll('[data-faq="item"]')) : [];
   if (faq && !faqItems.length) faq.classList.add('pp-tom');
   if (faq) faq.id = 'vanliga-fragor';

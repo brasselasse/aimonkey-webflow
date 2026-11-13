@@ -25,8 +25,8 @@
     '.st-sok{display:flex;gap:8px;background:#fff;border-radius:16px;padding:8px;box-shadow:0 10px 30px -12px rgba(11,31,59,.25);max-width:620px;margin:0}',
     '.st-sok input{flex:1 1 auto;min-width:0;border:0;outline:none;font:inherit;font-size:17px;padding:12px 14px;background:transparent;color:#0b1f3b}',
     '.st-sok input::placeholder{color:#6b7a90}',
-    '.st-sok button{flex:none;border:0;border-radius:12px;padding:0 22px;min-height:48px;background:#00a085;color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer}',
-    '.st-sok button:hover{background:#008a73}',
+    '.st-sok button{flex:none;border:0;border-radius:12px;padding:0 22px;min-height:48px;background:#00c9a7;color:#0b1f3b;font:inherit;font-size:16px;font-weight:600;cursor:pointer}',
+    '.st-sok button:hover{background:#4cd9c1}',
     '.st-sok:focus-within{box-shadow:0 0 0 3px #4cd9c1,0 10px 30px -12px rgba(11,31,59,.25)}',
     '.st-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
     '.st-flikar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}',
@@ -197,6 +197,7 @@
       var n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]; n.focus(); n.click();
     });
     visa();
+    sek.classList.add('st-flikar-klara');
 
     alla.forEach(function (k) {
       var slug = k.getAttribute('data-st-slug'), rad = k.querySelector('.st-knappar');
@@ -241,8 +242,11 @@
     });
 
     if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (es) { if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); hamtaData(); } }, { rootMargin: '400px 0px' });
-      io.observe(sek);
+      /* Hämta först när sektionen faktiskt syns och sidan har laddat klart,
+         så att de ~500 kB inte konkurrerar med första visningen. */
+      var io = new IntersectionObserver(function (es) { if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); hamtaData(); } }, { rootMargin: '0px' });
+      var starta = function () { io.observe(sek); };
+      if (document.readyState === 'complete') starta(); else window.addEventListener('load', starta);
     } else hamtaData();
   }
 
@@ -330,7 +334,7 @@
 
   function init() {
     F = window.AimFyll || null;
-    var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    if (!document.querySelector('link[href*="startsida.css"]')) { var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     sok(); kort(); datum(); lar(); faq();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

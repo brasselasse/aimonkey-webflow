@@ -639,7 +639,7 @@
 
   /* ── CSS ── */
   var CSS = [
-    '[data-pgny]{--pg-navy:#0b1f3b;--pg-teal:#00c9a7;--pg-teal-d:#00806b;--pg-mint:#e5f9f6;--pg-gul:#ffd23f;--pg-gra:#3d4a5c;--pg-linje:#d3dbe4;color:var(--pg-navy);padding-bottom:140px}',
+    '[data-pgny]{--pg-navy:#0b1f3b;--pg-teal:#00c9a7;--pg-teal-d:#007863;--pg-mint:#e5f9f6;--pg-gul:#ffd23f;--pg-gra:#3d4a5c;--pg-linje:#d3dbe4;color:var(--pg-navy);padding-bottom:140px}',
     '[data-pgny] *{box-sizing:border-box}',
     '.pgn{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:32px}',
     '.pgn-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}',
