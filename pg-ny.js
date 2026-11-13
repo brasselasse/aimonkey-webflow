@@ -1099,7 +1099,7 @@
     /* I kedjeläget visar stegraden redan vilket steg det är */
     if (!K) h += '<div class="pgn-uppg"><div class="pgn-uppg-rad"><strong>' + (S.mallNamn ? 'Mall:' : 'Din uppgift:') + '</strong><span class="pgn-uppg-text">' + esc(S.mallNamn || S.text) + '</span>' +
       andraKnappar() + '</div></div>';
-    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Fyll i det som är ditt</h1>' +
+    h += '<div class="pgn-rubrik"><h1 tabindex="-1" data-fokus>Fyll i luckorna</h1>' +
       '<p class="pgn-ingress">Det är de här luckorna som gör prompten till din. Står det kvar [NAMN] i prompten blir svaret lika generiskt. Prompten blir klar när allt är ifyllt.</p>' +
       '<span class="pgn-fyll-rakna' + (st.kvar ? '' : ' is-klar') + '" data-fyllrakna aria-live="polite">' + st.klar + ' av ' + st.alla + ' ifyllda</span></div>';
     h += '<div class="pgn-fyll-grid">' + L.map(function (t, i) {
