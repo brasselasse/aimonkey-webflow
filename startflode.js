@@ -355,7 +355,7 @@
     { id: 'team', tid: 'Vill du bygga ett system?', titel: 'Sätt upp ditt AI-team' }
   ];
   function vagInfo(v, r) {
-    if (v.id === 'prompt') return { text: 'De vanligaste prompterna för ' + r.namnLiten + '. Fyll i det som är ditt och kopiera.', meta: (r.prompter.length + (r.generator ? 1 : 0)) + ' prompter att börja med', rubrik: 'Fyll i och kopiera. Klart på fem minuter.' };
+    if (v.id === 'prompt') return { text: 'De vanligaste prompterna för ' + r.namnLiten + '. Fyll i luckorna och kopiera.', meta: (r.prompter.length + (r.generator ? 1 : 0)) + ' prompter att börja med', rubrik: 'Fyll i och kopiera. Klart på fem minuter.' };
     if (v.id === 'flode') return { text: 'Prompter som hänger ihop, steg för steg. Svaret från ett steg följer med till nästa.', meta: r.flode.namn + ' · ' + r.flode.meta, rubrik: r.flode.namn + ', steg för steg' };
     return { text: 'Ett projekt med dina uppgifter och AI-skills som kan ditt jobb. Gör det en gång, spara tid varje vecka.', meta: r.teamMeta, snart: !!r.teamSnart, rubrik: r.teamSnart ? 'Ditt AI-team, steg för steg' : 'Ditt AI-team, klart på 10 minuter' };
   }

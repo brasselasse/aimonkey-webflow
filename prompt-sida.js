@@ -5,7 +5,7 @@
    prompt-steg.js och sidans egen kod har kört.
 
    Promptsidan blir en plats där man gör prompten till sin:
-   1. "Fyll i det som är ditt": ett fält per [PLATSHÅLLARE] (samma
+   1. "Fyll i luckorna": ett fält per [PLATSHÅLLARE] (samma
       regler som nya generatorn). Egna uppgifter förifylls från
       förra gången (pg_kedja). Fält som tar in svaret från ett
       tidigare steg får en länk till det steget. Det man skrivit på
@@ -161,7 +161,7 @@
       panel = make('section', 'ps2-fyll');
       panel.setAttribute('aria-labelledby', 'ps2-h');
       panel.innerHTML =
-        '<div class="ps2-topp"><h2 class="ps2-h2" id="ps2-h">Fyll i det som är ditt</h2><span class="ps2-rakna" aria-live="polite"></span></div>' +
+        '<div class="ps2-topp"><h2 class="ps2-h2" id="ps2-h">Fyll i luckorna</h2><span class="ps2-rakna" aria-live="polite"></span></div>' +
         '<p class="ps2-ingress">Fälten ersätter [HAKPARENTESERNA] i prompten. Det du skriver om dig själv, som företagsnamnet, sparas i din webbläsare till nästa gång.</p>' +
         '<div class="ps2-stapel" aria-hidden="true"><i></i></div><div class="ps2-grid"></div>';
       grid = panel.querySelector('.ps2-grid');

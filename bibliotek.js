@@ -484,7 +484,7 @@
         '<div class="pb-hero">' +
           '<p class="pb-etikett"><span data-pb-antal>400+</span> prompter på svenska · gratis</p>' +
           '<h1 class="pb-h1">Promptbiblioteket</h1>' +
-          '<p class="pb-ingress">Hitta en prompt, fyll i det som är ditt och kopiera. Funkar i ChatGPT, Claude, Gemini och Copilot.</p>' +
+          '<p class="pb-ingress">Hitta en prompt, fyll i luckorna och kopiera. Funkar i ChatGPT, Claude, Gemini och Copilot.</p>' +
         '</div>' +
         '<div class="pb-sok"><label for="pb-sok" style="position:absolute;left:-9999px">Sök bland prompterna</label>' +
           '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#3d4a5c" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#3d4a5c" stroke-width="2" stroke-linecap="round"/></svg>' +
