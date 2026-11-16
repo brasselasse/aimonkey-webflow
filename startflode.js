@@ -50,7 +50,7 @@
           ['Fas 5', 'Offert och förhandling', 'Pitch-polisheraren + Prisförhandlaren', '/ai-for-saljare#fas-5'],
           ['Fas 6', 'Efter affären', 'Säljmötes-uppföljaren', '/ai-mallar/saljmotes-uppfoljaren']] },
       paket: [['Säljassistenten', 'En AI som kan ditt erbjudande, dina kunder och din säljprocess.', 'CRM, mejl, kalender', '/projektpaket/saljassistenten']],
-      skills: ['mail', 'brand'], teamMeta: 'Säljassistenten + 2 AI-skills',
+      skills: ['mail', 'brand'], teamMeta: 'Säljassistenten och 2 AI-skills',
       apan: 'Börja med fas 1, även om det kliar i fingrarna att skicka mejl direkt. Ett bra kundkort gör att allt efter det skriver sig nästan självt.'
     },
     smaforetagare: {
@@ -68,7 +68,7 @@
           ['Del 6', 'Planera och växa', 'Veckoplaneraren', '/ai-mallar/veckoplaneraren']] },
       paket: [['Småföretagets AI-avdelning', 'En AI som kan ditt företag, dina tjänster och din ton.', 'dokument, mejl, kalender', '/projektpaket/smaforetagets-ai-avdelning'],
         ['Kundtjänst för webbshopen', 'Svarar kunder snabbt med rätt info om beställningar.', 'webbutiken, mejl', '/projektpaket/kundtjanst-for-webbshopen']],
-      skills: ['recension', 'brand', 'mail'], teamMeta: '2 projektmallar + 3 AI-skills',
+      skills: ['recension', 'brand', 'mail'], teamMeta: '2 projektmallar och 3 AI-skills',
       apan: 'Gör Brand Voice-byggaren först. Den tar en halvtimme och gör att allt AI:n skriver därefter låter som ditt företag, inte som en robot.'
     },
     marknad: {
@@ -85,7 +85,7 @@
           ['Fas 5', 'Annonsera', 'Meta och Google Ads', '/ai-mallar/ai-for-meta-ads-och-google-ads-2026', 1],
           ['Fas 6', 'Synas på Google', 'SEO-artikeln', '/ai-mallar/seo-artikeln-fran-sokordsanalys-till-top-1-pa-google', 1]] },
       paket: [['Innehållsmaskinen', 'En AI som planerar och skriver innehåll i din ton.', 'Canva, dokument', '/projektpaket/innehallsmaskinen']],
-      skills: ['brand', 'sprak'], teamMeta: 'Innehållsmaskinen + 2 AI-skills',
+      skills: ['brand', 'sprak'], teamMeta: 'Innehållsmaskinen och 2 AI-skills',
       apan: 'Innehållsmaskinen är min favorit här. När AI:n väl kan din ton går ett veckoinlägg på fem minuter i stället för en timme.'
     },
     chef: {
@@ -102,7 +102,7 @@
           ['Fas 5', 'Följ upp resultaten', 'KPI-rapporten', '/ai-mallar/kpi-rapporten-fran-excel-kaos-till-chefsklar-rapport', 1],
           ['Fas 6', 'AI i teamet', 'AI-policyn', '/ai-mallar/ai-policyn', 1]] },
       paket: [], snartNamn: 'Ledarassistenten',
-      skills: ['mail', 'mote'], teamMeta: 'Projektmall på väg · 2 AI-skills', teamSnart: true,
+      skills: ['mail', 'mote'], teamMeta: 'Projektmall och 2 AI-skills', teamSnart: true,
       apan: 'Börja med Möteskartans första steg: behövs mötet alls? Det enklaste sättet att spara tid är mötet som aldrig blev av.'
     },
     skribent: {
@@ -117,7 +117,7 @@
           ['Fas 3', 'Din bildstil', 'Stil-profileren', '/ai-mallar/stil-profileren', 1],
           ['Fas 4', 'Publicera och synas', 'SEO-artikeln', '/ai-mallar/seo-artikeln-fran-sokordsanalys-till-top-1-pa-google', 1]] },
       paket: [], snartNamn: 'Skrivverkstaden',
-      skills: ['brand', 'sprak'], teamMeta: 'Projektmall på väg · 2 AI-skills', teamSnart: true,
+      skills: ['brand', 'sprak'], teamMeta: 'Projektmall och 2 AI-skills', teamSnart: true,
       apan: 'Lägg tio minuter på din röstprofil innan du ber AI:n skriva något. Annars får du text som låter som alla andras.'
     },
     plugg: {
@@ -163,8 +163,8 @@
           ['Populärt', 'Möten', 'Möteskartan', '/ai-mallar/moteskartan'],
           ['Populärt', 'Planering', 'Veckoplaneraren', '/ai-mallar/veckoplaneraren'],
           ['Populärt', 'Kunder', 'Recensionssvararen', '/ai-mallar/recensionssvararen']] },
-      paket: [['Småföretagets AI-avdelning', 'Funkar som grund för de flesta jobb. Byt ut texterna mot ditt.', 'dokument, mejl, kalender', '/projektpaket/smaforetagets-ai-avdelning']],
-      skills: ['mail', 'brand', 'sprak'], teamMeta: 'Projektmall + 3 AI-skills',
+      paket: [['Småföretagets AI-avdelning', 'Funkar som grund för de flesta jobb. Byt ut texterna mot dina egna.', 'dokument, mejl, kalender', '/projektpaket/smaforetagets-ai-avdelning']],
+      skills: ['mail', 'brand', 'sprak'], teamMeta: 'Projektmall och 3 AI-skills',
       apan: 'Saknar du ditt yrke? Skriv det i generatorn. Det du skriver där hjälper oss att välja vilket yrke vi bygger härnäst.'
     }
   };
@@ -352,12 +352,12 @@
   var VAGAR = [
     { id: 'prompt', tid: 'Har du 5 minuter?', titel: 'Prompta direkt' },
     { id: 'flode', tid: 'Har du en eftermiddag?', titel: 'Följ ett flöde' },
-    { id: 'team', tid: 'Vill du bygga ett system?', titel: 'Sätt upp ditt AI-team' }
+    { id: 'team', tid: 'Vill du gå ett steg längre?', titel: 'Bygg ditt eget AI-team' }
   ];
   function vagInfo(v, r) {
     if (v.id === 'prompt') return { text: 'De vanligaste prompterna för ' + r.namnLiten + '. Fyll i luckorna och kopiera.', meta: (r.prompter.length + (r.generator ? 1 : 0)) + ' prompter att börja med', rubrik: 'Fyll i och kopiera. Klart på fem minuter.' };
     if (v.id === 'flode') return { text: 'Prompter som hänger ihop, steg för steg. Svaret från ett steg följer med till nästa.', meta: r.flode.namn + ' · ' + r.flode.meta, rubrik: r.flode.namn + ', steg för steg' };
-    return { text: 'Ett projekt med dina uppgifter och AI-skills som kan ditt jobb. Gör det en gång, spara tid varje vecka.', meta: r.teamMeta, snart: !!r.teamSnart, rubrik: r.teamSnart ? 'Ditt AI-team, steg för steg' : 'Ditt AI-team, klart på 10 minuter' };
+    return { text: 'Samla dina arbetsuppgifter och AI-skills i ett projekt. Du ställer in det en gång och sparar tid varje vecka.', meta: r.teamMeta, snart: !!r.teamSnart, rubrik: r.teamSnart ? 'Ditt AI-team, steg för steg' : 'Ditt AI-team, klart på 10 minuter' };
   }
 
   function ritaStegrad() {
@@ -382,7 +382,7 @@
     if (!r && HYBRID) { el2.innerHTML = ''; return; }
     if (!r) {
       el2.innerHTML = '<div class="sf-tom"><span class="sf-etikett">Steg 2</span><strong>Hur vill du jobba?</strong>' +
-        '<p>Välj ett yrke ovanför, så dyker tre vägar upp här: prompta direkt, följ ett flöde eller sätt upp ditt AI-team.</p></div>';
+        '<p>Välj ett yrke ovanför, så dyker tre vägar upp här: prompta direkt, följ ett flöde eller bygg ditt eget AI-team.</p></div>';
       return;
     }
     el2.innerHTML = '<div class="sf-steg-huvud"><div><span class="sf-etikett">Steg 2 · ' + esc(r.namn) + '</span>' +
@@ -445,8 +445,8 @@
       '<div class="sf-paket"><strong>' + esc(r.snartNamn) + '</strong><span>' + esc(r.snartText || 'Projektmallen för ditt yrke är på väg. Fram till dess kan du börja med Småföretagets AI-avdelning och byta ut texterna.') + '</span></div>' +
       (r.snartText ? '<a class="sf-gul-lank" href="' + esc(r.flode.cta[1]) + '" data-sf-mal="cta">' + esc(r.flode.cta[0]) + '</a>' :
         '<a class="sf-gul-lank" href="/projektpaket/smaforetagets-ai-avdelning?source=start" data-sf-mal="paket">Se Småföretagets AI-avdelning →</a>');
-    return '<p class="sf-steg-text">Ett projekt är AI:ns arbetsrum: den kommer ihåg ditt företag, din ton och dina filer. En AI-skill är en färdighet AI:n plockar fram själv när den behövs. Gör det en gång, spara tid varje vecka.</p>' +
-      '<div class="sf-team"><div class="sf-team-paket"><span class="sf-etikett">' + (r.paket.length ? 'Projektmall · klart på 10 minuter' : 'Projektmall · kommer snart') + '</span>' + vanster + '</div>' +
+    return '<p class="sf-steg-text">Ett projekt är AI:ns arbetsrum: den kommer ihåg ditt företag, din ton och dina filer. En AI-skill är en färdighet AI:n plockar fram själv när den behövs. Du ställer in allt en gång och sparar tid varje vecka.</p>' +
+      '<div class="sf-team"><div class="sf-team-paket"><span class="sf-etikett">' + (r.paket.length ? 'Projektmall · klar på 10 minuter' : 'Projektmall · kommer snart') + '</span>' + vanster + '</div>' +
       '<div class="sf-team-skills"><span class="sf-etikett">AI-skills som passar</span><ul>' + r.skills.map(function (k) {
         var s = SKILL[k]; return '<li><a href="' + s[2] + '" data-sf-mal="skill">' + esc(s[0]) + ' →</a><span>' + esc(s[1]) + '</span></li>';
       }).join('') + '</ul><a class="sf-lank" href="/ai-termer/ai-skill">Vad är en AI-skill?</a></div></div>';
