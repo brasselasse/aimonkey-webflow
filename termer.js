@@ -39,6 +39,12 @@
     var tomt = wrap.querySelector('[data-ao="tomt"]');
     var chips = [].slice.call(wrap.querySelectorAll('.ao-chip[data-amne]'));
 
+    /* Reserv: om Webflow inte har satt länken till termsidan */
+    [].slice.call(wrap.querySelectorAll('a[data-slug]')).forEach(function (a) {
+      var s = a.getAttribute('data-slug'), h = a.getAttribute('href') || '';
+      if (s && (!h || h === '#' || h.indexOf('/ai-termer/') === -1)) a.setAttribute('href', '/ai-termer/' + s);
+    });
+
     /* Rader från båda CMS-listorna, sorterade på svenska */
     var listor = [].slice.call(alla.querySelectorAll('.w-dyn-list'));
     var rader = [].slice.call(alla.querySelectorAll('.w-dyn-item')).map(function (el) {
