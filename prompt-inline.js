@@ -176,7 +176,7 @@
       '<div class="pin-text">' + markera(text) + '</div>' +
       '<div class="pin-knappar"><button type="button" class="pin-kop">Kopiera prompt</button>' +
       (fyllUI ? '<div class="pin-lankar">' + (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '') +
-        '<a class="pin-gen pin-gen-lank" href="' + esc(generatorLank(text, namn || document.title)) + '">Finjustera i Promptgeneratorn</a></div>' :
+        '<a class="pin-gen-lank" href="' + esc(generatorLank(text, namn || document.title)) + '">Finjustera i Promptgeneratorn</a></div>' :
       '<a class="pin-gen" href="' + esc(generatorLank(text, namn || document.title)) + '">' + (l ? 'Fyll i med Promptgeneratorn →' : 'Anpassa i Promptgeneratorn →') + '</a>' +
       (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '')) +
       '</div></div>';
@@ -207,7 +207,7 @@
       var I = ui ? ui.info() : { luckor: l, ifyllda: 0 };
       track('pin_kopiera', { prompt: id, typ: 'hel', luckor: I.luckor, ifyllda: I.ifyllda });
     });
-    var gen = w.querySelector('.pin-gen');
+    var gen = w.querySelector('.pin-gen, .pin-gen-lank');
     gen.addEventListener('click', function () {
       track('pin_generator', { prompt: id });
       var t = aktuell();

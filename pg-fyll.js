@@ -337,6 +337,6 @@
     lasSenaste: lasSenaste, sparaSenaste: sparaSenaste,
     favoriter: favoriter, arFavorit: arFavorit, vaxlaFavorit: vaxlaFavorit,
     las: las, spara: spara,
-    luckorUI: luckorUI, dekorera: dekorera
+    luckorUI: luckorUI, dekorera: dekorera, uiStil: uiStil
   };
 })();

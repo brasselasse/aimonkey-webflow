@@ -12,8 +12,11 @@
       sidan ligger kvar i sessionStorage om man går till ett annat
       steg och tillbaka.
    2. Prompten uppdateras direkt: ifyllt markeras grönt, luckor gult.
-   3. Kopiera prompt är spärrad tills allt är ifyllt (beslut
-      2026-10-15). Undantag: "Kopiera originalet med hakparenteser".
+   3. Kopiera prompt går alltid (beslut 2026-11-16, ersätter spärren
+      från 2026-10-15). Knappen är grå när inget är ifyllt, ljusgrön
+      när man börjat och grön när allt är ifyllt. Det som inte är
+      ifyllt kopieras med hakparenteser. Luckorna i prompten är
+      knappar som fokuserar rätt fält. Kräver pg-fyll.js med uiStil.
    4. Kopiera länk, Öppna direkt i ChatGPT/Claude/Gemini/Copilot,
       ★ Spara (aimonkey_fav_prompts) och Senaste prompter.
    5. Efter kopiering: "Nästa: Steg N" om prompten ingår i en mall.
@@ -62,9 +65,11 @@
     '.ps2-aktiv mark.ps2-fylld{background:#d6f5ef;color:#004a3d;font-weight:600;border-radius:4px;padding:0 .2em;box-decoration-break:clone;-webkit-box-decoration-break:clone}',
     '.ps2-actions{display:flex;flex-direction:column;gap:12px;margin:18px 0 6px}',
     '.ps2-rad{display:flex;flex-wrap:wrap;align-items:center;gap:10px}',
-    '.ps2-kopiera{font:inherit;font-size:17px;font-weight:700;min-height:52px;padding:0 24px;border-radius:14px;border:0;cursor:pointer;background:#e1e7ee;color:#3d4a5c}',
-    '.ps2-kopiera.is-klar{background:#ffd23f;color:#0b1f3b;box-shadow:0 8px 22px rgba(255,210,63,.35)}',
-    '.ps2-kopiera.is-copied{background:#00c9a7;color:#0b1f3b}',
+    /* Kopiera: grå (inget ifyllt), ljusgrön (påbörjat), grön (allt ifyllt), samma som promptkorten (2026-11-16) */
+    '.ps2-kopiera{font:inherit;font-size:17px;font-weight:700;min-height:52px;padding:0 24px;border-radius:14px;cursor:pointer;background:#007863;color:#fff;border:1.5px solid #007863;transition:background-color .35s,color .35s,border-color .35s}',
+    '.ps2-kopiera.is-copied{background:#e5f9f6!important;color:#005042!important;border-color:#00c9a7!important}',
+    '.ps2-falt.is-blink .ps2-in{animation:aimfFokus 1s ease-out}',
+    '.ps2-aktiv .aimf-lucka{font-size:inherit}',
     '.ps2-sek{font:inherit;font-size:15px;font-weight:600;min-height:48px;padding:0 16px;border-radius:12px;border:1.5px solid #c9d3de;background:#fff;color:#0b1f3b;cursor:pointer;display:inline-flex;align-items:center;gap:8px}',
     '.ps2-sek:hover{border-color:#0b1f3b}',
     '.ps2-sek[aria-pressed="true"]{border-color:#e0b100;background:#fff8dc}',
@@ -136,6 +141,8 @@
     var namn = (wrapperA && wrapperA.getAttribute('data-namn')) || ((card.querySelector('h1') || {}).textContent || '').trim();
     var tasktype = (wrapperA && wrapperA.getAttribute('data-tasktype')) || '';
 
+    if (F.uiStil) F.uiStil();
+    var pulsOk = false;
     var style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
@@ -223,21 +230,32 @@
     function ritaPrompt() {
       var md = F.segment(raw, V).map(function (s) {
         if (!s.ph || !s.fylld) return s.t;
+        var i = idx(s.ph);
         var t = s.t.replace(/\s*\n+\s*/g, ' ');
         if (t.length > 160) t = t.slice(0, 157) + '…';
-        return MS + t.replace(/[]/g, '') + ME;
+        return MS + (i > -1 ? String.fromCharCode(0xE010 + i) : '') + t.replace(/[-]/g, '') + ME;
       }).join('');
       var html;
       if (typeof window.aimPromptMarkdown === 'function') html = window.aimPromptMarkdown(md);
       else html = '<span style="white-space:pre-wrap">' + esc(md) + '</span>';
-      html = html.split(MS).join('<mark class="ps2-fylld">').split(ME).join('</mark>');
+      /* Luckorna blir knappar: klick fokuserar rätt fält (2026-11-16) */
+      html = html.replace(/([-])/g, function (m, c) { return '<button type="button" class="aimf-lucka is-fylld" data-i="' + (c.charCodeAt(0) - 0xE010) + '">'; })
+        .split(MS).join('<mark class="ps2-fylld">').replace(/<button([^>]*)>([^]*)/g, '<button$1>$2</button>').split(ME).join('</mark>');
+      html = html.replace(/<span class="pm-ph">\[([^\]<]{1,160})\]<\/span>/g, function (m, k) {
+        var i = -1; falt.forEach(function (t, j) { if (esc(t.key) === k) i = j; });
+        return i < 0 ? m : '<button type="button" class="aimf-lucka" data-i="' + i + '">[' + k + ']</button>';
+      });
       promptEl.setAttribute('data-pm-raw', fylld());
       promptEl.setAttribute('data-pm', '1');
       promptEl.classList.add('pm-md');
       promptEl.classList.remove('pm-raw');
       promptEl.innerHTML = html;
       card.classList.add('ps2-aktiv');
+      if (nyFylld > -1) [].forEach.call(promptEl.querySelectorAll('.aimf-lucka[data-i="' + nyFylld + '"]'), function (b) { b.classList.add('is-pop'); });
+      nyFylld = -1;
     }
+    var nyFylld = -1, varKlar = false;
+    function idx(key) { for (var j = 0; j < falt.length; j++) if (falt[j].key === key) return j; return -1; }
 
     function uppdatera() {
       var k = kvar(), klar = !k.length, n = falt.length;
@@ -248,11 +266,16 @@
         f.classList.toggle('is-ifylld', ok);
         f.classList.toggle('is-fel', visaFel && !ok);
       });
+      /* Kopiera går alltid (beslut 2026-11-16): färgen visar hur långt man kommit */
+      var ifyllda = n - k.length;
+      bKop.classList.add('aimf-kop');
+      bKop.classList.toggle('is-tom', n > 0 && ifyllda === 0);
+      bKop.classList.toggle('is-delvis', ifyllda > 0 && !klar);
       bKop.classList.toggle('is-klar', klar);
-      if (!bKop.classList.contains('is-copied')) bKop.textContent = klar ? 'Kopiera prompt' : 'Fyll i ' + k.length + ' fält till';
-      bKop.setAttribute('aria-disabled', klar ? 'false' : 'true');
-      bRa.hidden = klar;
-      aiRad.classList.toggle('is-last', !klar);
+      if (klar && !varKlar && n > 0 && pulsOk) { bKop.classList.remove('is-puls'); void bKop.offsetWidth; bKop.classList.add('is-puls'); }
+      varKlar = klar;
+      if (!bKop.classList.contains('is-copied')) bKop.textContent = klar && n ? 'Kopiera ifylld prompt' : 'Kopiera prompt';
+      bRa.hidden = true;
       if (klar) meddelande.hidden = true;
       var text = fylld(), q = encodeURIComponent(text);
       aiRad.querySelector('[data-ai="chatgpt"]').href = 'https://chatgpt.com/?q=' + q;
@@ -297,7 +320,10 @@
         var f = e.target.closest('[data-ps2]');
         if (!f) return;
         var t = falt[+f.getAttribute('data-ps2')];
+        var var0 = F.varde(V, t.key);
         V[t.key] = e.target.value;
+        if (!var0 && F.varde(V, t.key)) nyFylld = +f.getAttribute('data-ps2');
+        pulsOk = true;
         sparaSess(V);
         F.sparaFyll(t, e.target.value);
         if (!borjat) { borjat = true; track('ps_fyll', { antal: falt.length }); }
@@ -313,11 +339,22 @@
     }
 
     bKop.addEventListener('click', function () {
-      if (kvar().length) return visaTomma('kopiera');
-      var text = fylld();
+      var text = fylld(), k = kvar().length;
       tillKlipp(text, function () { efterKopiering('Kopierad ✓'); });
       F.sparaSenaste(text, tasktype, namn, slug);
-      track('ps_kopiera', { ifyllt: falt.length });
+      track('ps_kopiera', { ifyllt: falt.length - k, luckor: falt.length });
+    });
+    /* Klick på en lucka i prompten → rätt fält */
+    promptEl.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.aimf-lucka[data-i]');
+      if (!b || !grid) return;
+      e.preventDefault();
+      var f = grid.querySelector('[data-ps2="' + b.getAttribute('data-i') + '"]'); if (!f) return;
+      var inp = f.querySelector('.ps2-in');
+      f.classList.remove('is-blink'); void f.offsetWidth; f.classList.add('is-blink');
+      try { inp.focus({ preventScroll: true }); } catch (err) { inp.focus(); }
+      f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      track('aimf_lucka_klick', { kalla: 'promptsida' });
     });
     bRa.addEventListener('click', function () {
       tillKlipp(raw, function () {
@@ -343,7 +380,6 @@
     aiRad.addEventListener('click', function (e) {
       var a = e.target.closest('[data-ai]');
       if (!a) return;
-      if (kvar().length) { e.preventDefault(); return visaTomma('ai'); }
       var text = fylld();
       tillKlipp(text);
       F.sparaSenaste(text, tasktype, namn, slug);
