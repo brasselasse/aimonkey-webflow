@@ -5,8 +5,9 @@
    Gör om prompterna i brödtexten (.prompt-wrapper, från {{...}} eller
    inbäddad HTML) till:
    - Hel prompt (minst 40 ord): kort med rubrik, kategori, gula luckor,
-     "N luckor att fylla i", Kopiera, "Fyll i med Promptgeneratorn →"
-     och "Öppna promptsidan →" till /ai-prompter/<slug>.
+     "N luckor att fylla i", Kopiera, "Fyll i luckorna" (fälten fälls ut
+     i kortet, AimFyll.luckorUI i pg-fyll.js, 2026-11-16), "Öppna
+     promptsidan →" och länken "Finjustera i Promptgeneratorn".
    - Kort exempel (under 40 ord): en citatrad med en liten Kopiera.
 
    Rubrik, kategori och promptsida hämtas från /prompt-data genom att
@@ -15,7 +16,8 @@
 
    Stegkort (mall-steg.js) och dolda prompter rörs inte.
    Live sedan 2026-11-09. Stäng av för felsökning med ?promptkort=0.
-   dataLayer: pin_kopiera { prompt, typ }, pin_generator { prompt }.
+   dataLayer: pin_kopiera { prompt, typ, luckor, ifyllda }, pin_fyll_oppna { prompt },
+   pin_generator { prompt }, aimf_lucka_klick { kalla }.
 ============================================================ */
 (function () {
   'use strict';
@@ -69,7 +71,7 @@
   function kopiera(text, knapp, etikett) {
     function ok() {
       knapp.classList.add('is-kopierad'); knapp.textContent = '✓ Kopierad';
-      setTimeout(function () { knapp.classList.remove('is-kopierad'); knapp.textContent = etikett; }, 2500);
+      setTimeout(function () { knapp.classList.remove('is-kopierad'); knapp.textContent = typeof etikett === 'function' ? etikett() : etikett; }, 2500);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(ok, function () { reserv(); });
@@ -117,6 +119,10 @@
     '.pin-kort a.pin-gen{font-size:15px;font-weight:700;line-height:1.3;color:#0b1f3b;background:#fff;border:1.5px solid #c9d3de;border-radius:12px;padding:11px 16px;text-decoration:none!important}',
     '.pin-kort a.pin-gen:hover{border-color:#0b1f3b}',
     '.pin-kort a.pin-mer{margin-left:auto;font-size:14px;font-weight:700;color:#007863;text-decoration:none!important}',
+    '.pin-lankar{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px}',
+    '.pin-lankar a.pin-mer{margin-left:0}',
+    '.pin-kort a.pin-gen-lank{font-size:13px;font-weight:600;color:#3d4a5c;text-decoration:underline!important}',
+    '.pin-kort a.pin-gen-lank:hover{color:#0b1f3b}',
     '.pin-kort a.pin-mer:hover{text-decoration:underline!important}',
     '.pin-ex{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dbe2ea;border-left:4px solid #00c9a7;border-radius:12px;padding:12px 12px 12px 16px;margin:20px 0}',
     '.pin-ex-text{flex:1;font-size:16px;color:#0b1f3b;line-height:1.55;overflow-wrap:break-word}',
@@ -124,7 +130,8 @@
     '.pin-kop.pin-kop-liten.is-kopierad{background:#e5f9f6;color:#005042;border-color:#00c9a7}',
     'li:has(> .pin-klar){background-image:none!important;padding-left:0!important}li:has(> .pin-klar) .pin-ex{margin:10px 0}',
     '@media (max-width:600px){.pin-kort{padding:16px;border-radius:18px}.pin-topp{flex-direction:column;gap:8px}.pin-titel{font-size:18px}.pin-text{font-size:15px;padding:14px}',
-    '.pin-knappar{flex-direction:column;align-items:stretch}.pin-kop,.pin-kort a.pin-gen{width:100%;text-align:center;box-sizing:border-box}.pin-kort a.pin-mer{margin:2px auto 0}}'
+    '.pin-knappar{flex-direction:column;align-items:stretch}.pin-kop,.pin-kort a.pin-gen{width:100%;text-align:center;box-sizing:border-box}.pin-kort a.pin-mer{margin:2px auto 0}',
+    '.pin-lankar{margin:4px 0 0;flex-direction:row;justify-content:space-between;align-items:baseline;gap:12px}.pin-lankar a.pin-mer{margin:0}}'
   ].join('\n');
 
   function stil() {
@@ -160,14 +167,18 @@
 
     var namn = traff ? traff.namn : '';
     var l = luckor(text);
+    /* Fyll i luckorna direkt i kortet (2026-11-16), kräver pg-fyll.js */
+    var fyllUI = !!(l && window.AimFyll && window.AimFyll.luckorUI);
     var html = '<div class="pin-kort">' +
       '<div class="pin-topp"><div><span class="pin-eyebrow">Prompt' + (traff && traff.kat ? ' · ' + esc(traff.kat) : '') + '</span>' +
       (namn ? '<b class="pin-titel">' + esc(namn) + '</b>' : '') + '</div>' +
       (l ? '<span class="pin-luckor">' + l + (l === 1 ? ' lucka' : ' luckor') + ' att fylla i</span>' : '') + '</div>' +
       '<div class="pin-text">' + markera(text) + '</div>' +
       '<div class="pin-knappar"><button type="button" class="pin-kop">Kopiera prompt</button>' +
+      (fyllUI ? '<div class="pin-lankar">' + (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '') +
+        '<a class="pin-gen pin-gen-lank" href="' + esc(generatorLank(text, namn || document.title)) + '">Finjustera i Promptgeneratorn</a></div>' :
       '<a class="pin-gen" href="' + esc(generatorLank(text, namn || document.title)) + '">' + (l ? 'Fyll i med Promptgeneratorn →' : 'Anpassa i Promptgeneratorn →') + '</a>' +
-      (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '') +
+      (id ? '<a class="pin-mer" href="/ai-prompter/' + esc(id) + '">Öppna promptsidan →</a>' : '')) +
       '</div></div>';
     w.innerHTML = html;
 
@@ -179,13 +190,31 @@
       v.addEventListener('click', function () { tx.classList.remove('is-ihop'); v.remove(); });
     }
     var kb2 = w.querySelector('.pin-kop');
-    kb2.addEventListener('click', function () { kopiera(text, kb2, 'Kopiera prompt'); track('pin_kopiera', { prompt: id, typ: 'hel' }); });
+    var ui = null;
+    if (fyllUI) {
+      try {
+        ui = window.AimFyll.luckorUI({
+          text: text, textEl: tx, kop: kb2, kopEtikett: 'Kopiera prompt',
+          panelEfter: w.querySelector('.pin-visa') || tx, vaxlaEfter: kb2,
+          bricka: w.querySelector('.pin-luckor'), kalla: 'artikel',
+          onOppna: function () { tx.classList.remove('is-ihop'); var vb = w.querySelector('.pin-visa'); if (vb) vb.remove(); track('pin_fyll_oppna', { prompt: id }); }
+        });
+      } catch (e) { ui = null; }
+    }
+    function aktuell() { return ui ? ui.fylld() : text; }
+    kb2.addEventListener('click', function () {
+      kopiera(aktuell(), kb2, ui ? ui.etikett : 'Kopiera prompt');
+      var I = ui ? ui.info() : { luckor: l, ifyllda: 0 };
+      track('pin_kopiera', { prompt: id, typ: 'hel', luckor: I.luckor, ifyllda: I.ifyllda });
+    });
     var gen = w.querySelector('.pin-gen');
     gen.addEventListener('click', function () {
       track('pin_generator', { prompt: id });
-      if (text.length > 1500) {
+      var t = aktuell();
+      if (ui) gen.href = generatorLank(t, namn || document.title);
+      if (t.length > 1500) {
         try {
-          sessionStorage.setItem('pg_imported_prompt', text);
+          sessionStorage.setItem('pg_imported_prompt', t);
           sessionStorage.setItem('pg_imported_namn', namn || document.title);
           ['tasktype', 'roll', 'ton', 'malgrupp'].forEach(function (k) { sessionStorage.setItem('pg_imported_' + k, ''); });
         } catch (e) {}
@@ -199,7 +228,9 @@
     });
     if (!alla.length) return;
     stil();
-    hamtaData().then(function (d) { alla.forEach(function (w) { try { bygg(w, d); } catch (e) {} }); });
+    var vantat = 0;
+    function narFyll(cb) { if ((window.AimFyll && window.AimFyll.luckorUI) || vantat > 30) cb(); else { vantat++; setTimeout(function () { narFyll(cb); }, 100); } }
+    hamtaData().then(function (d) { narFyll(function () { alla.forEach(function (w) { try { bygg(w, d); } catch (e) {} }); }); });
   }
 
   if (document.readyState === 'complete') setTimeout(start, 50);

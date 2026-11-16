@@ -30,6 +30,8 @@
     'body.mall-v2-on .content27_link-content{overflow:hidden}',
     'body.mall-v2-on .content27_link-content > .stegnav-progress{margin-top:.75rem}',
     '[data-mall-v2="steg"] .w-dyn-empty{display:none!important}',
+    /* Promptgeneratorn som liten länk när Fyll i luckorna finns i kortet */
+    '.stegkort-actions .stegkort-anpassa.aimf-genlank{background:none!important;border:0!important;box-shadow:none!important;padding:8px 0!important;min-height:0;font-size:13px!important;font-weight:600!important;color:#3d4a5c!important;text-decoration:underline!important;order:9}',
     '[data-stegkort="meta"]{display:none!important}',
     '[data-mall-meta]{display:none!important}',
     '[data-mall-resa]{display:none!important}',
@@ -268,6 +270,12 @@
     try { localStorage.setItem(storeKey, JSON.stringify(list)); } catch (e) { /* privat läge */ }
   }
 
+  var narVantat = 0;
+  function narFyll(cb) {
+    if ((window.AimFyll && window.AimFyll.luckorUI) || narVantat > 30) { cb(); return; }
+    narVantat++; setTimeout(function () { narFyll(cb); }, 100);
+  }
+
   function rawText(el) {
     if (!el) return '';
     return (el.getAttribute('data-pm-raw') || el.textContent || '').trim();
@@ -277,7 +285,7 @@
     function ok() {
       btn.textContent = 'Kopierad!';
       btn.classList.add('is-copied');
-      setTimeout(function () { btn.textContent = label; btn.classList.remove('is-copied'); }, 2500);
+      setTimeout(function () { btn.textContent = typeof label === 'function' ? label() : label; btn.classList.remove('is-copied'); }, 2500);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(ok, fallback);
@@ -678,10 +686,28 @@
 
       /* Kopiera (prompt + följdprompt) */
       var kop = card.querySelector('.stegkort-kopiera');
+      var anp = card.querySelector('.stegkort-anpassa');
+      /* Fyll i luckorna direkt i stegkortet (2026-11-16, AimFyll.luckorUI i pg-fyll.js).
+         Promptgeneratorn blir en liten länk, "Finjustera i Promptgeneratorn". */
+      var fyll = { ui: null };
+      (function (card, fyll, kop, anp, promptEl, more, n) {
+        narFyll(function () {
+          if (!promptEl || !kop || !window.AimFyll || !window.AimFyll.luckorUI) return;
+          try {
+            fyll.ui = window.AimFyll.luckorUI({
+              text: rawText(promptEl), textEl: promptEl, kop: kop, kopEtikett: 'Kopiera prompt',
+              panelEfter: more || promptEl, vaxlaEfter: kop, kalla: 'mall',
+              onOppna: function () { promptEl.classList.add('is-expanded'); if (more) more.textContent = 'Visa mindre'; track('mall_steg_fyll_oppna', { steg: n }); }
+            });
+          } catch (err) { fyll.ui = null; }
+          if (fyll.ui && anp) { anp.classList.add('aimf-genlank'); anp.textContent = 'Finjustera i Promptgeneratorn'; }
+        });
+      })(card, fyll, kop, anp, promptEl, more, n);
       if (kop) kop.addEventListener('click', function (e) {
         e.preventDefault();
-        copy(rawText(promptEl), kop, 'Kopiera prompt');
-        track('mall_steg_kopiera', { steg: n });
+        copy(fyll.ui ? fyll.ui.fylld() : rawText(promptEl), kop, fyll.ui ? fyll.ui.etikett : 'Kopiera prompt');
+        var I = fyll.ui ? fyll.ui.info() : null;
+        track('mall_steg_kopiera', I ? { steg: n, luckor: I.luckor, ifyllda: I.ifyllda } : { steg: n });
       });
       var nasta = card.querySelector('.stegkort-nasta');
       if (nasta && nasta.textContent.trim()) {
@@ -696,11 +722,10 @@
         nbtn.addEventListener('click', function () { copy(rawText(nasta), nbtn, 'Kopiera följdprompt'); });
       }
 
-      /* Fyll i med Promptgeneratorn */
-      var anp = card.querySelector('.stegkort-anpassa');
+      /* Fyll i med Promptgeneratorn (med det som redan är ifyllt) */
       if (anp) anp.addEventListener('click', function (e) {
         e.preventDefault();
-        var text = rawText(promptEl);
+        var text = fyll.ui ? fyll.ui.fylld() : rawText(promptEl);
         var namn = card.getAttribute('data-namn') || titel;
         var roll = card.getAttribute('data-roll') || '';
         var malgrupp = card.getAttribute('data-malgrupp') || '';
