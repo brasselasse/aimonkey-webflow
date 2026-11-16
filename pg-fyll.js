@@ -328,6 +328,14 @@
     satt(oppen);
     varKlar = info().kvar === 0;
     uppdatera(null);
+    /* Om texten ritas om efteråt (t.ex. av prompt-format.js) försvinner knapparna: lägg tillbaka dem. */
+    if (window.MutationObserver) {
+      var obs = new MutationObserver(function () {
+        if (o.textEl.querySelector('.aimf-lucka') || !new RegExp(PH_SRC).test(o.textEl.textContent)) return;
+        obs.disconnect(); dekorera(o.textEl); uppdatera(null); obs.observe(o.textEl, { childList: true, subtree: true });
+      });
+      obs.observe(o.textEl, { childList: true, subtree: true });
+    }
     return { fylld: function () { return apply(o.text, v); }, etikett: etikett, info: info, oppna: oppna, oppen: function () { return oppen; } };
   }
 
