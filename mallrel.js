@@ -77,10 +77,7 @@
 
     /* Rubrik och länk till rollens sida */
     var namn = NAMN[vald.roll];
-    var rubrik = null, upp = behallare;
-    for (var steg = 0; upp && !rubrik && steg < 6; steg++, upp = upp.parentNode) {
-      rubrik = [].slice.call(upp.querySelectorAll ? upp.querySelectorAll('h2,h3') : []).filter(function (h) { return /^\s*Fler AI-mallar\s*$/.test(h.textContent); })[0] || null;
-    }
+    var rubrik = [].slice.call(document.querySelectorAll('h2,h3')).filter(function (h) { return /^\s*Fler AI-mallar\s*$/.test(h.textContent); })[0];
     if (rubrik && namn) rubrik.textContent = 'Fler AI-mallar för ' + namn;
     var lank = document.createElement('a');
     lank.className = 'mr-alla';
