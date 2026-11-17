@@ -24,6 +24,9 @@
   function track(ev, data) {
     try { window.dataLayer = window.dataLayer || []; var o = { event: ev }; for (var k in data) o[k] = data[k]; window.dataLayer.push(o); } catch (e) {}
   }
+  /* Sajtens standard för scroll: scrollIntoView med behavior 'smooth' och
+     scroll-margin-top på målet (samma som anchorlinkfix). */
+  function mjukScroll(el) { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   function norm(s) { return (s || '').toLowerCase().replace(/[-–—_()]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function forsta(namn) {
     var c = (namn || '').trim().charAt(0).toUpperCase();
@@ -145,12 +148,20 @@
         rita();
         track('ao_amne', { amne: state.amne || 'alla' });
         var y = alla.getBoundingClientRect().top + window.pageYOffset - 90;
-        if (window.pageYOffset < y - 40 || window.pageYOffset > y + 400) window.scrollTo({ top: y, behavior: 'smooth' });
+        if (window.pageYOffset < y - 40 || window.pageYOffset > y + 400) mjukScroll(alla);
       });
     });
 
     rita();
-    if (state.amne || state.q) setTimeout(function () { alla.scrollIntoView({ block: 'start' }); }, 50);
+    /* Kommer man från en termsida (?amne=, ?q= eller #alla-termer/#bokstav-x):
+       samma mjuka scroll som resten av sajten (anchorlinkfix), inget hopp. */
+    var malId = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+    var mal = (malId && document.getElementById(malId)) || ((state.amne || state.q) ? alla : null);
+    if (mal) {
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.scrollTo(0, 0);
+      setTimeout(function () { mjukScroll(mal); }, 300);
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
