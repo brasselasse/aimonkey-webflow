@@ -39,6 +39,14 @@
     if (!grupper.length) return;
     var slug = location.pathname.replace(/\/$/, '').split('/').pop();
 
+    /* Reservlänkar: om Webflow lämnar href="#" på kortet */
+    grupper.forEach(function (g) {
+      [].slice.call(g.querySelectorAll('a[data-slug]')).forEach(function (a) {
+        var s = a.getAttribute('data-slug'), h = a.getAttribute('href') || '';
+        if (s && (!h || h === '#' || h.indexOf('/ai-mallar/') === -1)) a.setAttribute('href', '/ai-mallar/' + s);
+      });
+    });
+
     var info = grupper.map(function (g) {
       var kort = [].slice.call(g.querySelectorAll('.w-dyn-item'));
       var slugs = kort.map(function (it) { var a = it.querySelector('a[data-slug]'); return a ? a.getAttribute('data-slug') : ''; });
@@ -69,8 +77,10 @@
 
     /* Rubrik och länk till rollens sida */
     var namn = NAMN[vald.roll];
-    var sektion = behallare.parentNode;
-    var rubrik = sektion && [].slice.call(sektion.querySelectorAll('h2,h3')).filter(function (h) { return /Fler AI-mallar/.test(h.textContent); })[0];
+    var rubrik = null, upp = behallare;
+    for (var steg = 0; upp && !rubrik && steg < 6; steg++, upp = upp.parentNode) {
+      rubrik = [].slice.call(upp.querySelectorAll ? upp.querySelectorAll('h2,h3') : []).filter(function (h) { return /^\s*Fler AI-mallar\s*$/.test(h.textContent); })[0] || null;
+    }
     if (rubrik && namn) rubrik.textContent = 'Fler AI-mallar för ' + namn;
     var lank = document.createElement('a');
     lank.className = 'mr-alla';
