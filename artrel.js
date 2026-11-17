@@ -40,13 +40,23 @@
     var vald = grupper.filter(function (g) { return amne && g.getAttribute('data-amne') === amne; })[0];
     if (!vald) return;
 
-    var visade = 0;
-    [].slice.call(vald.querySelectorAll('.w-dyn-item')).forEach(function (it) {
+    /* Olika artiklar i samma ämne visar olika förslag: starta på en plats
+       som räknas fram ur sluggen, så sprids länkarna över hela ämnet */
+    var kort = [].slice.call(vald.querySelectorAll('.w-dyn-item')).filter(function (it) {
       var a = it.querySelector('a[data-slug]');
-      var ok = !(a && a.getAttribute('data-slug') === slug) && visade < ANTAL;
-      it.style.display = ok ? '' : 'none';
-      if (ok) visade++;
+      if (a && a.getAttribute('data-slug') === slug) { it.style.display = 'none'; return false; }
+      return true;
     });
+    var hash = 0;
+    for (var i = 0; i < slug.length; i++) hash = (hash * 31 + slug.charCodeAt(i)) % 9973;
+    var start = kort.length ? hash % kort.length : 0, visade = 0;
+    var lista = kort.length ? kort[0].parentNode : null;
+    for (var j = 0; j < kort.length; j++) {
+      var it = kort[(start + j) % kort.length];
+      var ok = visade < ANTAL;
+      it.style.display = ok ? '' : 'none';
+      if (ok) { lista.appendChild(it); visade++; }
+    }
     if (visade < 2) return; /* för få i ämnet: behåll reservlistan */
     vald.classList.add('is-vald');
 
