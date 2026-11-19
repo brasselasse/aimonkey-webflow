@@ -1564,7 +1564,7 @@
     if (S.steg !== 'klar') { S.justera = ''; S.redigera = false; }
     var vy = S.steg === 'laddar' ? vyLaddar() : S.steg === 'start' ? vyStart() : S.steg === 'fyll' ? vyFyll() : S.steg === 'opt' ? vyOpt() : S.steg === 'bygger' ? vyBygger() : vyKlar();
     root.innerHTML = '<div class="pgn' + (S.steg === 'opt' ? ' is-bred' : '') + '"><div class="pgn-top"><span class="pgn-logo">Promptgeneratorn</span>' + stegrad() + '</div>' + kBarHtml() + vy + '</div>' + barHtml() + arkHtml() + aiArkHtml();
-    if (S.steg === 'start') { ritaTraffar(); }
+    if (S.steg === 'start') { ritaTraffar(); if (!bibliotek && S.text.trim().length >= 3) laddaBibliotek(ritaTraffar); }
     vaxaAlla();
     var nyckel = S.steg + ':' + S.optIdx;
     if (forraSteg !== null && forraSteg !== nyckel) {
@@ -1780,7 +1780,10 @@
     if (b.hasAttribute('data-exempel')) {
       S.text = EXEMPEL[+b.getAttribute('data-exempel')]; S.typ = null; S.mallNamn = '';
       var ta = root.querySelector('[data-text]'); if (ta) { ta.value = S.text; ta.focus(); }
-      ritaTraffar(); return;
+      /* Mallbiblioteket laddas först när rutan får fokus. Vid första klicket på ett
+         exempel var det inte hämtat än, så träffarna syntes först vid andra klicket. */
+      if (!bibliotek) laddaBibliotek(ritaTraffar); else ritaTraffar();
+      return;
     }
     if (b.hasAttribute('data-bygg')) {
       S.raw = '';
